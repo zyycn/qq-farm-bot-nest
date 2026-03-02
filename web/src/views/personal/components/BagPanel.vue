@@ -41,7 +41,7 @@ function onImageError(id: string | number) {
               class="h-6 w-6 object-contain"
               loading="lazy"
               @error="onImageError(item.id)"
-            />
+            >
             <span v-else class="text-sm font-bold a-color-text-tertiary">{{ (item.name || '物').slice(0, 1) }}</span>
           </div>
           <div class="min-w-0 flex-1">

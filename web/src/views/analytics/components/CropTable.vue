@@ -16,12 +16,13 @@ const pageSize = ref(50)
 
 const filteredList = computed(() => {
   const q = props.searchQuery.trim().toLowerCase()
-  if (!q) return props.list
+  if (!q)
+    return props.list
   return props.list.filter(
     item =>
-      (item.name || '').toLowerCase().includes(q) ||
-      String(item.seedId || '').includes(q) ||
-      String(item.level || '').includes(q)
+      (item.name || '').toLowerCase().includes(q)
+      || String(item.seedId || '').includes(q)
+      || String(item.level || '').includes(q),
   )
 })
 
@@ -34,18 +35,21 @@ watch(
   () => [props.searchQuery],
   () => {
     currentPage.value = 1
-  }
+  },
 )
 
 function formatLv(level: any) {
-  if (level === null || level === undefined || level === '' || Number(level) < 0) return '未知'
+  if (level === null || level === undefined || level === '' || Number(level) < 0)
+    return '未知'
   return String(level)
 }
 
 function formatGrowTime(seconds: any) {
   const s = Number(seconds)
-  if (!Number.isFinite(s) || s <= 0) return '0秒'
-  if (s < 60) return `${s}秒`
+  if (!Number.isFinite(s) || s <= 0)
+    return '0秒'
+  if (s < 60)
+    return `${s}秒`
   if (s < 3600) {
     const mins = Math.floor(s / 60)
     const secs = s % 60
@@ -80,7 +84,7 @@ function getHighlightColor(key: string): string {
               :class="[
                 (currentPage - 1) * pageSize + index === 0 ? 'i-twemoji-1st-place-medal' : '',
                 (currentPage - 1) * pageSize + index === 1 ? 'i-twemoji-2nd-place-medal' : '',
-                (currentPage - 1) * pageSize + index === 2 ? 'i-twemoji-3rd-place-medal' : ''
+                (currentPage - 1) * pageSize + index === 2 ? 'i-twemoji-3rd-place-medal' : '',
               ]"
             />
           </div>
@@ -98,7 +102,7 @@ function getHighlightColor(key: string): string {
                 class="h-7 w-7 object-contain"
                 loading="lazy"
                 @error="imageErrors[record.seedId] = true"
-              />
+              >
               <div v-else class="i-twemoji-seedling text-lg" />
             </div>
             <div class="min-w-0 flex flex-col gap-1.5">
@@ -106,9 +110,7 @@ function getHighlightColor(key: string): string {
                 {{ record.name }}
               </div>
               <div class="flex items-center gap-1.5">
-                <span class="rounded px-1.5 py-px text-xs font-medium a-color-primary-text a-bg-primary-bg"
-                  >Lv{{ formatLv(record.level) }}</span
-                >
+                <span class="rounded px-1.5 py-px text-xs font-medium a-color-primary-text a-bg-primary-bg">Lv{{ formatLv(record.level) }}</span>
                 <span class="text-xs a-color-text-tertiary">{{ record.seasons }}季</span>
               </div>
             </div>
@@ -123,34 +125,30 @@ function getHighlightColor(key: string): string {
           <span
             class="font-bold"
             :style="{ color: sortKey === 'exp' ? getHighlightColor('exp') : 'var(--ant-color-text)' }"
-            >{{ record.expPerHour }}</span
-          >
+          >{{ record.expPerHour }}</span>
         </template>
 
         <template v-else-if="column.key === 'normalFertilizerExpPerHour'">
           <span
             class="font-bold"
             :style="{ color: sortKey === 'fert' ? getHighlightColor('fert') : 'var(--ant-color-text)' }"
-            >{{ record.normalFertilizerExpPerHour ?? '-' }}</span
-          >
+          >{{ record.normalFertilizerExpPerHour ?? '-' }}</span>
         </template>
 
         <template v-else-if="column.key === 'profitPerHour'">
           <span
             class="font-bold"
             :style="{ color: sortKey === 'profit' ? getHighlightColor('profit') : 'var(--ant-color-text)' }"
-            >{{ record.profitPerHour ?? '-' }}</span
-          >
+          >{{ record.profitPerHour ?? '-' }}</span>
         </template>
 
         <template v-else-if="column.key === 'normalFertilizerProfitPerHour'">
           <span
             class="font-bold"
             :style="{
-              color: sortKey === 'fert_profit' ? getHighlightColor('fert_profit') : 'var(--ant-color-text)'
+              color: sortKey === 'fert_profit' ? getHighlightColor('fert_profit') : 'var(--ant-color-text)',
             }"
-            >{{ record.normalFertilizerProfitPerHour ?? '-' }}</span
-          >
+          >{{ record.normalFertilizerProfitPerHour ?? '-' }}</span>
         </template>
       </template>
 

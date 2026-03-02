@@ -7,8 +7,10 @@ defineProps<{
 }>()
 
 function formatBucketTime(item: any): string {
-  if (!item) return '0.0h'
-  if (item.hoursText) return item.hoursText.replace('小时', 'h')
+  if (!item)
+    return '0.0h'
+  if (item.hoursText)
+    return item.hoursText.replace('小时', 'h')
   const count = Number(item.count || 0)
   return `${(count / 3600).toFixed(1)}h`
 }

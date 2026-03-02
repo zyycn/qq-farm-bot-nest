@@ -22,12 +22,12 @@ const emit = defineEmits<{
 
 function getFriendStatusTags(friend: any) {
   const p = friend.plant || {}
-  const tags: { label: string; icon: string; class: string }[] = []
+  const tags: { label: string, icon: string, class: string }[] = []
   if (p.stealNum) {
     tags.push({
       label: `可偷 ${p.stealNum}`,
       icon: 'i-twemoji-pinching-hand',
-      class: 'a-bg-fill-tertiary a-color-text-secondary'
+      class: 'a-bg-fill-tertiary a-color-text-secondary',
     })
   }
   if (p.dryNum) {
@@ -44,9 +44,11 @@ function getFriendStatusTags(friend: any) {
 
 function getFriendAvatar(friend: any) {
   const direct = String(friend?.avatarUrl || friend?.avatar_url || '').trim()
-  if (direct) return direct
+  if (direct)
+    return direct
   const uin = String(friend?.uin || '').trim()
-  if (uin) return `https://q1.qlogo.cn/g?b=qq&nk=${uin}&s=100`
+  if (uin)
+    return `https://q1.qlogo.cn/g?b=qq&nk=${uin}&s=100`
   return ''
 }
 
@@ -56,7 +58,8 @@ function getFriendAvatarKey(friend: any) {
 
 const canShowAvatar = computed(() => {
   const key = getFriendAvatarKey(props.friend)
-  if (!key) return false
+  if (!key)
+    return false
   return !!getFriendAvatar(props.friend) && !props.avatarErrorKeys.has(key)
 })
 
@@ -99,7 +102,9 @@ function handleToggleBlacklist(e: Event) {
       <div class="min-w-0 flex-1">
         <div class="flex items-center gap-2">
           <span class="truncate font-semibold a-color-text">{{ friend.name }}</span>
-          <a-tag v-if="blacklisted" size="small" color="default"> 屏蔽 </a-tag>
+          <a-tag v-if="blacklisted" size="small" color="default">
+            屏蔽
+          </a-tag>
         </div>
         <div class="mt-0.5 flex flex-wrap items-center gap-1.5">
           <template v-if="getFriendStatusTags(friend).length">

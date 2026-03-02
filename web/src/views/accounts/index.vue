@@ -48,14 +48,16 @@ async function confirmDelete() {
       await accountStore.deleteAccount(accountToDelete.value.id)
       accountToDelete.value = null
       showDeleteConfirm.value = false
-    } finally {
+    }
+    finally {
       deleteLoading.value = false
     }
   }
 }
 
 async function toggleAccount(account: any) {
-  if (account.running) await accountStore.stopAccount(account.id)
+  if (account.running)
+    await accountStore.stopAccount(account.id)
   else await accountStore.startAccount(account.id)
 }
 
@@ -65,11 +67,13 @@ function handleSaved() {
 
 function getDisplayName(acc: any) {
   if (acc.name) {
-    if (acc.nick) return `${acc.nick} (${acc.name})`
+    if (acc.nick)
+      return `${acc.nick} (${acc.name})`
     return acc.name
   }
 
-  if (acc.nick) return acc.nick
+  if (acc.nick)
+    return acc.nick
 
   return acc.uin
 }
@@ -82,18 +86,22 @@ function getDisplayName(acc: any) {
       <div class="flex items-center gap-2 font-bold a-color-text">
         <div class="i-twemoji-bust-in-silhouette text-lg" />
         账号管理
-        <span v-if="accounts.length" class="ml-1 text-sm font-normal a-color-text-tertiary"
-          >{{ accounts.length }} 个账号</span
-        >
+        <span v-if="accounts.length" class="ml-1 text-sm font-normal a-color-text-tertiary">{{ accounts.length }} 个账号</span>
       </div>
-      <a-button type="primary" @click="openAddModal"> 添加账号 </a-button>
+      <a-button type="primary" @click="openAddModal">
+        添加账号
+      </a-button>
     </div>
 
     <div v-if="accounts.length === 0" class="flex flex-1 flex-col items-center justify-center gap-4">
       <div class="i-twemoji-bust-in-silhouette text-6xl opacity-20" />
       <div class="text-center">
-        <div class="font-medium a-color-text-secondary">暂无账号</div>
-        <div class="mt-1 text-sm a-color-text-tertiary">添加一个账号开始自动化管理农场</div>
+        <div class="font-medium a-color-text-secondary">
+          暂无账号
+        </div>
+        <div class="mt-1 text-sm a-color-text-tertiary">
+          添加一个账号开始自动化管理农场
+        </div>
       </div>
     </div>
 

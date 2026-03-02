@@ -5,12 +5,12 @@ import { EVENTS, LOG_LEVELS, MODULES } from '../constants'
 
 const props = defineProps<{
   logs: any[]
-  filter: { module: string; event: string; keyword: string; isWarn: string }
+  filter: { module: string, event: string, keyword: string, isWarn: string }
 }>()
 
 const emit = defineEmits<{
   'update:filter': [value: typeof props.filter]
-  filterChange: []
+  'filterChange': []
 }>()
 
 function updateFilterField(key: keyof typeof props.filter, value: string) {
@@ -42,7 +42,7 @@ const logContainer = ref<HTMLElement | null>(null)
 const autoScroll = ref(true)
 
 const eventLabelMap: Record<string, string> = Object.fromEntries(
-  EVENTS.filter(e => e.value).map(e => [e.value, e.label])
+  EVENTS.filter(e => e.value).map(e => [e.value, e.label]),
 )
 
 function getEventLabel(event: string): string {
@@ -50,22 +50,26 @@ function getEventLabel(event: string): string {
 }
 
 function formatLogTime(timeStr: string): string {
-  if (!timeStr) return ''
+  if (!timeStr)
+    return ''
   const parts = timeStr.split(' ')
   return (parts.length > 1 ? parts[1] : timeStr) ?? ''
 }
 
 function onLogScroll(e: Event) {
   const el = e.target as HTMLElement
-  if (!el) return
+  if (!el)
+    return
   const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 50
   autoScroll.value = isNearBottom
 }
 
 function scrollLogsToBottom(force = false) {
   nextTick(() => {
-    if (!logContainer.value) return
-    if (!force && !autoScroll.value) return
+    if (!logContainer.value)
+      return
+    if (!force && !autoScroll.value)
+      return
     logContainer.value.scrollTop = logContainer.value.scrollHeight
   })
 }
@@ -73,7 +77,7 @@ function scrollLogsToBottom(force = false) {
 watch(
   () => props.logs,
   () => scrollLogsToBottom(),
-  { deep: true }
+  { deep: true },
 )
 
 onMounted(() => {

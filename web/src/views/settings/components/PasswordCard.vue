@@ -11,7 +11,7 @@ function handleSubmit() {
   emit('submit')
 }
 
-const passwordForm = defineModel<{ old: string; new: string; confirm: string }>('passwordForm', { required: true })
+const passwordForm = defineModel<{ old: string, new: string, confirm: string }>('passwordForm', { required: true })
 </script>
 
 <template>
@@ -22,7 +22,9 @@ const passwordForm = defineModel<{ old: string; new: string; confirm: string }>(
         管理密码
         <span class="ml-1 text-sm font-normal a-color-text-tertiary">建议修改默认密码</span>
       </div>
-      <a-button type="primary" size="small" :loading="saving" @click="handleSubmit"> 修改密码 </a-button>
+      <a-button type="primary" size="small" :loading="saving" @click="handleSubmit">
+        修改密码
+      </a-button>
     </div>
     <a-form layout="vertical">
       <a-form-item label="当前密码">

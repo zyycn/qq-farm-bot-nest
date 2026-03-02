@@ -22,9 +22,11 @@ async function handleLogin() {
     const res = await authApi.login(password.value)
     token.value = res.token
     router.push('/')
-  } catch (e: any) {
+  }
+  catch (e: any) {
     error.value = e.message || '登录异常'
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -81,9 +83,13 @@ async function handleLogin() {
       >
         <!-- Brand -->
         <div class="from-green-50 flex flex-col items-center to-white bg-gradient-to-b px-6 pb-5 pt-8">
-          <img src="/icon.ico" alt="" class="h-20 w-20" />
-          <h1 class="text-xl font-bold tracking-tight a-color-text">QQ经典农场助手 PLUS</h1>
-          <p class="mt-1 text-[13px] a-color-text-tertiary">输入管理密码以继续</p>
+          <img src="/icon.ico" alt="" class="h-20 w-20">
+          <h1 class="text-xl font-bold tracking-tight a-color-text">
+            QQ经典农场助手 PLUS
+          </h1>
+          <p class="mt-1 text-[13px] a-color-text-tertiary">
+            输入管理密码以继续
+          </p>
         </div>
 
         <!-- Form -->

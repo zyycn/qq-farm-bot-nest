@@ -4,8 +4,8 @@ import { getPlatformIcon } from '@/stores'
 
 defineProps<{
   collapsed?: boolean
-  displayInfo: { primary: string; secondary: string }
-  connectionStatus: { text: string; badge: 'error' | 'default' | 'processing' }
+  displayInfo: { primary: string, secondary: string }
+  connectionStatus: { text: string, badge: 'error' | 'default' | 'processing' }
   accountOptions: any[]
   currentAccount: any
 }>()
@@ -52,7 +52,9 @@ const selectedAccountId = defineModel<any>('selectedAccountId', { required: true
             </div>
           </template>
         </a-select>
-        <div v-else class="py-1 text-center text-sm a-color-text-tertiary">暂无账号</div>
+        <div v-else class="py-1 text-center text-sm a-color-text-tertiary">
+          暂无账号
+        </div>
         <div class="mt-1.5 flex items-center justify-between">
           <a-button
             size="small"
@@ -63,7 +65,9 @@ const selectedAccountId = defineModel<any>('selectedAccountId', { required: true
           >
             修改备注
           </a-button>
-          <a-button size="small" type="link" class="!px-0 !text-sm" @click="emit('addAccount')"> + 添加账号 </a-button>
+          <a-button size="small" type="link" class="!px-0 !text-sm" @click="emit('addAccount')">
+            + 添加账号
+          </a-button>
         </div>
       </div>
     </div>

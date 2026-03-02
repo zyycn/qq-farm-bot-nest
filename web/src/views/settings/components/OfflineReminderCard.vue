@@ -33,7 +33,8 @@ const currentChannelDocUrl = computed(() => {
 
 function openChannelDocs() {
   const url = currentChannelDocUrl.value
-  if (!url) return
+  if (!url)
+    return
   window.open(url, '_blank', 'noopener,noreferrer')
 }
 </script>
@@ -45,7 +46,9 @@ function openChannelDocs() {
         <div class="i-twemoji-bell" />
         下线提醒
       </div>
-      <a-button type="primary" size="small" :loading="saving" @click="handleSave"> 保存提醒设置 </a-button>
+      <a-button type="primary" size="small" :loading="saving" @click="handleSave">
+        保存提醒设置
+      </a-button>
     </div>
     <a-form layout="vertical">
       <div class="grid grid-cols-2 gap-x-3">

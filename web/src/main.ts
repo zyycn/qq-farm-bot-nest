@@ -1,4 +1,3 @@
-import AntdvNext from 'antdv-next'
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 import App from './App.vue'
@@ -12,6 +11,5 @@ const pinia = createPinia()
 
 app.use(pinia)
 app.use(router)
-app.use(AntdvNext)
 
 app.mount('#app')

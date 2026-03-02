@@ -1,7 +1,9 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath, URL } from 'node:url'
+import { AntdvNextResolver } from '@antdv-next/auto-import-resolver'
 import vue from '@vitejs/plugin-vue'
 import UnoCSS from 'unocss/vite'
+import Components from 'unplugin-vue-components/vite'
 import { defineConfig } from 'vite'
 import { analyzer } from 'vite-bundle-analyzer'
 import viteCompression from 'vite-plugin-compression'
@@ -23,6 +25,10 @@ function createProxy(path: string, extra: Record<string, any> = {}) {
 function createPlugins(mode: string) {
   const base = [
     vue(),
+    Components({
+      resolvers: [AntdvNextResolver()],
+      dts: false,
+    }),
     UnoCSS(),
     viteCompression({
       threshold: 10240,

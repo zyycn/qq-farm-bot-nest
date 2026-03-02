@@ -20,30 +20,33 @@ const errorMessage = ref('')
 
 watch(
   () => props.show,
-  val => {
+  (val) => {
     errorMessage.value = ''
     if (val && props.account) {
       name.value = props.account.name || ''
     }
-  }
+  },
 )
 
 async function save() {
-  if (!props.account) return
+  if (!props.account)
+    return
   loading.value = true
   errorMessage.value = ''
   try {
     const payload = {
       id: props.account.id,
-      name: name.value
+      name: name.value,
     }
 
     await accountApi.saveAccount(payload)
     emit('saved')
     emit('close')
-  } catch (e: any) {
+  }
+  catch (e: any) {
     errorMessage.value = `保存失败: ${e.message}`
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -89,7 +92,9 @@ async function save() {
     </a-form>
 
     <div class="flex items-center justify-end gap-2 a-border-t-border-sec">
-      <a-button :disabled="loading" @click="handleClose"> 取消 </a-button>
+      <a-button :disabled="loading" @click="handleClose">
+        取消
+      </a-button>
       <a-button type="primary" :loading="loading" @click="save">
         <template v-if="!loading" #icon>
           <div class="i-twemoji-check-mark-button" />

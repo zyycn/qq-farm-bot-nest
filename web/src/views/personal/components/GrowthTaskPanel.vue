@@ -1,14 +1,17 @@
 <script setup lang="ts">
 defineProps<{
-  growth: { doneToday?: boolean; completedCount?: number; totalCount?: number; tasks?: any[] } | null
+  growth: { doneToday?: boolean, completedCount?: number, totalCount?: number, tasks?: any[] } | null
 }>()
 
 function formatTaskProgress(task: any) {
-  if (!task) return '未开始'
+  if (!task)
+    return '未开始'
   const current = Number(task.progress ?? task.current) || 0
   const target = Number(task.totalProgress ?? task.target) || 0
-  if (!current && !target) return '未开始'
-  if (target && current >= target) return '已完成'
+  if (!current && !target)
+    return '未开始'
+  if (target && current >= target)
+    return '已完成'
   return `${current}/${target}`
 }
 </script>

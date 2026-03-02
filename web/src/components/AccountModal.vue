@@ -12,19 +12,20 @@ const emit = defineEmits(['close', 'saved'])
 
 const activeTab = ref('qr')
 const loading = ref(false)
-const qrData = ref<{ image?: string; code: string; qrcode?: string; url?: string } | null>(null)
+const qrData = ref<{ image?: string, code: string, qrcode?: string, url?: string } | null>(null)
 const qrStatus = ref('')
 const errorMessage = ref('')
 
 const form = reactive({
   name: '',
   code: '',
-  platform: 'qq'
+  platform: 'qq',
 })
 
 const { pause: stopQRCheck, resume: startQRCheck } = useIntervalFn(
   async () => {
-    if (!qrData.value) return
+    if (!qrData.value)
+      return
     try {
       const res = await accountApi.checkQR(qrData.value.code)
       const status = res.status
@@ -44,26 +45,31 @@ const { pause: stopQRCheck, resume: startQRCheck } = useIntervalFn(
           code: authCode,
           loginType: 'qr',
           name: props.editData ? props.editData.name || accName : accName,
-          platform: 'qq'
+          platform: 'qq',
         })
-      } else if (status === 'Used') {
+      }
+      else if (status === 'Used') {
         qrStatus.value = '二维码已失效'
         stopQRCheck()
-      } else if (status === 'Wait') {
+      }
+      else if (status === 'Wait') {
         qrStatus.value = '等待扫码...'
-      } else {
+      }
+      else {
         qrStatus.value = `错误: ${res.error || '未知'}`
       }
-    } catch (e) {
+    }
+    catch (e) {
       console.error(e)
     }
   },
   1000,
-  { immediate: false }
+  { immediate: false },
 )
 
 async function loadQRCode() {
-  if (activeTab.value !== 'qr') return
+  if (activeTab.value !== 'qr')
+    return
   loading.value = true
   qrStatus.value = '正在获取二维码'
   errorMessage.value = ''
@@ -72,10 +78,12 @@ async function loadQRCode() {
     qrData.value = res
     qrStatus.value = '请使用手机QQ扫码'
     startQRCheck()
-  } catch (e: any) {
+  }
+  catch (e: any) {
     qrStatus.value = `获取失败: ${e.message}`
     console.error(e)
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -83,7 +91,8 @@ async function loadQRCode() {
 const isMobile = computed(() => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent))
 
 function openQRCodeLoginUrl() {
-  if (!qrData.value?.url) return
+  if (!qrData.value?.url)
+    return
 
   const url = qrData.value.url
   if (!isMobile.value) {
@@ -95,7 +104,8 @@ function openQRCodeLoginUrl() {
     const b64 = btoa(unescape(encodeURIComponent(url)))
     const qqDeepLink = `mqqapi://forward/url?url_prefix=${encodeURIComponent(b64)}&version=1&src_type=web`
     window.location.href = qqDeepLink
-  } catch (e) {
+  }
+  catch (e) {
     console.error('深度链接错误:', e)
     window.location.href = url
   }
@@ -108,9 +118,11 @@ async function addAccount(data: any) {
     await accountApi.saveAccount(data)
     emit('saved')
     close()
-  } catch (e: any) {
+  }
+  catch (e: any) {
     errorMessage.value = `保存失败: ${e.message}`
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -136,31 +148,33 @@ async function submitManual() {
 
   let payload = {}
   if (props.editData) {
-    const onlyNameChanged =
-      form.name !== props.editData.name &&
-      form.code === (props.editData.code || '') &&
-      form.platform === (props.editData.platform || 'qq')
+    const onlyNameChanged
+      = form.name !== props.editData.name
+        && form.code === (props.editData.code || '')
+        && form.platform === (props.editData.platform || 'qq')
 
     if (onlyNameChanged) {
       payload = {
         id: props.editData.id,
-        name: form.name
+        name: form.name,
       }
-    } else {
+    }
+    else {
       payload = {
         id: props.editData.id,
         name: form.name,
         code,
         platform: form.platform,
-        loginType: 'manual'
+        loginType: 'manual',
       }
     }
-  } else {
+  }
+  else {
     payload = {
       name: form.name,
       code,
       platform: form.platform,
-      loginType: 'manual'
+      loginType: 'manual',
     }
   }
 
@@ -174,7 +188,7 @@ function close() {
 
 watch(
   () => props.show,
-  newVal => {
+  (newVal) => {
     if (newVal) {
       errorMessage.value = ''
       if (props.editData) {
@@ -183,19 +197,21 @@ watch(
         form.code = props.editData.code || ''
         form.platform = props.editData.platform || 'qq'
         loadQRCode()
-      } else {
+      }
+      else {
         activeTab.value = 'qr'
         form.name = ''
         form.code = ''
         form.platform = 'qq'
         loadQRCode()
       }
-    } else {
+    }
+    else {
       stopQRCheck()
       qrData.value = null
       qrStatus.value = ''
     }
-  }
+  },
 )
 </script>
 
@@ -249,7 +265,9 @@ watch(
 
     <!-- QR Tab -->
     <div v-if="activeTab === 'qr'" class="flex flex-col items-center gap-3">
-      <div class="text-sm a-color-text-tertiary">使用手机QQ扫码，默认使用QQ昵称</div>
+      <div class="text-sm a-color-text-tertiary">
+        使用手机QQ扫码，默认使用QQ昵称
+      </div>
 
       <div
         class="relative overflow-hidden border-2 rounded-xl border-dashed p-2 transition-colors a-bg-container"
@@ -269,7 +287,7 @@ watch(
                 : qrData.qrcode
             "
             class="h-52 w-52 rounded-lg"
-          />
+          >
         </div>
         <div v-else class="h-52 w-52 flex flex-col items-center justify-center gap-2 rounded-lg a-bg-fill-tertiary">
           <a-spin v-if="loading" />
@@ -331,14 +349,16 @@ watch(
             v-model:value="form.platform"
             :options="[
               { label: 'QQ小程序', value: 'qq' },
-              { label: '微信小程序', value: 'wx' }
+              { label: '微信小程序', value: 'wx' },
             ]"
           />
         </a-form-item>
       </a-form>
 
       <div class="flex items-center justify-end gap-2 border-t border-t-solid pt-3 a-border-t-border-sec">
-        <a-button @click="close"> 取消 </a-button>
+        <a-button @click="close">
+          取消
+        </a-button>
         <a-button type="primary" :loading="loading" @click="submitManual">
           <template v-if="!loading" #icon>
             <div class="i-twemoji-check-mark-button" />

@@ -10,7 +10,7 @@ const GIFT_ICONS: Record<string, string> = {
   daily_share: 'i-twemoji-loudspeaker',
   vip_daily_gift: 'i-twemoji-crown',
   month_card_gift: 'i-twemoji-calendar',
-  open_server_gift: 'i-twemoji-wrapped-gift'
+  open_server_gift: 'i-twemoji-wrapped-gift',
 }
 
 function getGiftIcon(key: string) {
@@ -18,10 +18,14 @@ function getGiftIcon(key: string) {
 }
 
 function getGiftStatus(gift: any) {
-  if (gift.key === 'vip_daily_gift' && gift.hasGift === false) return { text: '未开通', color: 'default' as const }
-  if (gift.key === 'month_card_gift' && gift.hasCard === false) return { text: '未开通', color: 'default' as const }
-  if (gift.doneToday) return { text: '已完成', color: 'green' as const }
-  if (gift.enabled) return { text: '等待中', color: 'blue' as const }
+  if (gift.key === 'vip_daily_gift' && gift.hasGift === false)
+    return { text: '未开通', color: 'default' as const }
+  if (gift.key === 'month_card_gift' && gift.hasCard === false)
+    return { text: '未开通', color: 'default' as const }
+  if (gift.doneToday)
+    return { text: '已完成', color: 'green' as const }
+  if (gift.enabled)
+    return { text: '等待中', color: 'blue' as const }
   return { text: '未开启', color: 'default' as const }
 }
 </script>

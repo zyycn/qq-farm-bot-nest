@@ -2,14 +2,15 @@
 defineProps<{
   displayName: string
   level: number
-  levelProgress?: { current: number; needed: number } | null
+  levelProgress?: { current: number, needed: number } | null
   expRate: string
   timeToLevel: string
   connected: boolean
 }>()
 
-function getExpPercent(p: { current: number; needed: number } | null | undefined): number {
-  if (!p || !p.needed) return 0
+function getExpPercent(p: { current: number, needed: number } | null | undefined): number {
+  if (!p || !p.needed)
+    return 0
   return Math.min(100, Math.max(0, (p.current / p.needed) * 100))
 }
 </script>
@@ -23,7 +24,9 @@ function getExpPercent(p: { current: number; needed: number } | null | undefined
           <div class="truncate font-bold leading-snug a-color-text" :title="displayName">
             {{ displayName }}
           </div>
-          <div class="a-color-text-secondary">Lv.{{ level || 0 }}</div>
+          <div class="a-color-text-secondary">
+            Lv.{{ level || 0 }}
+          </div>
         </div>
       </div>
       <a-badge :status="connected ? 'processing' : 'error'" :text="connected ? '在线' : '离线'" />

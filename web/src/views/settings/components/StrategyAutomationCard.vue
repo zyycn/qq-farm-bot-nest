@@ -20,8 +20,8 @@ function handleSave() {
 const localSettings = defineModel<{
   plantingStrategy: string
   preferredSeedId: number
-  intervals: { farmMin: number; farmMax: number; friendMin: number; friendMax: number }
-  friendQuietHours: { enabled: boolean; start: string; end: string }
+  intervals: { farmMin: number, farmMax: number, friendMin: number, friendMax: number }
+  friendQuietHours: { enabled: boolean, start: string, end: string }
   stealCropBlacklist: number[]
   automation: Record<string, boolean | string>
 }>('localSettings', { required: true })
@@ -33,18 +33,19 @@ const preferredSeedOptions = computed(() => {
       ...props.seeds.map((seed: any) => ({
         label: `${seed.requiredLevel}级 ${seed.name} (${seed.price}金)`,
         value: seed.seedId,
-        disabled: seed.locked || seed.soldOut
-      }))
+        disabled: seed.locked || seed.soldOut,
+      })),
     )
   }
   return options
 })
 
 const stealBlacklistOptions = computed(() => {
-  if (!props.seeds || props.seeds.length === 0) return []
+  if (!props.seeds || props.seeds.length === 0)
+    return []
   return props.seeds.map((seed: any) => ({
     label: `${seed.requiredLevel}级 ${seed.name}`,
-    value: seed.seedId
+    value: seed.seedId,
   }))
 })
 
@@ -80,10 +81,12 @@ watchEffect(async () => {
       if (match) {
         const seed = available.find((s: any) => s.seedId === Number(match.seedId))
         strategyPreviewLabel.value = seed ? `${seed.requiredLevel}级 ${seed.name}` : null
-      } else {
+      }
+      else {
         strategyPreviewLabel.value = '暂无匹配种子'
       }
-    } catch {
+    }
+    catch {
       strategyPreviewLabel.value = null
     }
   }
@@ -97,7 +100,9 @@ watchEffect(async () => {
         <div class="i-twemoji-seedling" />
         种植策略与间隔
       </div>
-      <a-button type="primary" size="small" :loading="saving" @click="handleSave"> 保存账号设置 </a-button>
+      <a-button type="primary" size="small" :loading="saving" @click="handleSave">
+        保存账号设置
+      </a-button>
     </div>
     <div class="grid grid-cols-2 gap-x-3 lg:grid-cols-6 md:grid-cols-3">
       <a-form layout="vertical" class="lg:col-span-2">
@@ -219,9 +224,7 @@ watchEffect(async () => {
         <a-switch v-model:checked="localSettings.automation.friend_bad" size="small" /><span>捣乱</span>
       </label>
       <label class="flex cursor-pointer items-center gap-2">
-        <a-switch v-model:checked="localSettings.automation.friend_help_exp_limit" size="small" /><span
-          >经验上限停帮</span
-        >
+        <a-switch v-model:checked="localSettings.automation.friend_help_exp_limit" size="small" /><span>经验上限停帮</span>
       </label>
     </div>
     <div class="grid grid-cols-1 mt-3 w-full gap-x-3 md:grid-cols-2">

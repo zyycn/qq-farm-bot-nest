@@ -8,7 +8,7 @@ defineProps<{
   formattedTime: Ref<string> | string
   version: string
   serverVersion: string
-  connectionStatus: { text: string; badge: 'error' | 'default' | 'processing' }
+  connectionStatus: { text: string, badge: 'error' | 'default' | 'processing' }
 }>()
 </script>
 
