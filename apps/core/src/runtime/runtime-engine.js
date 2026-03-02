@@ -1,3 +1,4 @@
+const fs = require('node:fs')
 const { fork } = require('node:child_process')
 const path = require('node:path')
 const process = require('node:process');
@@ -15,7 +16,9 @@ const OPERATION_KEYS = ['harvest', 'water', 'weed', 'bug', 'fertilize', 'plant',
 function createRuntimeEngine(options = {}) {
   const processRef = options.processRef || process
   const mainEntryPath = options.mainEntryPath || path.join(__dirname, '../../client.js')
-  const workerScriptPath = options.workerScriptPath || path.join(__dirname, '../core/worker.js')
+  const bundledWorker = path.join(__dirname, '../worker/index.js')
+  const devWorker = path.join(__dirname, '../core/worker.js')
+  const workerScriptPath = options.workerScriptPath || (fs.existsSync(bundledWorker) ? bundledWorker : devWorker)
   const runtimeMode = String(options.runtimeMode || processRef.env.FARM_RUNTIME_MODE || 'thread').toLowerCase()
   const onStatusSync = typeof options.onStatusSync === 'function' ? options.onStatusSync : null
   const onLog = typeof options.onLog === 'function' ? options.onLog : null

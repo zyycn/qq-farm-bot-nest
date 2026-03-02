@@ -19,23 +19,8 @@ RUN pnpm install --frozen-lockfile
 COPY apps/core ./apps/core
 COPY apps/web ./apps/web
 
-# Build web
+# Build web + core (ncc bundles core to dist/, no node_modules needed)
 RUN pnpm build
-
-# ==========================================
-FROM node:20-alpine AS prod-deps
-
-WORKDIR /app
-
-RUN corepack enable
-
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-COPY apps/core/package.json ./apps/core/
-COPY apps/web/package.json ./apps/web/
-
-# Install only runtime deps for core
-RUN npm config set registry https://registry.npmmirror.com/
-RUN pnpm -C apps/core install --prod --frozen-lockfile
 
 # ==========================================
 
@@ -46,19 +31,14 @@ WORKDIR /app/core
 ENV NODE_ENV=production
 ENV TZ=Asia/Shanghai
 
-# Copy runtime deps
-COPY --from=prod-deps /app/node_modules ../node_modules/
-COPY --from=prod-deps /app/apps/core/node_modules ./node_modules/
-COPY --from=prod-deps /app/package.json ../package.json
+# Copy ncc bundle (no node_modules)
+COPY --from=builder /app/apps/core/dist ./
 
-# Copy core source
-COPY --from=builder /app/apps/core ./
-
-# Copy built web assets
+# Copy web assets
 COPY --from=builder /app/apps/web/dist ../web/dist
 
 # Expose port
 EXPOSE 3000
 
 # Start command
-CMD ["node", "client.js"]
+CMD ["node", "main/index.js"]

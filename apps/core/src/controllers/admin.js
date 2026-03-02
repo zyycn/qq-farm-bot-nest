@@ -79,7 +79,9 @@ function startAdminServer(dataProvider) {
         next();
     });
 
-    const webDist = path.join(__dirname, '../../../web/dist');
+    const webDistBundled = path.join(__dirname, '../../web/dist');
+    const webDistSource = path.join(__dirname, '../../../web/dist');
+    const webDist = fs.existsSync(webDistBundled) ? webDistBundled : webDistSource;
     if (fs.existsSync(webDist)) {
         // 带 hash 的静态资源：强缓存 30 天，immutable
         app.use('/assets', express.static(path.join(webDist, 'assets'), {

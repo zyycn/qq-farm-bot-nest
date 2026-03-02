@@ -4,6 +4,8 @@
   "packageManager": "pnpm@10.30.2",
   "scripts": {
     "build": "turbo run build",
+    "build:core": "turbo run build -F=core",
+    "build:web": "turbo run build -F=web",
     "dev": "turbo run dev",
     "dev:core": "turbo run dev -F=core",
     "dev:web": "turbo run dev -F=web",

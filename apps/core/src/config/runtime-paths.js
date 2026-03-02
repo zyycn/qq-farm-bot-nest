@@ -5,6 +5,12 @@ const process = require('node:process');
 const isPackaged = !!process.pkg;
 
 function getResourceRoot() {
+    // ncc bundle: proto/gameConfig at dist root (shared by main + worker)
+    const parent = path.join(__dirname, '..');
+    if (fs.existsSync(path.join(parent, 'proto'))) return parent;
+    // ncc main: proto in same dir as index.js
+    if (fs.existsSync(path.join(__dirname, 'proto'))) return __dirname;
+    // source: src/config -> src
     return path.join(__dirname, '..');
 }
 
