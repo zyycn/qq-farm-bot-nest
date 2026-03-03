@@ -12,6 +12,7 @@ export default antfu(
   {
     rules: {
       'ts/consistent-type-imports': 'off',
+      'ts/no-require-imports': 'off',
 
       'style/arrow-parens': ['error', 'as-needed', { requireForBlockBody: true }],
       'style/object-curly-spacing': ['error', 'always'],

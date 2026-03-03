@@ -76,12 +76,12 @@ export class AccountRunner {
 
   private log(msg: string, event?: string) {
     this.logger.log(msg)
-    this.callbacks.onLog?.({ msg, tag: '信息', meta: { module: 'system', ...(event && { event }) }, isWarn: false })
+    this.callbacks.onLog?.({ msg, tag: '系统', meta: { module: 'system', ...(event && { event }) }, isWarn: false })
   }
 
   private warn(msg: string, event?: string) {
     this.logger.warn(msg)
-    this.callbacks.onLog?.({ msg, tag: '警告', meta: { module: 'system', ...(event && { event }) }, isWarn: true })
+    this.callbacks.onLog?.({ msg, tag: '系统', meta: { module: 'system', ...(event && { event }) }, isWarn: true })
   }
 
   private forwardLog = (entry: any) => this.callbacks.onLog?.(entry)

@@ -38,12 +38,12 @@ export class FriendWorker {
 
   private log(msg: string, event?: string) {
     this.logger.log(msg)
-    this.onLog?.({ msg, tag: '信息', meta: { module: 'friend', ...(event && { event }) }, isWarn: false })
+    this.onLog?.({ msg, tag: '好友', meta: { module: 'friend', ...(event && { event }) }, isWarn: false })
   }
 
   private warn(msg: string, event?: string) {
     this.logger.warn(msg)
-    this.onLog?.({ msg, tag: '警告', meta: { module: 'friend', ...(event && { event }) }, isWarn: true })
+    this.onLog?.({ msg, tag: '好友', meta: { module: 'friend', ...(event && { event }) }, isWarn: true })
   }
 
   private get t() { return this.client.protoTypes }

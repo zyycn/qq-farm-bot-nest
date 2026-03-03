@@ -60,12 +60,12 @@ export class DailyRewardsWorker {
 
   private log(msg: string, event?: string) {
     this.logger.log(msg)
-    this.onLog?.({ msg, tag: '信息', meta: { module: 'task', ...(event && { event }) }, isWarn: false })
+    this.onLog?.({ msg, tag: '任务', meta: { module: 'task', ...(event && { event }) }, isWarn: false })
   }
 
   private warn(msg: string, event?: string) {
     this.logger.warn(msg)
-    this.onLog?.({ msg, tag: '警告', meta: { module: 'task', ...(event && { event }) }, isWarn: true })
+    this.onLog?.({ msg, tag: '任务', meta: { module: 'task', ...(event && { event }) }, isWarn: true })
   }
 
   // ========== Email ==========
@@ -348,7 +348,13 @@ export class DailyRewardsWorker {
       this.shareDone = getDateKey()
       return true
     } catch (e: any) {
-      this.warn(`领取分享奖励失败: ${e?.message}`, 'daily_share')
+      const msg = String(e?.message || '')
+      if (msg.includes('code=1009001') || msg.includes('分享奖励已经领取')) {
+        this.shareDone = getDateKey()
+        this.log('分享奖励已经领取', 'daily_share')
+      } else {
+        this.warn(`领取分享奖励失败: ${msg}`, 'daily_share')
+      }
       return false
     }
   }

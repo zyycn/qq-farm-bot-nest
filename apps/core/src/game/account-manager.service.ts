@@ -154,7 +154,7 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
       this.logger.log(`已同步账号昵称: ${oldName || 'None'} -> ${name}`)
       this.gameLog.appendLog(accountId, record.name, {
         msg: `已同步账号昵称: ${oldName || 'None'} -> ${name}`,
-        tag: '信息',
+        tag: '系统',
         meta: { module: 'system', event: 'nick_sync' }
       })
     }

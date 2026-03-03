@@ -151,13 +151,13 @@ onMounted(() => {
       </div>
       <div v-for="log in logs" v-else :key="log.ts + log.msg" class="mb-1 break-all text-xs">
         <span class="mr-2 select-none a-color-text-tertiary">[{{ formatLogTime(log.time) }}]</span>
-        <a-tag :color="log.tag === '错误' ? 'red' : log.tag === '警告' ? 'orange' : 'green'" size="small" class="mr-1">
+        <a-tag :color="log.tag === '错误' ? 'red' : log.isWarn ? 'orange' : 'green'" size="small" class="mr-1">
           {{ log.tag }}
         </a-tag>
         <a-tag v-if="log.meta?.event" color="processing" size="small" class="mr-1">
           {{ getEventLabel(log.meta.event) }}
         </a-tag>
-        <span :class="log.tag === '错误' ? 'a-color-error' : 'a-color-text'">{{ log.msg }}</span>
+        <span :class="log.tag === '错误' ? 'a-color-error' : log.isWarn ? 'a-color-warning' : 'a-color-text'">{{ log.msg }}</span>
       </div>
     </div>
   </a-card>

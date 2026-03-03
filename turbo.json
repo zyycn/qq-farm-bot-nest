@@ -5,10 +5,6 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
     },
-    "build:win": { "outputs": ["dist/**"] },
-    "build:linux": { "outputs": ["dist/**"] },
-    "build:mac": { "outputs": ["dist/**"] },
-    "build:release": { "outputs": ["dist/**"] },
     "lint": {},
     "dev": {
       "cache": false,
