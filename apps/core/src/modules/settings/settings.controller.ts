@@ -1,3 +1,4 @@
+import type { AutomationConfig } from '../../game/constants'
 import { BadRequestException, Body, Controller, Get, Post } from '@nestjs/common'
 import { AccountId } from '../../common/decorators/account-id.decorator'
 import { AccountManagerService } from '../../game/account-manager.service'
@@ -58,11 +59,8 @@ export class AutomationController {
     const id = this.manager.resolveAccountId(accountId)
     if (!id)
       throw new BadRequestException('缺少 x-account-id')
-    let lastData: any = null
-    for (const [k, v] of Object.entries(body)) {
-      lastData = this.store.setAutomation(k, v, id)
-    }
+    const result = this.store.applyConfigSnapshot({ automation: body as AutomationConfig }, id)
     this.manager.broadcastConfig(id)
-    return lastData || {}
+    return result
   }
 }
