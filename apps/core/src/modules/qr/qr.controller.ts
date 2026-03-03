@@ -1,17 +1,15 @@
 import { BadRequestException, Body, Controller, Post } from '@nestjs/common'
 import { Public } from '../../common/decorators/public.decorator'
-import { legacyRequire } from '../../config/paths'
+import { QRLoginService } from '../../game/services/qrlogin.worker'
 
 @Controller('qr')
 export class QrController {
-  private get MiniProgramLoginSession() {
-    return legacyRequire('services/qrlogin').MiniProgramLoginSession
-  }
+  constructor(private qrLogin: QRLoginService) {}
 
   @Public()
   @Post('create')
   async create() {
-    return this.MiniProgramLoginSession.requestLoginCode()
+    return this.qrLogin.requestMiniProgramLoginCode()
   }
 
   @Public()
@@ -19,25 +17,18 @@ export class QrController {
   async check(@Body('code') code: string) {
     if (!code) throw new BadRequestException('缺少 code')
 
-    const result = await this.MiniProgramLoginSession.queryStatus(code)
+    const result = await this.qrLogin.queryMiniProgramStatus(code)
 
     if (result.status === 'OK') {
       const ticket = result.ticket
       const uin = result.uin || ''
       const nickname = result.nickname || ''
-      const appid = '1112386029'
-      const authCode = await this.MiniProgramLoginSession.getAuthCode(ticket, appid)
-      let avatar = ''
-      if (uin) {
-        avatar = `https://q1.qlogo.cn/g?b=qq&nk=${uin}&s=640`
-      }
+      const authCode = await this.qrLogin.getMiniProgramAuthCode(ticket!, '1112386029')
+      const avatar = uin ? `https://q1.qlogo.cn/g?b=qq&nk=${uin}&s=640` : ''
       return { status: 'OK', code: authCode, uin, avatar, nickname }
-    } else if (result.status === 'Used') {
-      return { status: 'Used' }
-    } else if (result.status === 'Wait') {
-      return { status: 'Wait' }
-    } else {
-      return { status: 'Error', error: result.msg }
     }
+    if (result.status === 'Used') return { status: 'Used' }
+    if (result.status === 'Wait') return { status: 'Wait' }
+    return { status: 'Error', error: (result as any).msg }
   }
 }

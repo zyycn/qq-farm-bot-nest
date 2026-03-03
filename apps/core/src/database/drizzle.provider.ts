@@ -84,7 +84,10 @@ export const drizzleProvider = {
 
       CREATE INDEX IF NOT EXISTS idx_logs_account_id ON logs(account_id);
       CREATE INDEX IF NOT EXISTS idx_logs_ts ON logs(ts);
+      CREATE INDEX IF NOT EXISTS idx_logs_account_ts ON logs(account_id, ts DESC);
+      CREATE INDEX IF NOT EXISTS idx_logs_account_module_event_ts ON logs(account_id, module, event, ts DESC);
       CREATE INDEX IF NOT EXISTS idx_account_logs_ts ON account_logs(ts);
+      CREATE INDEX IF NOT EXISTS idx_account_logs_account_ts ON account_logs(account_id, ts DESC);
     `)
 
     return db

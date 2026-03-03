@@ -6,9 +6,7 @@ export function fetchStatus() {
 
 export function fetchLogs(accountId?: string, params?: Record<string, any>) {
   const requestParams: Record<string, any> = { limit: 100, ...params }
-  if (!accountId || accountId === 'all') {
-    requestParams.accountId = 'all'
-  }
+  requestParams.accountId = (accountId && accountId !== 'all') ? accountId : 'all'
   return api.get('/api/logs', { params: requestParams })
 }
 

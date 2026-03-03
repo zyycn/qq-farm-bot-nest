@@ -2,8 +2,11 @@ import path from 'node:path'
 import fs from 'node:fs'
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
+import { ScheduleModule } from '@nestjs/schedule'
 import { ServeStaticModule } from '@nestjs/serve-static'
 import { DatabaseModule } from './database/database.module'
+import { GameModule } from './game/game.module'
+import { StoreModule } from './store/store.module'
 import { AuthModule } from './modules/auth/auth.module'
 import { AccountModule } from './modules/account/account.module'
 import { FarmModule } from './modules/farm/farm.module'
@@ -14,13 +17,12 @@ import { LogModule } from './modules/log/log.module'
 import { QrModule } from './modules/qr/qr.module'
 import { SchedulerModule } from './modules/scheduler/scheduler.module'
 import { RealtimeModule } from './modules/websocket/realtime.module'
-import { RuntimeModule } from './modules/runtime/runtime.module'
 import { StatusModule } from './modules/status/status.module'
 import appConfig from './config/app.config'
-import { LEGACY_DIR, resolveWebDist } from './config/paths'
+import { ASSETS_DIR, resolveWebDist } from './config/paths'
 
 function resolveGameConfig(): string {
-  const dir = path.join(LEGACY_DIR, 'gameConfig')
+  const dir = path.join(ASSETS_DIR, 'gameConfig')
   return fs.existsSync(dir) ? dir : ''
 }
 
@@ -51,8 +53,11 @@ const serveStaticModules = [
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [appConfig] }),
+    ScheduleModule.forRoot(),
     ...serveStaticModules,
     DatabaseModule,
+    GameModule,
+    StoreModule,
     AuthModule,
     AccountModule,
     FarmModule,
@@ -63,7 +68,6 @@ const serveStaticModules = [
     QrModule,
     SchedulerModule,
     RealtimeModule,
-    RuntimeModule,
     StatusModule,
   ],
 })

@@ -18,20 +18,21 @@ export const WORKSPACE_ROOT = isPackaged
   ? path.dirname(process.execPath)
   : path.resolve(DIST_ROOT, '..', '..', '..')
 
-function findLegacy(): string {
-  const inDist = path.join(DIST_ROOT, 'legacy')
+function findAssetsDir(): string {
+  const inDist = path.join(DIST_ROOT, 'assets')
   if (fs.existsSync(inDist)) return inDist
-  // dev 模式: apps/core/legacy
-  return path.join(CORE_ROOT, 'legacy')
+  return path.join(CORE_ROOT, 'src', 'assets')
 }
 
-export const LEGACY_DIR = findLegacy()
+export const ASSETS_DIR = findAssetsDir()
 
 // dist/main.js
 export const MAIN_ENTRY = path.join(DIST_ROOT, 'main.js')
 
-export function legacyRequire<T = any>(subpath: string): T {
-  return require(path.join(LEGACY_DIR, subpath))
+export function resolveAssetsDir(): string {
+  const dir = path.join(CORE_ROOT, 'src', 'assets')
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
+  return dir
 }
 
 export function resolveWebDist(): string {

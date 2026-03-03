@@ -4,7 +4,6 @@ import { ValidationPipe } from '@nestjs/common'
 import { AppModule } from './app.module'
 import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import { ApiExceptionFilter } from './common/filters/api-exception.filter'
-import { legacyRequire } from './config/paths'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { cors: true })
@@ -19,9 +18,4 @@ async function bootstrap() {
   console.log(`[NestJS] Admin panel started on http://localhost:${port}`)
 }
 
-const isWorkerProcess = process.env.FARM_WORKER === '1'
-if (isWorkerProcess) {
-  legacyRequire('core/worker')
-} else {
-  bootstrap()
-}
+bootstrap()

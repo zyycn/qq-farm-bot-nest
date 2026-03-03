@@ -10,7 +10,7 @@ import {
 import { OnModuleInit } from '@nestjs/common'
 import { Server, Socket } from 'socket.io'
 import { JwtService } from '@nestjs/jwt'
-import { RuntimeService } from '../runtime/runtime.service'
+import { AccountManagerService } from '../../game/account-manager.service'
 
 @WebSocketGateway({
   cors: {
@@ -25,11 +25,11 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
 
   constructor(
     private jwtService: JwtService,
-    private runtime: RuntimeService,
+    private manager: AccountManagerService,
   ) {}
 
   onModuleInit() {
-    this.runtime.setRealtimeCallbacks({
+    this.manager.setRealtimeCallbacks({
       onStatusSync: (accountId, status) => {
         this.emitToAccount(accountId, 'status:update', { accountId, status })
       },
@@ -58,7 +58,8 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
       }
 
       this.jwtService.verify(token)
-    } catch {
+    }
+    catch {
       socket.disconnect(true)
       return
     }
@@ -70,9 +71,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     socket.emit('ready', { ok: true, ts: Date.now() })
   }
 
-  handleDisconnect(_socket: Socket) {
-    // cleanup if needed
-  }
+  handleDisconnect(_socket: Socket) {}
 
   @SubscribeMessage('subscribe')
   handleSubscribe(
@@ -86,7 +85,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   private applySubscription(socket: Socket, accountRef: string) {
     const incoming = String(accountRef || '').trim()
     const resolved = incoming && incoming !== 'all'
-      ? this.runtime.resolveAccountId(incoming)
+      ? this.manager.resolveAccountId(incoming)
       : ''
 
     for (const room of socket.rooms) {
@@ -96,7 +95,8 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     if (resolved) {
       socket.join(`account:${resolved}`)
       ;(socket.data as any).accountId = resolved
-    } else {
+    }
+    else {
       socket.join('account:all')
       ;(socket.data as any).accountId = ''
     }
@@ -106,23 +106,22 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     try {
       const targetId = (socket.data as any).accountId || ''
       if (targetId) {
-        const currentStatus = this.runtime.getStatus(targetId)
+        const currentStatus = this.manager.getStatus(targetId)
         socket.emit('status:update', { accountId: targetId, status: currentStatus })
       }
 
-      const currentLogs = this.runtime.getLogs(targetId, { limit: 100 })
+      const currentLogs = this.manager.getLogs(targetId, { limit: 100 })
       socket.emit('logs:snapshot', {
         accountId: targetId || 'all',
         logs: Array.isArray(currentLogs) ? currentLogs : [],
       })
 
-      const currentAccountLogs = this.runtime.getAccountLogs(100)
+      const currentAccountLogs = this.manager.getAccountLogs(100)
       socket.emit('account-logs:snapshot', {
         logs: Array.isArray(currentAccountLogs) ? currentAccountLogs : [],
       })
-    } catch {
-      // ignore snapshot push errors
     }
+    catch {}
   }
 
   private emitToAccount(accountId: string, event: string, data: any) {

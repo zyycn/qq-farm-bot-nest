@@ -18,10 +18,9 @@
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "paths": {
-      "@/*": ["src/*"],
-      "@legacy/*": ["legacy/*"]
+      "@/*": ["src/*"]
     }
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist", "legacy"]
+  "exclude": ["node_modules", "dist"]
 }

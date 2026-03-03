@@ -1,28 +1,29 @@
 import { BadRequestException, Body, Controller, Get, Param, Post } from '@nestjs/common'
 import { AccountId } from '../../common/decorators/account-id.decorator'
-import { RuntimeService } from '../runtime/runtime.service'
+import { AccountManagerService } from '../../game/account-manager.service'
+import { StoreService } from '../../store/store.service'
 
 @Controller('friends')
 export class FriendsController {
-  constructor(private runtime: RuntimeService) {}
+  constructor(private manager: AccountManagerService) {}
 
   @Get()
   async getFriends(@AccountId() accountId: string) {
-    const id = this.runtime.resolveAccountId(accountId)
+    const id = this.manager.resolveAccountId(accountId)
     if (!id) throw new BadRequestException('缺少 x-account-id')
-    return this.runtime.getFriends(id)
+    return this.manager.getRunnerOrThrow(id).getFriends()
   }
 }
 
 @Controller('friend')
 export class FriendController {
-  constructor(private runtime: RuntimeService) {}
+  constructor(private manager: AccountManagerService) {}
 
   @Get(':gid/lands')
   async getFriendLands(@AccountId() accountId: string, @Param('gid') gid: string) {
-    const id = this.runtime.resolveAccountId(accountId)
+    const id = this.manager.resolveAccountId(accountId)
     if (!id) throw new BadRequestException('缺少 x-account-id')
-    return this.runtime.getFriendLands(id, gid)
+    return this.manager.getRunnerOrThrow(id).getFriendLands(Number(gid))
   }
 
   @Post(':gid/op')
@@ -31,42 +32,36 @@ export class FriendController {
     @Param('gid') gid: string,
     @Body('opType') opType: string,
   ) {
-    const id = this.runtime.resolveAccountId(accountId)
+    const id = this.manager.resolveAccountId(accountId)
     if (!id) throw new BadRequestException('缺少 x-account-id')
-    return this.runtime.doFriendOp(id, gid, opType)
+    return this.manager.getRunnerOrThrow(id).doFriendOp(Number(gid), opType)
   }
 }
 
 @Controller('friend-blacklist')
 export class FriendBlacklistController {
-  constructor(private runtime: RuntimeService) {}
+  constructor(
+    private manager: AccountManagerService,
+    private store: StoreService,
+  ) {}
 
   @Get()
   getBlacklist(@AccountId() accountId: string) {
-    const id = this.runtime.resolveAccountId(accountId)
+    const id = this.manager.resolveAccountId(accountId)
     if (!id) throw new BadRequestException('缺少 x-account-id')
-    const store = this.runtime.getEngine()?.store
-    return store?.getFriendBlacklist?.(id) || []
+    return this.store.getFriendBlacklist(id)
   }
 
   @Post('toggle')
   toggleBlacklist(@AccountId() accountId: string, @Body('gid') gid: number) {
-    const id = this.runtime.resolveAccountId(accountId)
+    const id = this.manager.resolveAccountId(accountId)
     if (!id) throw new BadRequestException('缺少 x-account-id')
     if (!gid) throw new BadRequestException('缺少 gid')
 
-    const store = this.runtime.getEngine()?.store
-    if (!store) throw new Error('运行时未就绪')
-
-    const current = store.getFriendBlacklist(id) || []
-    let next: number[]
-    if (current.includes(gid)) {
-      next = current.filter((g: number) => g !== gid)
-    } else {
-      next = [...current, gid]
-    }
-    const saved = store.setFriendBlacklist(id, next)
-    this.runtime.broadcastConfig(id)
+    const current = this.store.getFriendBlacklist(id)
+    const next = current.includes(gid) ? current.filter(g => g !== gid) : [...current, gid]
+    const saved = this.store.setFriendBlacklist(id, next)
+    this.manager.broadcastConfig(id)
     return saved
   }
 }

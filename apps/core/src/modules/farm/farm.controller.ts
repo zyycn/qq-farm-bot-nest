@@ -1,64 +1,63 @@
 import { BadRequestException, Body, Controller, Get, Post } from '@nestjs/common'
 import { AccountId } from '../../common/decorators/account-id.decorator'
-import { RuntimeService } from '../runtime/runtime.service'
+import { AccountManagerService } from '../../game/account-manager.service'
 
 @Controller('farm')
 export class FarmController {
-  constructor(private runtime: RuntimeService) {}
+  constructor(private manager: AccountManagerService) {}
 
   @Post('operate')
   async operate(@AccountId() accountId: string, @Body('opType') opType: string) {
-    const id = this.runtime.resolveAccountId(accountId)
+    const id = this.manager.resolveAccountId(accountId)
     if (!id) throw new BadRequestException('缺少 x-account-id')
-    await this.runtime.doFarmOp(id, opType)
-    return null
+    return this.manager.getRunnerOrThrow(id).doFarmOp(opType)
   }
 }
 
 @Controller('lands')
 export class LandsController {
-  constructor(private runtime: RuntimeService) {}
+  constructor(private manager: AccountManagerService) {}
 
   @Get()
   async getLands(@AccountId() accountId: string) {
-    const id = this.runtime.resolveAccountId(accountId)
+    const id = this.manager.resolveAccountId(accountId)
     if (!id) throw new BadRequestException('缺少 x-account-id')
-    return this.runtime.getLands(id)
+    return this.manager.getRunnerOrThrow(id).getLands()
   }
 }
 
 @Controller('seeds')
 export class SeedsController {
-  constructor(private runtime: RuntimeService) {}
+  constructor(private manager: AccountManagerService) {}
 
   @Get()
   async getSeeds(@AccountId() accountId: string) {
-    const id = this.runtime.resolveAccountId(accountId)
+    const id = this.manager.resolveAccountId(accountId)
     if (!id) throw new BadRequestException('缺少 x-account-id')
-    return this.runtime.getSeeds(id)
+    return this.manager.getRunnerOrThrow(id).getSeeds()
   }
 }
 
 @Controller('bag')
 export class BagController {
-  constructor(private runtime: RuntimeService) {}
+  constructor(private manager: AccountManagerService) {}
 
   @Get()
   async getBag(@AccountId() accountId: string) {
-    const id = this.runtime.resolveAccountId(accountId)
+    const id = this.manager.resolveAccountId(accountId)
     if (!id) throw new BadRequestException('缺少 x-account-id')
-    return this.runtime.getBag(id)
+    return this.manager.getRunnerOrThrow(id).getBag()
   }
 }
 
 @Controller('daily-gifts')
 export class DailyGiftsController {
-  constructor(private runtime: RuntimeService) {}
+  constructor(private manager: AccountManagerService) {}
 
   @Get()
   async getDailyGifts(@AccountId() accountId: string) {
-    const id = this.runtime.resolveAccountId(accountId)
+    const id = this.manager.resolveAccountId(accountId)
     if (!id) throw new BadRequestException('缺少 x-account-id')
-    return this.runtime.getDailyGifts(id)
+    return this.manager.getRunnerOrThrow(id).getDailyGiftOverview()
   }
 }

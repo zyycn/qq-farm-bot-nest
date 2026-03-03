@@ -39,16 +39,32 @@ function unwrapResponse(response: any) {
 
 function pickErrorNotify(error: any): string | null {
   const { response, request, message } = error
-  if (!response)
-    return request ? '网络错误，无法连接到服务器' : `错误: ${message}`
-  if (response.status === 401)
+
+  if (!response) {
+    return request
+      ? '网络错误，无法连接到服务器'
+      : `错误: ${message}`
+  }
+
+  const { status, statusText, data } = response
+
+  if (status === 401)
     return null
-  const msg = response.data?.message || response.data?.error || message
-  if (response.status >= 500 && IGNORABLE_ERRORS.includes(msg))
+
+  if (data?.message)
+    return `${data.message}`
+
+  const msg = data?.error || message
+
+  if (status >= 500 && IGNORABLE_ERRORS.includes(msg))
     return null
-  return response.status >= 500
-    ? `服务器错误: ${response.status} ${response.statusText}`
-    : `请求失败: ${msg}`
+
+  if (status >= 500)
+    return `服务器错误: ${status} ${statusText}`
+
+  return msg
+    ? `请求失败: ${msg}`
+    : `请求失败: ${status} ${statusText}`
 }
 
 api.interceptors.response.use(

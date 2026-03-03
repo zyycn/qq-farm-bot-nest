@@ -25,6 +25,7 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.1.14",
     "@nestjs/platform-socket.io": "^11.1.14",
+    "@nestjs/schedule": "^6.1.1",
     "@nestjs/serve-static": "^5.0.4",
     "@nestjs/websockets": "^11.1.14",
     "axios": "^1.13.6",
@@ -52,6 +53,8 @@
     "@types/express": "^5.0.6",
     "@types/node": "^25.3.3",
     "@types/passport-jwt": "^4.0.1",
+    "@types/qrcode": "^1.5.6",
+    "@types/ws": "^8.18.1",
     "eslint": "^9.39.1",
     "pkg": "^5.8.1",
     "ts-node": "^10.9.2",
@@ -61,9 +64,7 @@
   "pkg": {
     "assets": [
       "../web/dist/**/*",
-      "legacy/gameConfig/**/*",
-      "legacy/proto/**/*",
-      "legacy/**/*"
+      "dist/assets/**/*"
     ]
   }
 }

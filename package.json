@@ -9,6 +9,7 @@
     "dev": "turbo run dev",
     "dev:core": "turbo run dev -F=core",
     "dev:web": "turbo run dev -F=web",
+    "start": "turbo run start -F=core",
     "lint": "turbo run lint",
     "package:win": "pnpm build && turbo run build:win -F=core",
     "package:linux": "pnpm build && turbo run build:linux -F=core",

@@ -38,6 +38,9 @@ importers:
       '@nestjs/platform-socket.io':
         specifier: ^11.1.14
         version: 11.1.14(@nestjs/common@11.1.14(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/websockets@11.1.14)(rxjs@7.8.2)
+      '@nestjs/schedule':
+        specifier: ^6.1.1
+        version: 6.1.1(@nestjs/common@11.1.14(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)
       '@nestjs/serve-static':
         specifier: ^5.0.4
         version: 5.0.4(@nestjs/common@11.1.14(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)(express@5.2.1)
@@ -114,6 +117,12 @@ importers:
       '@types/passport-jwt':
         specifier: ^4.0.1
         version: 4.0.1
+      '@types/qrcode':
+        specifier: ^1.5.6
+        version: 1.5.6
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
       eslint:
         specifier: ^9.39.1
         version: 9.39.3(jiti@2.6.1)
@@ -149,7 +158,7 @@ importers:
         version: 14.2.1(vue@3.5.28(typescript@5.9.3))
       antdv-next:
         specifier: ^1.1.0
-        version: 1.1.0(vue@3.5.28(typescript@5.9.3))
+        version: 1.1.0(luxon@3.7.2)(vue@3.5.28(typescript@5.9.3))
       axios:
         specifier: ^1.13.5
         version: 1.13.5
@@ -1037,6 +1046,12 @@ packages:
       '@nestjs/websockets': ^11.0.0
       rxjs: ^7.1.0
 
+  '@nestjs/schedule@6.1.1':
+    resolution: {integrity: sha512-kQl1RRgi02GJ0uaUGCrXHCcwISsCsJDciCKe38ykJZgnAeeoeVWs8luWtBo4AqAAXm4nS5K8RlV0smHUJ4+2FA==}
+    peerDependencies:
+      '@nestjs/common': ^10.0.0 || ^11.0.0
+      '@nestjs/core': ^10.0.0 || ^11.0.0
+
   '@nestjs/schematics@11.0.9':
     resolution: {integrity: sha512-0NfPbPlEaGwIT8/TCThxLzrlz3yzDNkfRNpbL7FiplKq3w4qXpJg0JYwqgMEJnLQZm3L/L/5XjoyfJHUO3qX9g==}
     peerDependencies:
@@ -1437,6 +1452,9 @@ packages:
   '@types/jsonwebtoken@9.0.10':
     resolution: {integrity: sha512-asx5hIG9Qmf/1oStypjanR7iKTv0gXQ1Ov/jfrX6kS/EO0OFni8orbmGCn0672NHR3kXHwpAwR+B368ZGN/2rA==}
 
+  '@types/luxon@3.7.1':
+    resolution: {integrity: sha512-H3iskjFIAn5SlJU7OuxUmTEpebK6TKB8rxZShDslBMZJ5u9S//KM1sbdAisiSrqwLQncVjnpi2OK2J51h+4lsg==}
+
   '@types/mdast@4.0.4':
     resolution: {integrity: sha512-kGaNbPh1k7AFzgpud/gMdvIm5xuECykRR+JnWKQno9TAXVa6WIVCGTPvYGekIDL4uwCZQSYbUxNBSb1aUo79oA==}
 
@@ -1461,6 +1479,9 @@ packages:
   '@types/passport@1.0.17':
     resolution: {integrity: sha512-aciLyx+wDwT2t2/kJGJR2AEeBz0nJU4WuRX04Wu9Dqc5lSUtwu0WERPHYsLhF9PtseiAMPBGNUOtFjxZ56prsg==}
 
+  '@types/qrcode@1.5.6':
+    resolution: {integrity: sha512-te7NQcV2BOvdj2b1hCAHzAoMNuj65kNBMz0KBaxM6c3VGBOhU0dURQKOtH8CFNI/dsKkwlv32p26qYQTWoB5bw==}
+
   '@types/qs@6.14.0':
     resolution: {integrity: sha512-eOunJqu0K1923aExK6y8p6fsihYEn/BYuQ4g0CxAAgFc4b/ZLN4CrsRZ55srTdqoiLzU2B2evC+apEIxprEzkQ==}
 
@@ -1484,6 +1505,9 @@ packages:
 
   '@types/web-bluetooth@0.0.21':
     resolution: {integrity: sha512-oIQLCGWtcFZy2JW77j9k8nHzAOpqMHLQejDA48XXMWH6tjCQHz5RCFz1bzsmROyL6PUm+LLnUiI4BCn221inxA==}
+
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   '@typescript-eslint/eslint-plugin@8.56.0':
     resolution: {integrity: sha512-lRyPDLzNCuae71A3t9NEINBiTn7swyOhvUj3MyUOxb8x6g6vPEFoOU+ZRmGMusNC3X3YMhqMIX7i8ShqhT74Pw==}
@@ -2513,6 +2537,10 @@ packages:
 
   create-require@1.1.1:
     resolution: {integrity: sha512-dcKFX3jn0MpIaXjisoRvexIJVEKzaq7z2rZKxf+MSr9TkdmHmsU4m2lcLojrj/FHl8mk5VxMmYA+ftRkP/3oKQ==}
+
+  cron@4.4.0:
+    resolution: {integrity: sha512-fkdfq+b+AHI4cKdhZlppHveI/mgz2qpiYxcm+t5E5TsxX7QrLS1VE0+7GENEk9z0EeGPcpSciGv6ez24duWhwQ==}
+    engines: {node: '>=18.x'}
 
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
@@ -3626,6 +3654,10 @@ packages:
   lru-cache@11.2.6:
     resolution: {integrity: sha512-ESL2CrkS/2wTPfuend7Zhkzo2u0daGJ/A2VucJOgQ/C48S/zB8MMeMHSGKYpXhIjbPxfuezITkaBH1wqv00DDQ==}
     engines: {node: 20 || >=22}
+
+  luxon@3.7.2:
+    resolution: {integrity: sha512-vtEhXh/gNjI9Yg1u4jX/0YVPMvxzHuGgCm6tC5kZyb08yjGWGnqAjGJvcXbqQR2P3MyMEFnRbpcdFS6PBcLqew==}
+    engines: {node: '>=12'}
 
   magic-string-ast@1.0.3:
     resolution: {integrity: sha512-CvkkH1i81zl7mmb94DsRiFeG9V2fR2JeuK8yDgS8oiZSFa++wWLEgZ5ufEOyLHbvSbD1gTRKv9NdX69Rnvr9JA==}
@@ -5874,6 +5906,12 @@ snapshots:
       - supports-color
       - utf-8-validate
 
+  '@nestjs/schedule@6.1.1(@nestjs/common@11.1.14(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.14)':
+    dependencies:
+      '@nestjs/common': 11.1.14(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core': 11.1.14(@nestjs/common@11.1.14(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@11.1.14)(@nestjs/websockets@11.1.14)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      cron: 4.4.0
+
   '@nestjs/schematics@11.0.9(chokidar@4.0.3)(typescript@5.9.3)':
     dependencies:
       '@angular-devkit/core': 19.2.17(chokidar@4.0.3)
@@ -6185,6 +6223,8 @@ snapshots:
       '@types/ms': 2.1.0
       '@types/node': 25.3.3
 
+  '@types/luxon@3.7.1': {}
+
   '@types/mdast@4.0.4':
     dependencies:
       '@types/unist': 3.0.3
@@ -6215,6 +6255,10 @@ snapshots:
     dependencies:
       '@types/express': 5.0.6
 
+  '@types/qrcode@1.5.6':
+    dependencies:
+      '@types/node': 25.3.3
+
   '@types/qs@6.14.0': {}
 
   '@types/range-parser@1.2.7': {}
@@ -6235,6 +6279,10 @@ snapshots:
   '@types/validator@13.15.10': {}
 
   '@types/web-bluetooth@0.0.21': {}
+
+  '@types/ws@8.18.1':
+    dependencies:
+      '@types/node': 25.3.3
 
   '@typescript-eslint/eslint-plugin@8.56.0(@typescript-eslint/parser@8.56.0(eslint@9.39.3(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.3(jiti@2.6.1))(typescript@5.9.3)':
     dependencies:
@@ -6712,7 +6760,7 @@ snapshots:
       '@v-c/util': 1.0.17(vue@3.5.28(typescript@5.9.3))
       vue: 3.5.28(typescript@5.9.3)
 
-  '@v-c/picker@1.0.4(dayjs@1.11.19)(vue@3.5.28(typescript@5.9.3))':
+  '@v-c/picker@1.0.4(dayjs@1.11.19)(luxon@3.7.2)(vue@3.5.28(typescript@5.9.3))':
     dependencies:
       '@v-c/overflow': 1.0.3(vue@3.5.28(typescript@5.9.3))
       '@v-c/resize-observer': 1.0.8(vue@3.5.28(typescript@5.9.3))
@@ -6721,6 +6769,7 @@ snapshots:
       vue: 3.5.28(typescript@5.9.3)
     optionalDependencies:
       dayjs: 1.11.19
+      luxon: 3.7.2
 
   '@v-c/portal@1.0.7(vue@3.5.28(typescript@5.9.3))':
     dependencies:
@@ -7169,7 +7218,7 @@ snapshots:
 
   ansis@4.2.0: {}
 
-  antdv-next@1.1.0(vue@3.5.28(typescript@5.9.3)):
+  antdv-next@1.1.0(luxon@3.7.2)(vue@3.5.28(typescript@5.9.3)):
     dependencies:
       '@ant-design/colors': 7.2.1
       '@ant-design/fast-color': 3.0.1
@@ -7191,7 +7240,7 @@ snapshots:
       '@v-c/mutate-observer': 1.0.1(vue@3.5.28(typescript@5.9.3))
       '@v-c/notification': 1.0.0(vue@3.5.28(typescript@5.9.3))
       '@v-c/pagination': 1.0.0(vue@3.5.28(typescript@5.9.3))
-      '@v-c/picker': 1.0.4(dayjs@1.11.19)(vue@3.5.28(typescript@5.9.3))
+      '@v-c/picker': 1.0.4(dayjs@1.11.19)(luxon@3.7.2)(vue@3.5.28(typescript@5.9.3))
       '@v-c/progress': 1.0.0(vue@3.5.28(typescript@5.9.3))
       '@v-c/qrcode': 1.0.0(vue@3.5.28(typescript@5.9.3))
       '@v-c/rate': 1.0.1(vue@3.5.28(typescript@5.9.3))
@@ -7535,6 +7584,11 @@ snapshots:
       typescript: 5.9.3
 
   create-require@1.1.1: {}
+
+  cron@4.4.0:
+    dependencies:
+      '@types/luxon': 3.7.1
+      luxon: 3.7.2
 
   cross-spawn@7.0.6:
     dependencies:
@@ -8698,6 +8752,8 @@ snapshots:
   longest-streak@3.1.0: {}
 
   lru-cache@11.2.6: {}
+
+  luxon@3.7.2: {}
 
   magic-string-ast@1.0.3:
     dependencies:

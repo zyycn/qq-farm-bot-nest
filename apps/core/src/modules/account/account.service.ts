@@ -1,79 +1,106 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common'
-import { DRIZZLE_TOKEN  } from '../../database/drizzle.provider'
-import type {DrizzleDB} from '../../database/drizzle.provider';
-import { RuntimeService } from '../runtime/runtime.service'
+import { Injectable, NotFoundException } from '@nestjs/common'
+import { AccountManagerService } from '../../game/account-manager.service'
+import { StoreService } from '../../store/store.service'
 
 @Injectable()
 export class AccountService {
   constructor(
-    @Inject(DRIZZLE_TOKEN) private db: DrizzleDB,
-    private runtime: RuntimeService,
+    private manager: AccountManagerService,
+    private store: StoreService,
   ) {}
 
   getAccounts() {
-    return this.runtime.getAccounts()
+    return this.manager.getAccounts()
   }
 
   createOrUpdateAccount(payload: any) {
-    const provider = this.runtime.getDataProvider()
-    if (!provider) throw new Error('运行时未就绪')
+    const isUpdateById = !!payload.id
+    const resolvedUpdateId = isUpdateById ? this.manager.resolveAccountId(payload.id) : ''
+    const body = isUpdateById ? { ...payload, id: resolvedUpdateId || String(payload.id) } : payload
 
-    const store = this.runtime.getEngine()?.store
-    if (!store) throw new Error('运行时未就绪')
+    const before = this.manager.getAccounts()
+    const beforeAccounts = before.accounts || []
 
-    const isUpdate = !!payload.id
-    const resolvedUpdateId = isUpdate ? this.runtime.resolveAccountId(payload.id) : ''
-    const body = isUpdate ? { ...payload, id: resolvedUpdateId || String(payload.id) } : payload
-
-    let wasRunning = false
-    if (isUpdate) {
-      wasRunning = this.runtime.isAccountRunning(body.id)
+    // 显式 id 更新：以 id 为主；否则（QQ 平台）尝试按 uin+platform 匹配已有账号
+    let targetBefore: any = null
+    if (isUpdateById) {
+      targetBefore = beforeAccounts.find((a: any) => String(a.id) === String(body.id))
+    }
+    else if (payload.uin && (payload.platform || 'qq') === 'qq') {
+      const uin = String(payload.uin)
+      const platform = String(payload.platform || 'qq')
+      targetBefore = beforeAccounts.find((a: any) =>
+        String(a.uin) === uin && String(a.platform || 'qq') === platform,
+      )
     }
 
-    // Check if only remark changed
+    let wasRunning = false
+    if (targetBefore) wasRunning = this.manager.isAccountRunning(String(targetBefore.id))
+
     let onlyRemarkChanged = false
-    if (isUpdate) {
-      const oldAccounts = this.runtime.getAccounts()
-      const oldAccount = oldAccounts.accounts.find((a: any) => a.id === body.id)
+    if (isUpdateById) {
+      const oldAccount = beforeAccounts.find((a: any) => String(a.id) === String(body.id))
       if (oldAccount) {
-        const payloadKeys = Object.keys(body)
-        onlyRemarkChanged = payloadKeys.length === 2 && payloadKeys.includes('id') && payloadKeys.includes('name')
+        const keys = Object.keys(body)
+        onlyRemarkChanged = keys.length === 2 && keys.includes('id') && keys.includes('name')
       }
     }
 
-    const data = store.addOrUpdateAccount(body)
+    const data = this.store.addOrUpdateAccount(body)
+    const afterAccounts = data.accounts || []
 
-    this.runtime.addAccountLog(
-      isUpdate ? 'update' : 'add',
-      isUpdate ? `更新账号: ${body.name || body.id}` : `添加账号: ${body.name || body.id}`,
-      isUpdate ? String(body.id) : String((data.accounts[data.accounts.length - 1] || {}).id || ''),
-      body.name || '',
+    // 先按 QQ uin+platform 匹配最新账号，否则回退到 id；用于日志与启动/重启
+    let targetAfter: any = null
+    if (payload.uin && (payload.platform || 'qq') === 'qq') {
+      const uin = String(payload.uin)
+      const platform = String(payload.platform || 'qq')
+      targetAfter = afterAccounts.find((a: any) =>
+        String(a.uin) === uin && String(a.platform || 'qq') === platform,
+      )
+    }
+    if (!targetAfter && isUpdateById) {
+      targetAfter = afterAccounts.find((a: any) => String(a.id) === String(body.id))
+    }
+
+    const accountId = targetAfter
+      ? String(targetAfter.id)
+      : (isUpdateById
+          ? String(body.id)
+          : String((afterAccounts[afterAccounts.length - 1] || {}).id || ''))
+
+    const effectiveIsUpdate = !!targetBefore
+
+    this.manager.addAccountLog(
+      effectiveIsUpdate ? 'update' : 'add',
+      effectiveIsUpdate
+        ? `更新账号: ${(targetAfter && (targetAfter.name || targetAfter.nick)) || body.name || accountId}`
+        : `添加账号: ${(targetAfter && (targetAfter.name || targetAfter.nick)) || body.name || accountId}`,
+      accountId,
+      (targetAfter && (targetAfter.name || targetAfter.nick)) || body.name || '',
     )
 
-    if (!isUpdate) {
-      const newAcc = data.accounts[data.accounts.length - 1]
-      if (newAcc) this.runtime.startAccount(newAcc.id)
-    } else if (wasRunning && !onlyRemarkChanged) {
-      this.runtime.restartAccount(body.id)
+    if (!effectiveIsUpdate) {
+      const newAcc = afterAccounts.find((a: any) => String(a.id) === accountId) || afterAccounts[afterAccounts.length - 1]
+      if (newAcc) this.manager.startAccount(String(newAcc.id))
+    }
+    else if (wasRunning && !onlyRemarkChanged) {
+      this.manager.restartAccount(accountId)
     }
 
     return data
   }
 
   deleteAccount(id: string) {
-    const store = this.runtime.getEngine()?.store
-    if (!store) throw new Error('运行时未就绪')
-
-    const resolvedId = this.runtime.resolveAccountId(id) || String(id)
-    const before = this.runtime.getAccounts()
+    const resolvedId = this.manager.resolveAccountId(id) || String(id)
+    const before = this.manager.getAccounts()
     const target = (before.accounts || []).find((a: any) =>
       String(a.id) === resolvedId || String(a.uin) === id || String(a.qq) === id,
     )
 
-    this.runtime.stopAccount(resolvedId)
-    const data = store.deleteAccount(resolvedId)
+    this.manager.stopAccount(resolvedId)
+    const data = this.store.deleteAccount(resolvedId)
 
-    this.runtime.addAccountLog(
+    this.manager.addAccountLog(
       'delete',
       `删除账号: ${(target && target.name) || id}`,
       resolvedId,
@@ -84,25 +111,27 @@ export class AccountService {
   }
 
   startAccount(id: string) {
-    const resolvedId = this.runtime.resolveAccountId(id)
-    const ok = this.runtime.startAccount(resolvedId)
-    if (!ok) throw new NotFoundException('账号未找到')
+    const resolvedId = (this.manager.resolveAccountId(id) || String(id || '').trim()).trim()
+    if (!resolvedId) throw new NotFoundException('账号未找到')
+    const acc = this.store.getAccountById(resolvedId)
+    if (!acc) throw new NotFoundException('账号未找到')
+    if (!acc.code || String(acc.code).trim() === '') {
+      throw new NotFoundException('请先扫码登录获取 Code 后再启动')
+    }
+    const ok = this.manager.startAccount(resolvedId)
+    if (!ok) throw new NotFoundException('账号已在运行中')
     return null
   }
 
   stopAccount(id: string) {
-    const resolvedId = this.runtime.resolveAccountId(id)
-    const ok = this.runtime.stopAccount(resolvedId)
-    if (!ok) throw new NotFoundException('账号未找到')
+    const resolvedId = this.manager.resolveAccountId(id)
+    this.manager.stopAccount(resolvedId)
     return null
   }
 
   updateRemark(body: any) {
-    const store = this.runtime.getEngine()?.store
-    if (!store) throw new Error('运行时未就绪')
-
     const rawRef = body.id || body.accountId || body.uin
-    const accounts = this.runtime.getAccounts().accounts || []
+    const accounts = this.manager.getAccounts().accounts || []
     const target = accounts.find((a: any) =>
       String(a.id) === String(rawRef) || String(a.uin) === String(rawRef) || String(a.qq) === String(rawRef),
     )
@@ -112,14 +141,14 @@ export class AccountService {
     const remark = String(body.remark ?? body.name ?? '').trim()
     if (!remark) throw new NotFoundException('缺少备注')
 
-    const data = store.addOrUpdateAccount({ id: String(target.id), name: remark })
-    this.runtime.setRuntimeAccountName(String(target.id), remark)
-    this.runtime.addAccountLog('update', `更新账号备注: ${remark}`, String(target.id), remark)
+    const data = this.store.addOrUpdateAccount({ id: String(target.id), name: remark })
+    this.manager.setRuntimeAccountName(String(target.id), remark)
+    this.manager.addAccountLog('update', `更新账号备注: ${remark}`, String(target.id), remark)
 
     return data
   }
 
   getAccountLogs(limit: number) {
-    return this.runtime.getAccountLogs(limit)
+    return this.manager.getAccountLogs(limit)
   }
 }

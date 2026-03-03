@@ -194,7 +194,7 @@ export const useStatusStore = defineStore('status', () => {
       return
     try {
       const res = await statusApi.fetchLogs(accountId, options)
-      logs.value = res || []
+      logs.value = (res || []).map((item: any) => normalizeLogEntry(item))
       error.value = ''
     }
     catch (e: any) {

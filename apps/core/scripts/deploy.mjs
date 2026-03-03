@@ -1,5 +1,4 @@
 import { execSync } from 'node:child_process'
-import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -18,18 +17,7 @@ const arg = process.argv[2] // --release | --win | --linux | --mac
 // 1. nest build
 execSync('nest build', { cwd: root, stdio: 'inherit' })
 
-// 2. copy legacy -> dist/legacy
-const src = path.join(root, 'legacy')
-const dest = path.join(root, 'dist', 'legacy')
-if (!fs.existsSync(src)) {
-  console.warn('[deploy] legacy folder not found, skip copy')
-}
-else {
-  fs.cpSync(src, dest, { recursive: true })
-  console.log('[deploy] copied legacy -> dist/legacy')
-}
-
-// 3. pkg (optional)
+// 2. pkg (optional)
 const targetKey = arg?.replace(/^--/, '')
 if (targetKey && pkgTargets[targetKey]) {
   execSync(

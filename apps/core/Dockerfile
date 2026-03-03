@@ -35,9 +35,8 @@ ENV TZ=Asia/Shanghai
 COPY --from=builder /app/package.json /app/pnpm-lock.yaml /app/pnpm-workspace.yaml ./
 COPY --from=builder /app/node_modules ./node_modules
 
-# Copy core dist, legacy, and package.json
+# Copy core dist (含 assets) 与 package.json
 COPY --from=builder /app/apps/core/dist ./apps/core/dist
-COPY --from=builder /app/apps/core/legacy ./apps/core/legacy
 COPY --from=builder /app/apps/core/package.json ./apps/core/
 
 # Copy web assets
