@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/common'
+import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/common'
 import { AccountService } from './account.service'
 
 @Controller('accounts')
@@ -17,7 +17,10 @@ export class AccountController {
 
   @Delete(':id')
   delete(@Param('id') id: string) {
-    return this.accountService.deleteAccount(id)
+    const ref = (id ?? '').trim()
+    if (!ref)
+      throw new BadRequestException('缺少账号标识（id/uin）')
+    return this.accountService.deleteAccount(ref)
   }
 
   @Post(':id/start')

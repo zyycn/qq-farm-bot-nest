@@ -46,7 +46,7 @@ async function confirmDelete() {
   if (accountToDelete.value) {
     try {
       deleteLoading.value = true
-      await accountStore.deleteAccount(String(accountToDelete.value.uin))
+      await accountStore.deleteAccount(String(accountToDelete.value.uin ?? accountToDelete.value.id))
       accountToDelete.value = null
       showDeleteConfirm.value = false
     } finally {
@@ -56,7 +56,7 @@ async function confirmDelete() {
 }
 
 async function toggleAccount(account: any) {
-  const ref = String(account.uin)
+  const ref = String(account.uin ?? account.id)
   if (account.running)
     await accountStore.stopAccount(ref)
   else await accountStore.startAccount(ref)
