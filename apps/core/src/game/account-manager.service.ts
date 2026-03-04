@@ -1,8 +1,10 @@
 import type { OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import type { AccountRunnerCallbacks } from './account-runner'
+import process from 'node:process'
 import { BadRequestException, Injectable, Logger } from '@nestjs/common'
 import { StoreService } from '../store/store.service'
 import { AccountRunner } from './account-runner'
+import { ConnectorClient } from './connector-client'
 import { GameConfigService } from './game-config.service'
 import { GameLogService } from './game-log.service'
 import { GamePushService } from './game-push.service'
@@ -22,6 +24,7 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
   private logger = new Logger('AccountManager')
   private runners = new Map<string, RunningAccount>()
   private onStatusSyncCallback: ((accountId: string, status: any) => void) | null = null
+  private connectorClient!: ConnectorClient
 
   constructor(
     private proto: ProtoService,
@@ -45,12 +48,53 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit() {
+    this.connectorClient = new ConnectorClient(this.proto, {
+      host: process.env.CONNECTOR_HOST || '127.0.0.1',
+      port: Number(process.env.CONNECTOR_PORT) || 9800
+    })
+
+    this.connectorClient.on('connector_event', ({ accountId, event, data }) => {
+      const record = this.runners.get(accountId)
+      if (record)
+        record.runner.handleConnectorEvent(event, data)
+    })
+
+    this.connectorClient.on('connected', () => this.syncAccountsStateFromConnector())
+
+    try {
+      await this.connectorClient.connect()
+      this.logger.log('已连接到 Connector 服务')
+    } catch (e: any) {
+      this.logger.warn(`连接 Connector 失败，将后台重试: ${e?.message}`)
+    }
+
     await this.autoStartAccounts()
   }
 
   async onModuleDestroy() {
     for (const [id] of this.runners) {
       await this.stopAccount(id)
+    }
+    this.connectorClient?.destroy()
+  }
+
+  /** TCP 重连后从 Connector 拉取各账号真实连接状态，避免显示一会在线一会离线 */
+  private async syncAccountsStateFromConnector() {
+    if (!this.connectorClient?.connected)
+      return
+    for (const [accountId, record] of this.runners) {
+      if (!record.runner.isActive())
+        continue
+      try {
+        const meta = await this.connectorClient.getAccountStatus(accountId)
+        if (meta?.connected && meta.userState) {
+          record.runner.handleConnectorEvent('connected', meta.userState)
+        } else {
+          record.runner.handleConnectorEvent('disconnected', {})
+        }
+      } catch {
+        record.runner.handleConnectorEvent('disconnected', {})
+      }
     }
   }
 
@@ -97,7 +141,7 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    const runner = new AccountRunner(id, this.proto, this.gameConfig, this.store, callbacks)
+    const runner = new AccountRunner(id, this.connectorClient, this.proto, this.gameConfig, this.store, callbacks)
     runner.name = acc.name || ''
 
     const record: RunningAccount = {
@@ -157,6 +201,22 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
         tag: '系统',
         meta: { module: 'system', event: 'nick_sync' }
       })
+    }
+
+    const avatarUrl = status?.status?.avatarUrl
+    if (avatarUrl && typeof avatarUrl === 'string' && avatarUrl.trim() !== '') {
+      const existing = this.store.getAccountById(accountId)
+      if (!existing?.avatar || String(existing.avatar).trim() === '') {
+        this.store.addOrUpdateAccount({ id: accountId, avatarUrl })
+      }
+    }
+
+    const openId = status?.status?.openId
+    if (openId && typeof openId === 'string' && openId.trim() !== '') {
+      const existing = this.store.getAccountById(accountId)
+      if (!existing?.uin || String(existing.uin).trim() === '') {
+        this.store.addOrUpdateAccount({ id: accountId, uin: openId })
+      }
     }
 
     const connected = !!status?.connection?.connected

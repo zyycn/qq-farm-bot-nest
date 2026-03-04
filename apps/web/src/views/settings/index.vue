@@ -50,6 +50,11 @@ const currentAccountUin = computed(() => {
   return uin != null ? uin : undefined
 })
 
+const currentAccountAvatar = computed(() => {
+  const acc = currentAccount.value
+  return acc?.avatar || acc?.status?.status?.avatarUrl || undefined
+})
+
 const localSettings = ref({
   plantingStrategy: 'preferred',
   preferredSeedId: 0,
@@ -181,6 +186,7 @@ async function handleSaveOffline() {
         :account-id="currentAccountId"
         :account-name="currentAccountName"
         :account-uin="currentAccountUin"
+        :account-avatar="currentAccountAvatar"
       />
 
       <StrategyAutomationCard

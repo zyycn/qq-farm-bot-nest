@@ -5,13 +5,14 @@ defineProps<{
   accountId: string | null
   accountName: string | null
   accountUin?: string | number
+  accountAvatar?: string
 }>()
 </script>
 
 <template>
   <a-card variant="borderless" class="shrink-0" :classes="{ body: '!px-4 !py-3' }">
     <div v-if="accountId" class="flex gap-4 items-center">
-      <QqAvatar :uin="accountUin" :size="44" ring />
+      <QqAvatar :src="accountAvatar" :uin="accountUin" :size="44" ring />
       <div class="flex-1 min-w-0">
         <div class="flex gap-2 items-center">
           <span class="font-bold truncate a-color-text">{{ accountName }}</span>

@@ -1,9 +1,10 @@
 import type { StoreService } from '../store/store.service'
+import type { ConnectorClient } from './connector-client'
 import type { IntervalsConfig } from './constants'
 import type { GameConfigService } from './game-config.service'
+import type { IGameTransport } from './interfaces/game-transport.interface'
 import type { ProtoService } from './proto.service'
 import { Logger } from '@nestjs/common'
-import { GameClient } from './game-client'
 import { Scheduler } from './scheduler'
 import { AnalyticsWorker } from './services/analytics.worker'
 import { DailyRewardsWorker } from './services/daily-rewards.worker'
@@ -31,7 +32,7 @@ export interface AccountRunnerCallbacks {
 
 export class AccountRunner {
   private logger: Logger
-  private client!: GameClient
+  private transport!: IGameTransport
   private scheduler: Scheduler
   private stats: StatsTracker
   private analytics: AnalyticsWorker
@@ -59,10 +60,13 @@ export class AccountRunner {
   private friendIntervalMin = 10_000
   private friendIntervalMax = 10_000
 
+  private userState = { gid: 0, name: '', level: 0, gold: 0, exp: 0, coupon: 0, avatarUrl: '', openId: '' }
+
   name = ''
 
   constructor(
     readonly accountId: string,
+    private connectorClient: ConnectorClient,
     private proto: ProtoService,
     private gameConfig: GameConfigService,
     private store: StoreService,
@@ -86,6 +90,11 @@ export class AccountRunner {
 
   private forwardLog = (entry: any) => this.callbacks.onLog?.(entry)
 
+  private syncTransportUserState() {
+    if (this.transport?.userState)
+      Object.assign(this.transport.userState, this.userState)
+  }
+
   // ========== Lifecycle ==========
 
   async start(config: AccountRunnerConfig) {
@@ -93,70 +102,65 @@ export class AccountRunner {
       return
     this.isRunning = true
 
-    this.client = new GameClient(this.accountId, this.proto)
-    this.warehouse = new WarehouseWorker(this.accountId, this.client, this.gameConfig, this.store)
+    this.transport = this.connectorClient.createTransport(this.accountId)
+    this.warehouse = new WarehouseWorker(this.accountId, this.transport, this.gameConfig, this.store)
     this.warehouse.onLog = this.forwardLog
-    this.farm = new FarmWorker(this.accountId, this.client, this.gameConfig, this.store, this.stats, this.analytics)
+    this.farm = new FarmWorker(this.accountId, this.transport, this.gameConfig, this.store, this.stats, this.analytics)
     this.farm.onLog = this.forwardLog
-    this.friend = new FriendWorker(this.accountId, this.client, this.gameConfig, this.store, this.stats, this.farm, this.warehouse)
+    this.friend = new FriendWorker(this.accountId, this.transport, this.gameConfig, this.store, this.stats, this.farm, this.warehouse)
     this.friend.onLog = this.forwardLog
-    this.task = new TaskWorker(this.accountId, this.client, this.gameConfig, this.store, this.stats, this.warehouse)
+    this.task = new TaskWorker(this.accountId, this.transport, this.gameConfig, this.store, this.stats, this.warehouse)
     this.task.onLog = this.forwardLog
-    this.dailyRewards = new DailyRewardsWorker(this.accountId, this.client, this.gameConfig, this.store)
+    this.dailyRewards = new DailyRewardsWorker(this.accountId, this.transport, this.gameConfig, this.store)
     this.dailyRewards.onLog = this.forwardLog
-    this.invite = new InviteWorker(this.accountId, this.client, config.platform)
+    this.invite = new InviteWorker(this.accountId, this.transport, config.platform)
     this.invite.onLog = this.forwardLog
 
     this.applyIntervals(this.store.getIntervals(this.accountId))
 
-    this.client.on('kickout', (payload: any) => this.onKickout(payload))
-    this.client.on('ws_error', (payload: any) => this.onWsError(payload))
-
-    this.client.on('goldChanged', () => this.syncStatus())
-    this.client.on('expChanged', () => this.syncStatus())
-    this.client.on('sell', (delta: number) => {
-      if (Number.isFinite(delta) && delta > 0)
-        this.stats.recordOperation('sell', 1)
-    })
-
     this.log('正在连接服务器...', 'connect')
 
-    this.client.connect(config.code, config.platform).then(async () => {
-      this.loginReady = true
-      this.name = this.client.userState.name || this.name
-      this.log(`登录成功: ${this.client.userState.name || ''} (Lv${this.client.userState.level ?? ''})`, 'login')
+    try {
+      const us = await this.connectorClient.connectAccount(this.accountId, config.code, config.platform)
+      if (us) {
+        this.userState = { ...this.userState, ...us }
+        this.syncTransportUserState()
+        this.loginReady = true
+        this.name = this.userState.name || this.name
+        this.log(`登录成功: ${this.userState.name || ''} (Lv${this.userState.level ?? ''})`, 'login')
 
-      try {
-        const rep = await this.warehouse.getBag()
-        const items = this.warehouse.getBagItems(rep)
-        let coupon = 0
-        for (const it of (items || [])) {
-          if (toNum(it?.id) === 1002) {
-            coupon = toNum(it.count)
-            break
+        try {
+          const rep = await this.warehouse.getBag()
+          const items = this.warehouse.getBagItems(rep)
+          let coupon = 0
+          for (const it of (items || [])) {
+            if (toNum(it?.id) === 1002) {
+              coupon = toNum(it.count)
+              break
+            }
           }
-        }
-        this.client.userState.coupon = Math.max(0, coupon)
-      } catch {}
+          this.userState.coupon = Math.max(0, coupon)
+          this.syncTransportUserState()
+        } catch {}
 
-      const us = this.client.userState
-      this.stats.initStats(Number(us.gold || 0), Number(us.exp || 0), Number(us.coupon || 0))
+        this.stats.initStats(Number(this.userState.gold || 0), Number(this.userState.exp || 0), Number(this.userState.coupon || 0))
 
-      await this.invite.processInviteCodes().catch(() => {})
-      const auto = this.store.getAutomation(this.accountId)
-      if (auto.fertilizer_gift)
-        await this.warehouse.autoOpenFertilizerGiftPacks().catch(() => 0)
+        await this.invite.processInviteCodes().catch(() => {})
+        const auto = this.store.getAutomation(this.accountId)
+        if (auto.fertilizer_gift)
+          await this.warehouse.autoOpenFertilizerGiftPacks().catch(() => 0)
 
-      this.farm.startFarmLoop({ externalScheduler: true })
-      this.friend.startFriendLoop({ externalScheduler: true })
-      this.task.init()
-      this.startUnifiedScheduler()
-      this.startDailyRoutineTimer()
+        this.farm.startFarmLoop({ externalScheduler: true })
+        this.friend.startFriendLoop({ externalScheduler: true })
+        this.task.init()
+        this.startUnifiedScheduler()
+        this.startDailyRoutineTimer()
 
-      this.syncStatus()
-    }).catch((e: any) => {
+        this.syncStatus()
+      }
+    } catch (e: any) {
       this.warn(`连接失败: ${e?.message}`, 'connect')
-    })
+    }
 
     this.scheduler.setIntervalTask('status_sync', 3000, () => this.syncStatus(), { preventOverlap: true })
   }
@@ -173,13 +177,13 @@ export class AccountRunner {
     this.task?.destroy()
     this.stopDailyRoutineTimer()
     this.scheduler.clearAll()
-    this.client?.destroy()
+    await this.connectorClient.disconnectAccount(this.accountId).catch(() => {})
 
     this.callbacks.onStopped?.(this.accountId)
   }
 
   isActive() { return this.isRunning }
-  isConnected() { return this.loginReady && !!this.client?.isConnected() }
+  isConnected() { return this.loginReady && !!this.transport?.isConnected() }
 
   // ========== Unified Scheduler ==========
 
@@ -367,7 +371,31 @@ export class AccountRunner {
     this.syncStatus()
   }
 
-  // ========== Events ==========
+  // ========== Events (from ConnectorClient) ==========
+
+  handleConnectorEvent(event: string, data: any) {
+    switch (event) {
+      case 'kicked':
+        this.onKickout(data)
+        break
+      case 'ws_error':
+        this.onWsError(data)
+        break
+      case 'disconnected':
+        if (this.loginReady) {
+          this.loginReady = false
+          this.syncStatus()
+        }
+        break
+      case 'connected':
+        if (data) {
+          this.userState = { ...this.userState, ...data }
+          this.loginReady = true
+          this.syncStatus()
+        }
+        break
+    }
+  }
 
   private onKickout(payload: any) {
     const reason = payload?.reason || '未知'
@@ -392,7 +420,7 @@ export class AccountRunner {
     if (!this.callbacks.onStatusSync)
       return
     const connected = this.isConnected()
-    const us = this.client?.userState || { name: '', level: 0, gold: 0, exp: 0, coupon: 0 }
+    const us = this.userState
     const limits = this.friend?.getOperationLimits?.() || {}
     const fullStats = this.stats.getStats(us, connected, limits)
 
@@ -459,7 +487,7 @@ export class AccountRunner {
 
   getStatus() {
     const connected = this.isConnected()
-    const us = this.client?.userState || { name: '', level: 0, gold: 0, exp: 0, coupon: 0 }
+    const us = this.userState
     const limits = this.friend?.getOperationLimits?.() || {}
     return this.stats.getStats(us, connected, limits)
   }

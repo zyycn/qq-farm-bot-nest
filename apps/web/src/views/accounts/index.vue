@@ -125,7 +125,7 @@ function getDisplayName(acc: any) {
           <!-- Body -->
           <div class="px-4 py-3">
             <div class="flex gap-3 items-center">
-              <QqAvatar :uin="acc.uin" :size="44" ring :platform="acc.platform" />
+              <QqAvatar :src="acc.avatar" :uin="acc.uin" :size="44" ring :platform="acc.platform" />
               <div class="flex flex-1 flex-col gap-1.5 min-w-0">
                 <div class="font-bold truncate a-color-text">
                   {{ getDisplayName(acc) }}

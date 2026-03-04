@@ -23,7 +23,7 @@ const selectedAccountId = defineModel<any>('selectedAccountId', { required: true
   <div v-if="!collapsed" class="px-3 py-3">
     <div class="border-solid overflow-hidden a-border-border-sec border rounded-xl shadow-sm">
       <div class="px-3 py-2.5 flex gap-3 items-center a-bg-primary-bg">
-        <QqAvatar :uin="currentAccount?.uin" :size="40" ring :platform="currentAccount?.platform" />
+        <QqAvatar :src="currentAccount?.avatar || currentAccount?.status?.status?.avatarUrl" :uin="currentAccount?.uin" :size="40" ring :platform="currentAccount?.platform" />
 
         <div class="flex flex-1 flex-col gap-0.5 min-w-0">
           <div class="leading-snug font-semibold truncate a-color-text">
@@ -47,7 +47,7 @@ const selectedAccountId = defineModel<any>('selectedAccountId', { required: true
           <template #optionRender="{ option }">
             <div class="flex gap-1 items-center">
               <i class="text-primary" :class="getPlatformIcon(option.data?.platform)" />
-              <QqAvatar :uin="option.data?.uin" :size="18" />
+              <QqAvatar :src="option.data?.avatar || option.data?.status?.status?.avatarUrl" :uin="option.data?.uin" :size="18" />
               <span>{{ option.data?.label }}</span>
             </div>
           </template>
@@ -75,6 +75,6 @@ const selectedAccountId = defineModel<any>('selectedAccountId', { required: true
 
   <!-- Collapsed -->
   <div v-else class="py-3 flex justify-center">
-    <QqAvatar :uin="currentAccount?.uin" :size="36" ring />
+    <QqAvatar :src="currentAccount?.avatar || currentAccount?.status?.status?.avatarUrl" :uin="currentAccount?.uin" :size="36" ring />
   </div>
 </template>

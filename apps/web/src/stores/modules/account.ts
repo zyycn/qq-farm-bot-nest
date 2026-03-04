@@ -9,9 +9,13 @@ export interface Account {
   id: string
   name: string
   nick?: string
-  uin?: number
+  uin?: number | string
   platform?: string
   running?: boolean
+  avatar?: string
+  status?: {
+    status?: { avatarUrl?: string, openId?: string }
+  }
   // Add other fields as discovered
 }
 
@@ -46,7 +50,7 @@ export const useAccountStore = defineStore('account', () => {
       // api interceptor adds Authorization header
       const res = await accountApi.fetchAccounts()
       if (res && res.accounts) {
-        accounts.value = res.accounts
+        accounts.value = res.accounts as Account[]
 
         if (accounts.value.length > 0) {
           const found = accounts.value.find(a => String(a.id) === currentAccountId.value)

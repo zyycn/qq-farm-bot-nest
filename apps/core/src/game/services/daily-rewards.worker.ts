@@ -1,5 +1,5 @@
-import type { GameClient } from '../game-client'
 import type { GameConfigService } from '../game-config.service'
+import type { IGameTransport } from '../interfaces/game-transport.interface'
 import { Buffer } from 'node:buffer'
 import { Logger } from '@nestjs/common'
 import { toNum } from '../utils'
@@ -51,7 +51,7 @@ export class DailyRewardsWorker {
 
   constructor(
     private accountId: string,
-    private client: GameClient,
+    private client: IGameTransport,
     private gameConfig: GameConfigService,
     private store?: any
   ) {

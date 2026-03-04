@@ -1,6 +1,6 @@
 import type { StoreService } from '../../store/store.service'
-import type { GameClient } from '../game-client'
 import type { GameConfigService } from '../game-config.service'
+import type { IGameTransport } from '../interfaces/game-transport.interface'
 import { Buffer } from 'node:buffer'
 import { Logger } from '@nestjs/common'
 import * as protobuf from 'protobufjs'
@@ -22,7 +22,7 @@ export class WarehouseWorker {
 
   constructor(
     private accountId: string,
-    private client: GameClient,
+    private client: IGameTransport,
     private gameConfig: GameConfigService,
     private store: StoreService
   ) {

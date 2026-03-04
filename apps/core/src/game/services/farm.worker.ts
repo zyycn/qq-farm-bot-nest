@@ -1,6 +1,6 @@
 import type { StoreService } from '../../store/store.service'
-import type { GameClient } from '../game-client'
 import type { GameConfigService } from '../game-config.service'
+import type { IGameTransport } from '../interfaces/game-transport.interface'
 import type { AnalyticsWorker } from './analytics.worker'
 import type { StatsTracker } from './stats.worker'
 import { Buffer } from 'node:buffer'
@@ -28,7 +28,7 @@ export class FarmWorker {
 
   constructor(
     private accountId: string,
-    private client: GameClient,
+    private client: IGameTransport,
     private gameConfig: GameConfigService,
     private store: StoreService,
     private stats: StatsTracker,

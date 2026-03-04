@@ -79,7 +79,7 @@ export class StatsTracker {
     }
     return {
       connection: { connected },
-      status: { name: userState?.name, level: userState?.level || 0, gold, coupon, exp, platform: userState?.platform || 'qq' },
+      status: { name: userState?.name, level: userState?.level || 0, gold, coupon, exp, platform: userState?.platform || 'qq', avatarUrl: userState?.avatarUrl || '', openId: userState?.openId || '' },
       uptime: Math.max(0, Math.floor((Date.now() - this.bootAt) / 1000)),
       operations: { ...this.operations },
       sessionExpGained: this.session.expGained,

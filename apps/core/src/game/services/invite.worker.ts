@@ -1,4 +1,4 @@
-import type { GameClient } from '../game-client'
+import type { IGameTransport } from '../interfaces/game-transport.interface'
 import { Buffer } from 'node:buffer'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
@@ -21,7 +21,7 @@ export class InviteWorker {
 
   constructor(
     private accountId: string,
-    private client: GameClient,
+    private client: IGameTransport,
     private platform: string
   ) {
     this.logger = new Logger(`Invite:${accountId}`)
