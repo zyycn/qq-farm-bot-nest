@@ -103,6 +103,9 @@ const localUptime = ref(0)
 let localNextFarmRemainSec = 0
 let localNextFriendRemainSec = 0
 
+// QQ 账号好友巡查后端临时关闭，前端不显示倒计时
+const isQQAccount = computed(() => (currentAccount.value?.platform || 'qq').toLowerCase() === 'qq')
+
 function formatDuration(seconds: number): string {
   if (seconds <= 0)
     return '00:00:00'
@@ -126,7 +129,9 @@ function updateCountdowns() {
   } else {
     nextFarmCheck.value = '巡查中...'
   }
-  if (localNextFriendRemainSec > 0) {
+  if (isQQAccount.value) {
+    nextFriendCheck.value = '临时关闭'
+  } else if (localNextFriendRemainSec > 0) {
     localNextFriendRemainSec--
     nextFriendCheck.value = formatDuration(localNextFriendRemainSec)
   } else {
@@ -139,7 +144,8 @@ watch(
   (newVal) => {
     if (newVal?.nextChecks) {
       localNextFarmRemainSec = newVal.nextChecks.farmRemainSec || 0
-      localNextFriendRemainSec = newVal.nextChecks.friendRemainSec || 0
+      if (!isQQAccount.value)
+        localNextFriendRemainSec = newVal.nextChecks.friendRemainSec || 0
       updateCountdowns()
     }
     if (newVal?.uptime !== undefined) {
@@ -256,6 +262,7 @@ useIntervalFn(updateCountdowns, 1000)
         <CheckCountdownCard
           :next-farm-check="nextFarmCheck"
           :next-friend-check="nextFriendCheck"
+          :friend-patrol-disabled="isQQAccount"
         />
         <OperationsCard :operations="status?.operations || {}" />
       </div>

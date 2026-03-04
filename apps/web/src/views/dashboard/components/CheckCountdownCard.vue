@@ -2,6 +2,8 @@
 defineProps<{
   nextFarmCheck: string
   nextFriendCheck: string
+  /** QQ 账号时好友巡查临时关闭，仅展示文案不倒数 */
+  friendPatrolDisabled?: boolean
 }>()
 </script>
 
@@ -24,7 +26,12 @@ defineProps<{
           <div class="i-twemoji-people-hugging text-lg" />
           <span class="a-color-text">好友</span>
         </div>
-        <span class="font-bold font-mono a-color-text">{{ nextFriendCheck }}</span>
+        <span
+          class="font-mono a-color-text"
+          :class="friendPatrolDisabled ? 'font-normal a-color-text-tertiary' : 'font-bold'"
+        >
+          {{ nextFriendCheck }}
+        </span>
       </div>
     </div>
   </a-card>

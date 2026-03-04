@@ -640,6 +640,13 @@ export class FriendWorker {
   // ========== Friend Loop ==========
 
   async checkFriends(): Promise<boolean> {
+    // 仅 wx 平台开启好友巡查；QQ 因 gamepb.friendpb.FriendService.GetAll 报错 code=1000020 临时关闭
+    const account = this.store.getAccountById(this.accountId)
+    const platform = String(account?.platform || 'qq').toLowerCase()
+    const friendPatrolEnabled = platform === 'wx'
+    if (!friendPatrolEnabled)
+      return false
+
     if (!this.store.isAutomationOn('friend', this.accountId))
       return false
     const helpOn = this.store.isAutomationOn('friend_help', this.accountId)
