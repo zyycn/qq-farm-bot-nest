@@ -13,7 +13,7 @@ export interface UserState {
 
 /**
  * Workers 依赖的传输层抽象接口。
- * GameClient（直连）和 ConnectorClient（TCP 代理）都实现此接口，
+ * GameClient（直连）和 LinkClient（TCP 代理）都实现此接口，
  * 这样 Workers 代码无需关心连接方式。
  */
 export interface IGameTransport {

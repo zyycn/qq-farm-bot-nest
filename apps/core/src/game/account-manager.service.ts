@@ -4,7 +4,7 @@ import process from 'node:process'
 import { BadRequestException, Injectable, Logger } from '@nestjs/common'
 import { StoreService } from '../store/store.service'
 import { AccountRunner } from './account-runner'
-import { ConnectorClient } from './connector-client'
+import { LinkClient } from './link-client'
 import { GameConfigService } from './game-config.service'
 import { GameLogService } from './game-log.service'
 import { GamePushService } from './game-push.service'
@@ -24,7 +24,7 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
   private logger = new Logger('AccountManager')
   private runners = new Map<string, RunningAccount>()
   private onStatusSyncCallback: ((accountId: string, status: any) => void) | null = null
-  private connectorClient!: ConnectorClient
+  private linkClient!: LinkClient
 
   constructor(
     private proto: ProtoService,
@@ -48,24 +48,24 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit() {
-    this.connectorClient = new ConnectorClient(this.proto, {
-      host: process.env.CONNECTOR_HOST || '127.0.0.1',
-      port: Number(process.env.CONNECTOR_PORT) || 9800
+    this.linkClient = new LinkClient(this.proto, {
+      host: process.env.LINK_HOST || '127.0.0.1',
+      port: Number(process.env.LINK_PORT) || 9800
     })
 
-    this.connectorClient.on('connector_event', ({ accountId, event, data }) => {
+    this.linkClient.on('link_event', ({ accountId, event, data }) => {
       const record = this.runners.get(accountId)
       if (record)
-        record.runner.handleConnectorEvent(event, data)
+        record.runner.handleLinkEvent(event, data)
     })
 
-    this.connectorClient.on('connected', () => this.syncAccountsStateFromConnector())
+    this.linkClient.on('connected', () => this.syncAccountsStateFromLink())
 
     try {
-      await this.connectorClient.connect()
-      this.logger.log('已连接到 Connector 服务')
+      await this.linkClient.connect()
+      this.logger.log('已连接到 Link 服务')
     } catch (e: any) {
-      this.logger.warn(`连接 Connector 失败，将后台重试: ${e?.message}`)
+      this.logger.warn(`连接 Link 失败，将后台重试: ${e?.message}`)
     }
 
     await this.autoStartAccounts()
@@ -75,25 +75,25 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
     for (const [id] of this.runners) {
       await this.stopAccount(id)
     }
-    this.connectorClient?.destroy()
+    this.linkClient?.destroy()
   }
 
-  /** TCP 重连后从 Connector 拉取各账号真实连接状态，避免显示一会在线一会离线 */
-  private async syncAccountsStateFromConnector() {
-    if (!this.connectorClient?.connected)
+  /** TCP 重连后从 Link 拉取各账号真实连接状态，避免显示一会在线一会离线 */
+  private async syncAccountsStateFromLink() {
+    if (!this.linkClient?.connected)
       return
     for (const [accountId, record] of this.runners) {
       if (!record.runner.isActive())
         continue
       try {
-        const meta = await this.connectorClient.getAccountStatus(accountId)
+        const meta = await this.linkClient.getAccountStatus(accountId)
         if (meta?.connected && meta.userState) {
-          record.runner.handleConnectorEvent('connected', meta.userState)
+          record.runner.handleLinkEvent('connected', meta.userState)
         } else {
-          record.runner.handleConnectorEvent('disconnected', {})
+          record.runner.handleLinkEvent('disconnected', {})
         }
       } catch {
-        record.runner.handleConnectorEvent('disconnected', {})
+        record.runner.handleLinkEvent('disconnected', {})
       }
     }
   }
@@ -141,7 +141,7 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    const runner = new AccountRunner(id, this.connectorClient, this.proto, this.gameConfig, this.store, callbacks)
+    const runner = new AccountRunner(id, this.linkClient, this.proto, this.gameConfig, this.store, callbacks)
     runner.name = acc.name || ''
 
     const record: RunningAccount = {

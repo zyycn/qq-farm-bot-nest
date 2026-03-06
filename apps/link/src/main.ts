@@ -10,10 +10,10 @@ async function bootstrap() {
     const app = await NestFactory.createApplicationContext(AppModule, {
       logger
     })
-    logger.log('Connector NestJS 应用已启动')
+    logger.log('Link NestJS 应用已启动')
 
     const shutdown = async () => {
-      logger.log('正在关闭 Connector 应用...')
+      logger.log('正在关闭 Link 应用...')
       await app.close()
       process.exit(0)
     }
@@ -21,7 +21,7 @@ async function bootstrap() {
     process.on('SIGINT', shutdown)
     process.on('SIGTERM', shutdown)
   } catch (err) {
-    logger.error(`Connector 启动失败: ${err instanceof Error ? err.message : String(err)}`, err instanceof Error ? err.stack : undefined)
+    logger.error(`Link 启动失败: ${err instanceof Error ? err.message : String(err)}`, err instanceof Error ? err.stack : undefined)
     process.exit(1)
   }
 }

@@ -1,5 +1,5 @@
 import type { StoreService } from '../store/store.service'
-import type { ConnectorClient } from './connector-client'
+import type { LinkClient } from './link-client'
 import type { IntervalsConfig } from './constants'
 import type { GameConfigService } from './game-config.service'
 import type { IGameTransport } from './interfaces/game-transport.interface'
@@ -66,7 +66,7 @@ export class AccountRunner {
 
   constructor(
     readonly accountId: string,
-    private connectorClient: ConnectorClient,
+    private linkClient: LinkClient,
     private proto: ProtoService,
     private gameConfig: GameConfigService,
     private store: StoreService,
@@ -102,7 +102,7 @@ export class AccountRunner {
       return
     this.isRunning = true
 
-    this.transport = this.connectorClient.createTransport(this.accountId)
+    this.transport = this.linkClient.createTransport(this.accountId)
     this.warehouse = new WarehouseWorker(this.accountId, this.transport, this.gameConfig, this.store)
     this.warehouse.onLog = this.forwardLog
     this.farm = new FarmWorker(this.accountId, this.transport, this.gameConfig, this.store, this.stats, this.analytics)
@@ -121,7 +121,7 @@ export class AccountRunner {
     this.log('正在连接服务器...', 'connect')
 
     try {
-      const us = await this.connectorClient.connectAccount(this.accountId, config.code, config.platform)
+      const us = await this.linkClient.connectAccount(this.accountId, config.code, config.platform)
       if (us) {
         this.userState = { ...this.userState, ...us }
         this.syncTransportUserState()
@@ -177,7 +177,7 @@ export class AccountRunner {
     this.task?.destroy()
     this.stopDailyRoutineTimer()
     this.scheduler.clearAll()
-    await this.connectorClient.disconnectAccount(this.accountId).catch(() => {})
+    await this.linkClient.disconnectAccount(this.accountId).catch(() => {})
 
     this.callbacks.onStopped?.(this.accountId)
   }
@@ -371,9 +371,9 @@ export class AccountRunner {
     this.syncStatus()
   }
 
-  // ========== Events (from ConnectorClient) ==========
+  // ========== Events (from LinkClient) ==========
 
-  handleConnectorEvent(event: string, data: any) {
+  handleLinkEvent(event: string, data: any) {
     switch (event) {
       case 'kicked':
         this.onKickout(data)

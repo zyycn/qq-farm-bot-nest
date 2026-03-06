@@ -23,18 +23,18 @@ interface FrameMessage {
   data?: any
 }
 
-export interface ConnectorClientOptions {
+export interface LinkClientOptions {
   host?: string
   port?: number
   reconnectInterval?: number
 }
 
 /**
- * TCP 客户端：与 apps/connector 进程通信。
+ * TCP 客户端：与 apps/link 进程通信。
  * 实现 IGameTransport 接口，可透明替代直连 GameClient。
  */
-export class ConnectorClient extends EventEmitter {
-  private readonly logger = new Logger('ConnectorClient')
+export class LinkClient extends EventEmitter {
+  private readonly logger = new Logger('LinkClient')
   private socket: net.Socket | null = null
   private buffer = Buffer.alloc(0)
   private pending = new Map<string, PendingRequest>()
@@ -48,7 +48,7 @@ export class ConnectorClient extends EventEmitter {
 
   constructor(
     private readonly protoService: { types: Record<string, any> },
-    options: ConnectorClientOptions = {}
+    options: LinkClientOptions = {}
   ) {
     super()
     this.host = options.host || '127.0.0.1'
@@ -58,17 +58,17 @@ export class ConnectorClient extends EventEmitter {
 
   get connected(): boolean { return this._connected }
 
-  /** 连接到 connector 进程 */
+  /** 连接到 link 进程 */
   connect(): Promise<void> {
     if (this._destroyed)
-      return Promise.reject(new Error('ConnectorClient 已销毁'))
+      return Promise.reject(new Error('LinkClient 已销毁'))
     if (this._connected)
       return Promise.resolve()
 
     return new Promise((resolve, reject) => {
       this.socket = net.createConnection({ host: this.host, port: this.port }, () => {
         this._connected = true
-        this.logger.log(`已连接到 Connector ${this.host}:${this.port}`)
+        this.logger.log(`已连接到 Link ${this.host}:${this.port}`)
         this.emit('connected')
         resolve()
       })
@@ -136,7 +136,7 @@ export class ConnectorClient extends EventEmitter {
     }
 
     if (msg.type === 'event') {
-      this.emit('connector_event', {
+      this.emit('link_event', {
         accountId: msg.accountId,
         event: msg.event,
         data: msg.data
@@ -147,7 +147,7 @@ export class ConnectorClient extends EventEmitter {
   private sendRequest(data: any, timeout = 15000): Promise<FrameMessage> {
     return new Promise((resolve, reject) => {
       if (!this._connected || !this.socket) {
-        reject(new Error('未连接到 Connector'))
+        reject(new Error('未连接到 Link'))
         return
       }
       const rid = String(++this.ridCounter)
@@ -160,7 +160,7 @@ export class ConnectorClient extends EventEmitter {
 
       const timer = setTimeout(() => {
         this.pending.delete(rid)
-        reject(new Error(`Connector 请求超时: ${data.type}`))
+        reject(new Error(`Link 请求超时: ${data.type}`))
       }, timeout)
 
       this.pending.set(rid, { resolve, reject, timer })
@@ -205,7 +205,7 @@ export class ConnectorClient extends EventEmitter {
 }
 
 /**
- * 为单个账号提供 IGameTransport 接口，内部通过 ConnectorClient 发送 TCP 请求。
+ * 为单个账号提供 IGameTransport 接口，内部通过 LinkClient 发送 TCP 请求。
  * 继承 EventEmitter 以支持 Workers 的事件订阅。
  */
 class AccountTransport extends EventEmitter implements IGameTransport {
@@ -214,7 +214,7 @@ class AccountTransport extends EventEmitter implements IGameTransport {
 
   constructor(
     private readonly accountId: string,
-    private readonly connector: ConnectorClient,
+    private readonly linkClient: LinkClient,
     protoTypes: Record<string, any>
   ) {
     super()
@@ -222,7 +222,7 @@ class AccountTransport extends EventEmitter implements IGameTransport {
   }
 
   async sendMsgAsync(serviceName: string, methodName: string, bodyBytes: Buffer, timeout = 10000): Promise<{ body: Buffer, meta: any }> {
-    const res = await (this.connector as any).sendRequest({
+    const res = await (this.linkClient as any).sendRequest({
       type: 'send',
       accountId: this.accountId,
       service: serviceName,
@@ -236,7 +236,7 @@ class AccountTransport extends EventEmitter implements IGameTransport {
   }
 
   isConnected(): boolean {
-    return this.connector.connected
+    return this.linkClient.connected
   }
 
   updateUserState(state: Partial<UserState>) {

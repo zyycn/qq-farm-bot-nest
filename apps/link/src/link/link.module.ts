@@ -10,4 +10,4 @@ import { TcpServerService } from './tcp-server.service'
     TcpServerService
   ]
 })
-export class ConnectorModule {}
+export class LinkModule {}

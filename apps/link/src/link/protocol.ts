@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer'
 
-/** Core -> Connector requests */
+/** Core -> Link requests */
 export interface ConnectRequest {
   type: 'connect'
   rid: string
@@ -37,7 +37,7 @@ export interface ListRequest {
 
 export type Request = ConnectRequest | DisconnectRequest | SendRequest | StatusRequest | ListRequest
 
-/** Connector -> Core responses */
+/** Link -> Core responses */
 export interface ResponseMessage {
   type: 'response'
   rid: string
@@ -48,7 +48,7 @@ export interface ResponseMessage {
   userState?: any
 }
 
-/** Connector -> Core push events */
+/** Link -> Core push events */
 export interface EventMessage {
   type: 'event'
   accountId: string
