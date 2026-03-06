@@ -41,6 +41,15 @@ const filteredFriends = computed(() => {
   )
 })
 
+const normalCollapsed = ref(false)
+const blacklistCollapsed = ref(true)
+const normalFriends = computed(() => {
+  return filteredFriends.value.filter(f => !blacklist.value.includes(Number(f.gid)))
+})
+const blacklistFriends = computed(() => {
+  return filteredFriends.value.filter(f => blacklist.value.includes(Number(f.gid)))
+})
+
 const expandedFriends = ref<Set<string>>(new Set())
 
 function confirmAction(msg: string, action: () => Promise<void>, opType?: string) {
@@ -179,24 +188,100 @@ function handleAvatarError(key: string) {
           <EmptyState icon="i-twemoji-magnifying-glass-tilted-left text-4xl" description="未找到匹配的好友" />
         </div>
 
-        <div
-          v-for="(friend, idx) in filteredFriends"
-          :key="friend.gid"
-          :class="[idx > 0 ? 'border-t border-t-solid a-border-t-border-sec' : '']"
-        >
-          <FriendRow
-            :friend="friend"
-            :expanded="expandedFriends.has(friend.gid)"
-            :blacklisted="blacklist.includes(Number(friend.gid))"
-            :lands="friendLandsWithCountdown[friend.gid] || []"
-            :lands-loading="!!friendLandsLoading[friend.gid]"
-            :avatar-error-keys="avatarErrorKeys"
-            :disabled="!currentAccount?.running"
-            @toggle="toggleFriend(friend.gid)"
-            @operate="(type, e) => handleOp(friend.gid, type, e)"
-            @toggle-blacklist="e => handleToggleBlacklist(friend, e)"
-            @avatar-error="key => handleAvatarError(key)"
-          />
+        <div v-else>
+          <!-- 正常好友分区 -->
+          <button
+            type="button"
+            class="a-bg-transparent hover:a-bg-fill-quaternary px-4 py-2.5 border-b border-b-solid flex w-full cursor-pointer transition-colors items-center justify-between a-border-b-border-sec"
+            @click="normalCollapsed = !normalCollapsed"
+          >
+            <div class="flex gap-2 items-center">
+              <div class="i-twemoji-thumbs-up a-color-text-tertiary text-base" />
+              <div class="font-medium a-color-text-tertiary">
+                正常好友
+              </div>
+              <a-tag size="small" color="blue">
+                {{ normalFriends.length }}
+              </a-tag>
+            </div>
+            <div
+              class="i-carbon-chevron-right transition-transform duration-200 a-color-text-tertiary text-base"
+              :class="[normalCollapsed ? '' : 'rotate-90']"
+              aria-hidden="true"
+            />
+          </button>
+
+          <div v-show="!normalCollapsed">
+            <div v-if="normalFriends.length === 0" class="px-4 py-6 a-color-text-tertiary text-sm">
+              暂无正常好友
+            </div>
+            <div
+              v-for="(friend, idx) in normalFriends"
+              v-else
+              :key="friend.gid"
+              :class="[idx > 0 ? 'border-t border-t-solid a-border-t-border-sec' : '']"
+            >
+              <FriendRow
+                :friend="friend"
+                :expanded="expandedFriends.has(friend.gid)"
+                :blacklisted="false"
+                :lands="friendLandsWithCountdown[friend.gid] || []"
+                :lands-loading="!!friendLandsLoading[friend.gid]"
+                :avatar-error-keys="avatarErrorKeys"
+                :disabled="!currentAccount?.running"
+                @toggle="toggleFriend(friend.gid)"
+                @operate="(type, e) => handleOp(friend.gid, type, e)"
+                @toggle-blacklist="e => handleToggleBlacklist(friend, e)"
+                @avatar-error="key => handleAvatarError(key)"
+              />
+            </div>
+          </div>
+
+          <!-- 黑名单分区 -->
+          <div v-if="blacklistFriends.length > 0" class="mt-2">
+            <button
+              type="button"
+              class="a-bg-transparent hover:a-bg-fill-quaternary px-4 py-2.5 border-b border-b-solid flex w-full cursor-pointer transition-colors items-center justify-between a-border-b-border-sec"
+              @click="blacklistCollapsed = !blacklistCollapsed"
+            >
+              <div class="flex gap-2 items-center">
+                <div class="i-twemoji-prohibited a-color-text-tertiary text-base" />
+                <div class="font-medium a-color-text-tertiary">
+                  黑名单
+                </div>
+                <a-tag size="small" color="default">
+                  {{ blacklistFriends.length }}
+                </a-tag>
+              </div>
+              <div
+                class="i-carbon-chevron-right transition-transform duration-200 a-color-text-tertiary text-base"
+                :class="[blacklistCollapsed ? '' : 'rotate-90']"
+                aria-hidden="true"
+              />
+            </button>
+
+            <div v-show="!blacklistCollapsed">
+              <div
+                v-for="(friend, idx) in blacklistFriends"
+                :key="friend.gid"
+                :class="[idx > 0 ? 'border-t border-t-solid a-border-t-border-sec' : '']"
+              >
+                <FriendRow
+                  :friend="friend"
+                  :expanded="expandedFriends.has(friend.gid)"
+                  :blacklisted="true"
+                  :lands="friendLandsWithCountdown[friend.gid] || []"
+                  :lands-loading="!!friendLandsLoading[friend.gid]"
+                  :avatar-error-keys="avatarErrorKeys"
+                  :disabled="!currentAccount?.running"
+                  @toggle="toggleFriend(friend.gid)"
+                  @operate="(type, e) => handleOp(friend.gid, type, e)"
+                  @toggle-blacklist="e => handleToggleBlacklist(friend, e)"
+                  @avatar-error="key => handleAvatarError(key)"
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </a-card>

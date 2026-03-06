@@ -8,6 +8,7 @@ import { useAccountRefresh } from '@/composables/useAccountRefresh'
 import { useAccountStore } from '@/stores'
 import CropTable from './components/CropTable.vue'
 import SortToolbar from './components/SortToolbar.vue'
+import StrategyPanel from './components/StrategyPanel.vue'
 import { METRIC_MAP } from './constants'
 
 const accountStore = useAccountStore()
@@ -28,6 +29,7 @@ const loading = ref(false)
 const list = ref<any[]>([])
 const sortKey = ref('exp')
 const searchQuery = ref('')
+const levelFilter = ref<number | null>(null)
 
 const filteredList = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
@@ -96,6 +98,7 @@ watch(sortKey, loadAnalytics)
       class="analytics-card flex-1 overflow-hidden"
       :classes="{ body: '!p-0 !h-full !flex !flex-col' }"
     >
+      <StrategyPanel v-model:level-filter="levelFilter" :list="list" />
       <SortToolbar v-model:sort-key="sortKey" v-model:search-query="searchQuery" :total-count="filteredList.length" />
 
       <div ref="tableWrapperRef" class="flex-1 min-h-0">

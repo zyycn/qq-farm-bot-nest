@@ -38,3 +38,10 @@ export const HIGHLIGHT_COLOR_MAP: Record<string, string> = {
   profit: 'var(--ant-color-warning)',
   fert_profit: 'var(--ant-color-success)'
 }
+
+export const STRATEGY_CARD_COLORS: Record<string, string> = {
+  exp: 'blue',
+  fert: 'cyan',
+  profit: 'orange',
+  fert_profit: 'green'
+}
