@@ -138,8 +138,8 @@ export class ProtoService implements OnModuleInit {
     t.ClaimAllRewardsV2Reply = lookup('gamepb.illustratedpb.ClaimAllRewardsV2Reply')
 
     // 好友
-    t.GetAllFriendsRequest = lookup('gamepb.friendpb.GetAllRequest')
-    t.GetAllFriendsReply = lookup('gamepb.friendpb.GetAllReply')
+    t.SyncAllRequest = lookup('gamepb.friendpb.GetAllRequest')
+    t.SyncAllReply = lookup('gamepb.friendpb.GetAllReply')
     t.GetApplicationsRequest = lookup('gamepb.friendpb.GetApplicationsRequest')
     t.GetApplicationsReply = lookup('gamepb.friendpb.GetApplicationsReply')
     t.AcceptFriendsRequest = lookup('gamepb.friendpb.AcceptFriendsRequest')

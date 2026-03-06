@@ -129,9 +129,9 @@ export class FriendWorker {
   // ========== API ==========
 
   async getAllFriends(): Promise<any> {
-    const body = Buffer.from(this.t.GetAllFriendsRequest.encode(this.t.GetAllFriendsRequest.create({})).finish())
-    const { body: rb } = await this.client.sendMsgAsync('gamepb.friendpb.FriendService', 'GetAll', body)
-    return this.t.GetAllFriendsReply.decode(rb)
+    const body = Buffer.from(this.t.SyncAllRequest.encode(this.t.SyncAllRequest.create({ open_ids: [] })).finish())
+    const { body: rb } = await this.client.sendMsgAsync('gamepb.friendpb.FriendService', 'SyncAll', body)
+    return this.t.SyncAllReply.decode(rb)
   }
 
   async getApplications(): Promise<any> {
