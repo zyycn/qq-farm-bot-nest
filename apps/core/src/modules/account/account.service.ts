@@ -15,7 +15,7 @@ export class AccountService {
     return this.manager.getAccounts()
   }
 
-  createOrUpdateAccount(payload: any) {
+  async createOrUpdateAccount(payload: any) {
     const isUpdateById = !!payload.id
     const resolvedUpdateId = isUpdateById ? this.manager.resolveAccountId(payload.id) : ''
     const body = isUpdateById ? { ...payload, id: resolvedUpdateId || String(payload.id) } : payload
@@ -83,20 +83,21 @@ export class AccountService {
       if (newAcc)
         this.manager.startAccount(String(newAcc.id))
     } else if (wasRunning && !onlyRemarkChanged) {
-      this.manager.restartAccount(accountId)
+      await this.manager.restartAccount(accountId)
     }
 
     return data
   }
 
-  deleteAccount(id: string) {
+  async deleteAccount(id: string) {
     const resolvedId = this.manager.resolveAccountId(id) || String(id)
     const before = this.manager.getAccounts()
     const target = (before.accounts || []).find((a: any) =>
       String(a.id) === resolvedId || String(a.uin) === id || String(a.qq) === id
     )
 
-    this.manager.stopAccount(resolvedId)
+    await this.manager.stopAccount(resolvedId)
+    await this.manager.disconnectFromLink(resolvedId)
     const data = this.store.deleteAccount(resolvedId)
     this.gameLog.deleteAccountLogs(resolvedId)
 

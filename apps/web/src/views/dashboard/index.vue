@@ -19,16 +19,23 @@ const { currentAccountId, currentAccount } = storeToRefs(accountStore)
 const { dashboardItems } = storeToRefs(bagStore)
 const lastBagFetchAt = ref(0)
 
+function formatTimeChina(ts: number): string {
+  return new Date(ts).toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' })
+}
+
 const allLogs = computed(() => {
   const sLogs = statusLogs.value || []
-  const aLogs = (statusAccountLogs.value || []).map((l: any) => ({
-    ts: new Date(l.time).getTime(),
-    time: l.time,
-    tag: l.action === 'Error' ? '错误' : '系统',
-    msg: l.reason ? `${l.msg} (${l.reason})` : l.msg,
-    isAccountLog: true
-  }))
-  return [...sLogs, ...aLogs].sort((a: any, b: any) => a.ts - b.ts).filter((l: any) => !l.isAccountLog)
+  const aLogs = (statusAccountLogs.value || []).map((l: any) => {
+    const createdAt = l.createdAt ?? (l.time ? new Date(l.time).getTime() : Date.now())
+    return {
+      createdAt,
+      time: l.time ?? formatTimeChina(createdAt),
+      tag: l.action === 'Error' ? '错误' : '系统',
+      msg: l.reason ? `${l.msg} (${l.reason})` : l.msg,
+      isAccountLog: true
+    }
+  })
+  return [...sLogs, ...aLogs].sort((a: any, b: any) => (a.createdAt ?? 0) - (b.createdAt ?? 0)).filter((l: any) => !l.isAccountLog)
 })
 
 const filter = reactive({

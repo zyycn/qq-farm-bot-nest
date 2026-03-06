@@ -22,7 +22,7 @@ export interface AccountRunnerConfig {
 }
 
 export interface AccountRunnerCallbacks {
-  onStatusSync?: (accountId: string, status: any, name: string) => void
+  onStatusSync?: (accountId: string, status: any, name: string, callerRunner?: AccountRunner) => void
   onLog?: (entry: any) => void
   onAccountLog?: (entry: any) => void
   onKicked?: (accountId: string, reason: string) => void
@@ -121,7 +121,19 @@ export class AccountRunner {
     this.log('正在连接服务器...', 'connect')
 
     try {
-      const us = await this.linkClient.connectAccount(this.accountId, config.code, config.platform)
+      let us: any = null
+      try {
+        const meta = await this.linkClient.getAccountStatus(this.accountId)
+        if (meta?.connected && meta.userState) {
+          us = meta.userState
+          this.log('复用已有连接', 'connect')
+        }
+      } catch {}
+      if (!us) {
+        us = await this.linkClient.connectAccount(this.accountId, config.code, config.platform)
+      }
+      if (!this.isRunning)
+        return
       if (us) {
         this.userState = { ...this.userState, ...us }
         this.syncTransportUserState()
@@ -131,6 +143,8 @@ export class AccountRunner {
 
         try {
           const rep = await this.warehouse.getBag()
+          if (!this.isRunning)
+            return
           const items = this.warehouse.getBagItems(rep)
           let coupon = 0
           for (const it of (items || [])) {
@@ -146,9 +160,13 @@ export class AccountRunner {
         this.stats.initStats(Number(this.userState.gold || 0), Number(this.userState.exp || 0), Number(this.userState.coupon || 0))
 
         await this.invite.processInviteCodes().catch(() => {})
+        if (!this.isRunning)
+          return
         const auto = this.store.getAutomation(this.accountId)
         if (auto.fertilizer_gift)
           await this.warehouse.autoOpenFertilizerGiftPacks().catch(() => 0)
+        if (!this.isRunning)
+          return
 
         this.farm.startFarmLoop({ externalScheduler: true })
         this.friend.startFriendLoop({ externalScheduler: true })
@@ -162,6 +180,8 @@ export class AccountRunner {
       this.warn(`连接失败: ${e?.message}`, 'connect')
     }
 
+    if (!this.isRunning)
+      return
     this.scheduler.setIntervalTask('status_sync', 3000, () => this.syncStatus(), { preventOverlap: true })
   }
 
@@ -177,7 +197,6 @@ export class AccountRunner {
     this.task?.destroy()
     this.stopDailyRoutineTimer()
     this.scheduler.clearAll()
-    await this.linkClient.disconnectAccount(this.accountId).catch(() => {})
 
     this.callbacks.onStopped?.(this.accountId)
   }
@@ -381,7 +400,17 @@ export class AccountRunner {
       case 'ws_error':
         this.onWsError(data)
         break
+      case 'reconnecting':
+        this.log(`WS 断开，正在重连 (${data?.attempt}/${data?.maxAttempts})...`)
+        break
       case 'disconnected':
+        if (this.loginReady) {
+          this.loginReady = false
+          this.syncStatus()
+        }
+        break
+      case 'login_failed':
+        this.warn(`登录失败: ${data?.error || '未知原因'}，code 可能已过期`, 'login_failed')
         if (this.loginReady) {
           this.loginReady = false
           this.syncStatus()
@@ -444,7 +473,7 @@ export class AccountRunner {
     if (hash !== this.lastStatusHash || now - this.lastStatusSentAt > 8000) {
       this.lastStatusHash = hash
       this.lastStatusSentAt = now
-      this.callbacks.onStatusSync(this.accountId, data, this.name)
+      this.callbacks.onStatusSync(this.accountId, data, this.name, this)
     }
   }
 

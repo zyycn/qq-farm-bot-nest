@@ -72,8 +72,10 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleDestroy() {
-    for (const [id] of this.runners) {
+    const ids = Array.from(this.runners.keys())
+    for (const id of ids) {
       await this.stopAccount(id)
+      await this.disconnectFromLink(id)
     }
     this.linkClient?.destroy()
   }
@@ -127,7 +129,14 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
       return false
 
     const callbacks: AccountRunnerCallbacks = {
-      onStatusSync: (runnerId, status, name) => this.handleStatusSync(runnerId, status, name),
+      onStatusSync: (runnerId, status, name, callerRunner) => {
+        const record = this.runners.get(runnerId)
+        if (!record)
+          return
+        if (callerRunner != null && record.runner !== callerRunner)
+          return
+        this.handleStatusSync(runnerId, status, name)
+      },
       onLog: (entry) => {
         const r = this.runners.get(id)
         this.gameLog.appendLog(id, r?.name ?? acc.name ?? '', entry)
@@ -171,6 +180,11 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
     this.runners.delete(accountId)
     this.gameLog.addAccountLog('stop', `停止账号: ${record.name}`, accountId, record.name)
     return true
+  }
+
+  /** 通知 Link 端断开该账号的游戏连接，仅 delete/被踢/进程退出 时调用 */
+  async disconnectFromLink(accountId: string): Promise<void> {
+    await this.linkClient.disconnectAccount(accountId).catch(() => {})
   }
 
   async restartAccount(accountId: string): Promise<boolean> {
@@ -243,7 +257,7 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
           accountId,
           record.name
         )
-        this.stopAccount(accountId).catch(() => {})
+        this.stopAccount(accountId).then(() => this.disconnectFromLink(accountId)).catch(() => {})
         this.store.deleteAccount(accountId)
       }
     }
@@ -251,14 +265,15 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
     this.onStatusSyncCallback?.(accountId, record.status)
   }
 
-  private handleKicked(accountId: string, reason: string) {
+  private async handleKicked(accountId: string, reason: string) {
     const record = this.runners.get(accountId)
     if (!record)
       return
     this.logger.warn(`账号 ${record.name} 被踢下线: ${reason}`)
     this.gamePush.triggerOfflineReminder(accountId, record.name, `kickout:${reason}`, 0)
     this.gameLog.addAccountLog('kickout_stop', `账号 ${record.name} 被踢下线，已自动停止`, accountId, record.name)
-    this.stopAccount(accountId).catch(() => {})
+    await this.stopAccount(accountId).catch(() => {})
+    await this.disconnectFromLink(accountId)
   }
 
   private handleWsError(accountId: string, code: number, message: string) {

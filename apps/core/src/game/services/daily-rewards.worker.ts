@@ -68,6 +68,27 @@ export class DailyRewardsWorker {
     this.onLog?.({ msg, tag: '任务', meta: { module: 'task', ...(event && { event }) }, isWarn: true })
   }
 
+  /** 检查 proto 类型是否可用，若不可用则记录友好提示并返回 false */
+  private ensureProtoTypes(typeKeys: string[], label: string, event: string): boolean {
+    const t = this.client.protoTypes
+    for (const key of typeKeys) {
+      const type = t?.[key]
+      if (!type?.encode) {
+        this.warn(`${label}：功能暂不可用（协议未加载）`, event)
+        return false
+      }
+    }
+    return true
+  }
+
+  /** 将协议/编码类错误转为友好提示，避免直接展示 undefined.encode 等 */
+  private friendlyErrorMessage(msg: string, fallback: string): string {
+    const s = String(msg ?? '')
+    if (/undefined|\.encode|\.decode|proto|protobuf/i.test(s))
+      return fallback
+    return s
+  }
+
   // ========== Email ==========
 
   async checkAndClaimEmails(force = false): Promise<{ claimed: number, rewardItems: number }> {
@@ -172,6 +193,8 @@ export class DailyRewardsWorker {
 
     try {
       const t = this.client.protoTypes
+      if (!this.ensureProtoTypes(['GetMonthCardInfosRequest', 'ClaimMonthCardRewardRequest'], '月卡礼包', 'month_card_gift'))
+        return false
       const body = Buffer.from(t.GetMonthCardInfosRequest.encode(t.GetMonthCardInfosRequest.create({})).finish())
       const { body: rb } = await this.client.sendMsgAsync('gamepb.mallpb.MallService', 'GetMonthCardInfos', body)
       const rep: any = t.GetMonthCardInfosReply.decode(rb)
@@ -204,7 +227,7 @@ export class DailyRewardsWorker {
       }
       return claimed > 0
     } catch (e: any) {
-      this.warn(`查询月卡礼包失败: ${e?.message}`, 'month_card_gift')
+      this.warn(`月卡礼包：${this.friendlyErrorMessage(e?.message, '功能暂不可用')}`, 'month_card_gift')
       return false
     }
   }
@@ -221,6 +244,8 @@ export class DailyRewardsWorker {
 
     try {
       const t = this.client.protoTypes
+      if (!this.ensureProtoTypes(['GetTodayClaimStatusRequest', 'ClaimRedPacketRequest'], '开服红包', 'open_server_gift'))
+        return false
       const body = Buffer.from(t.GetTodayClaimStatusRequest.encode(t.GetTodayClaimStatusRequest.create({})).finish())
       const { body: rb } = await this.client.sendMsgAsync('gamepb.redpacketpb.RedPacketService', 'GetTodayClaimStatus', body)
       const status: any = t.GetTodayClaimStatusReply.decode(rb)
@@ -258,7 +283,7 @@ export class DailyRewardsWorker {
       }
       return claimed > 0
     } catch (e: any) {
-      this.warn(`领取开服红包失败: ${e?.message}`, 'open_server_gift')
+      this.warn(`开服红包：${this.friendlyErrorMessage(e?.message, '功能暂不可用')}`, 'open_server_gift')
       return false
     }
   }
@@ -275,6 +300,8 @@ export class DailyRewardsWorker {
 
     try {
       const t = this.client.protoTypes
+      if (!this.ensureProtoTypes(['GetDailyGiftStatusRequest', 'ClaimDailyGiftRequest'], '会员礼包', 'vip_daily_gift'))
+        return false
       const statusBody = Buffer.from(t.GetDailyGiftStatusRequest.encode(t.GetDailyGiftStatusRequest.create({})).finish())
       const { body: srb } = await this.client.sendMsgAsync('gamepb.qqvippb.QQVipService', 'GetDailyGiftStatus', statusBody)
       const status: any = t.GetDailyGiftStatusReply.decode(srb)
@@ -299,7 +326,7 @@ export class DailyRewardsWorker {
         this.vipDone = getDateKey()
         return false
       }
-      this.warn(`领取会员礼包失败: ${msg}`, 'vip_daily_gift')
+      this.warn(`会员礼包：${this.friendlyErrorMessage(msg, '功能暂不可用')}`, 'vip_daily_gift')
       return false
     }
   }
@@ -316,6 +343,8 @@ export class DailyRewardsWorker {
 
     try {
       const t = this.client.protoTypes
+      if (!this.ensureProtoTypes(['CheckCanShareRequest', 'ReportShareRequest', 'ClaimShareRewardRequest'], '分享奖励', 'daily_share'))
+        return false
 
       const checkBody = Buffer.from(t.CheckCanShareRequest.encode(t.CheckCanShareRequest.create({})).finish())
       const { body: crb } = await this.client.sendMsgAsync('gamepb.sharepb.ShareService', 'CheckCanShare', checkBody)
@@ -353,7 +382,7 @@ export class DailyRewardsWorker {
         this.shareDone = getDateKey()
         this.log('分享奖励已经领取', 'daily_share')
       } else {
-        this.warn(`领取分享奖励失败: ${msg}`, 'daily_share')
+        this.warn(`分享奖励：${this.friendlyErrorMessage(msg, '功能暂不可用')}`, 'daily_share')
       }
       return false
     }
@@ -371,6 +400,8 @@ export class DailyRewardsWorker {
 
     try {
       const t = this.client.protoTypes
+      if (!this.ensureProtoTypes(['GetMallListBySlotTypeRequest', 'PurchaseRequest'], '免费礼包', 'mall_free_gifts'))
+        return 0
       const body = Buffer.from(t.GetMallListBySlotTypeRequest.encode(t.GetMallListBySlotTypeRequest.create({ slot_type: 1 })).finish())
       const { body: rb } = await this.client.sendMsgAsync('gamepb.mallpb.MallService', 'GetMallListBySlotType', body)
       const mall: any = t.GetMallListBySlotTypeResponse.decode(rb)
@@ -402,7 +433,7 @@ export class DailyRewardsWorker {
       }
       return bought
     } catch (e: any) {
-      this.warn(`领取免费礼包失败: ${e?.message}`, 'mall_free_gifts')
+      this.warn(`免费礼包：${this.friendlyErrorMessage(e?.message, '功能暂不可用')}`, 'mall_free_gifts')
       return 0
     }
   }

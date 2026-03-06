@@ -106,10 +106,10 @@ function syncLocalSettings() {
 }
 
 async function loadData() {
+  syncLocalSettings()
   if (!currentAccountId.value)
     return
   await settingStore.fetchSettings(currentAccountId.value)
-  syncLocalSettings()
   await farmStore.fetchSeeds(currentAccountId.value)
 }
 

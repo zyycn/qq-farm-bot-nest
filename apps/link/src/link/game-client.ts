@@ -32,6 +32,10 @@ export class GameClient extends EventEmitter {
   private heartbeatMissCount = 0
   private _connected = false
   private _destroyed = false
+  private _reconnecting = false
+  private _reconnectAttempts = 0
+  private _loginFailed = false
+  private static readonly MAX_RECONNECT_ATTEMPTS = 3
 
   constructor(
     readonly accountId: string,
@@ -189,8 +193,10 @@ export class GameClient extends EventEmitter {
 
       this.sendMsg('gamepb.userpb.UserService', 'Login', body, (err, bodyBytes) => {
         if (err) {
-          if (err.message.includes('code='))
+          if (err.message.includes('code=')) {
+            this._loginFailed = true
             this.emit('loginFailed', err)
+          }
           reject(err)
           return
         }
@@ -207,6 +213,9 @@ export class GameClient extends EventEmitter {
             if (reply.time_now_millis)
               syncServerTime(toNum(reply.time_now_millis))
             this._connected = true
+            this._reconnecting = false
+            this._reconnectAttempts = 0
+            this._loginFailed = false
             this.startHeartbeat()
             this.emit('login', this.userState)
             resolve()
@@ -266,6 +275,7 @@ export class GameClient extends EventEmitter {
       return Promise.reject(new Error('GameClient已销毁'))
     this.savedCode = code
     this.platform = platform
+    this._loginFailed = false
     const url = `${GAME_SERVER_URL}?platform=${platform}&os=iOS&ver=${CLIENT_VERSION}&code=${code}&openID=`
 
     return new Promise((resolve, reject) => {
@@ -289,11 +299,26 @@ export class GameClient extends EventEmitter {
       this.ws.on('close', (closeCode: number) => {
         this._connected = false
         this.cleanup()
-        this.emit('close', closeCode)
-        if (!this._destroyed && this.savedCode) {
+
+        const shouldReconnect = !this._destroyed
+          && this.savedCode
+          && !this._loginFailed
+          && this._reconnectAttempts < GameClient.MAX_RECONNECT_ATTEMPTS
+
+        if (shouldReconnect) {
+          this._reconnecting = true
+          this._reconnectAttempts++
+          this.emit('reconnecting', {
+            attempt: this._reconnectAttempts,
+            maxAttempts: GameClient.MAX_RECONNECT_ATTEMPTS
+          })
           this.scheduler.setTimeoutTask('auto_reconnect', 5000, () => {
             this.reconnect().catch(() => {})
           })
+        } else {
+          this._reconnecting = false
+          this._loginFailed = false
+          this.emit('close', closeCode)
         }
       })
 

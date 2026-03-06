@@ -40,13 +40,19 @@ export const useStatusStore = defineStore('status', () => {
     return (input && typeof input === 'object') ? { ...input } : {}
   }
 
+  const CHINA_TZ = 'Asia/Shanghai'
+
+  function formatTimeChina(ts: number): string {
+    return new Date(ts).toLocaleString('sv-SE', { timeZone: CHINA_TZ })
+  }
+
   function normalizeLogEntry(input: any) {
     const entry = (input && typeof input === 'object') ? { ...input } : {}
-    const ts = Number(entry.ts) || Date.parse(String(entry.time || '')) || Date.now()
+    const createdAt = Number(entry.createdAt) || Number(entry.ts) || Date.parse(String(entry.time || '')) || Date.now()
     return {
       ...entry,
-      ts,
-      time: entry.time || new Date(ts).toISOString().replace('T', ' ').slice(0, 19)
+      createdAt,
+      time: entry.time || formatTimeChina(createdAt)
     }
   }
 

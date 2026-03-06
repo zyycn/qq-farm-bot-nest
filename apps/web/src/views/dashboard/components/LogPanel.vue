@@ -149,7 +149,7 @@ onMounted(() => {
       <div v-if="!logs.length" class="flex h-full items-center justify-center">
         <EmptyState icon="i-twemoji-scroll text-4xl" description="暂无日志" />
       </div>
-      <div v-for="log in logs" v-else :key="log.ts + log.msg" class="mb-1 break-all text-xs">
+      <div v-for="log in logs" v-else :key="(log.createdAt ?? log.ts ?? 0) + log.msg" class="mb-1 break-all text-xs">
         <span class="mr-2 select-none a-color-text-tertiary">[{{ formatLogTime(log.time) }}]</span>
         <a-tag :color="log.tag === '错误' ? 'red' : log.isWarn ? 'orange' : 'green'" size="small" class="mr-1">
           {{ log.tag }}

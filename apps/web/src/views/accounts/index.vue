@@ -65,19 +65,6 @@ async function toggleAccount(account: any) {
 function handleSaved() {
   accountStore.fetchAccounts()
 }
-
-function getDisplayName(acc: any) {
-  if (acc.name) {
-    if (acc.nick)
-      return `${acc.nick} (${acc.name})`
-    return acc.name
-  }
-
-  if (acc.nick)
-    return acc.nick
-
-  return acc.uin
-}
 </script>
 
 <template>
@@ -129,10 +116,10 @@ function getDisplayName(acc: any) {
               <QqAvatar :src="acc.avatar" :uin="acc.uin" :size="44" ring :platform="acc.platform" />
               <div class="flex flex-1 flex-col gap-1.5 min-w-0">
                 <div class="font-bold truncate a-color-text">
-                  {{ getDisplayName(acc) }}
+                  {{ acc.nick }}
                 </div>
                 <div class="mt-0.5 a-color-text-tertiary text-sm">
-                  {{ acc.uin || '未绑定' }}
+                  备注: {{ acc.name || '-' }}
                 </div>
               </div>
             </div>

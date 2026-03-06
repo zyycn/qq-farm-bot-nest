@@ -33,11 +33,12 @@ export class StoreService {
   }
 
   private setGlobalValue(key: string, value: any): void {
+    const now = Date.now()
     const existing = this.db.select().from(schema.globalConfig).where(eq(schema.globalConfig.key, key)).get()
     if (existing) {
-      this.db.update(schema.globalConfig).set({ value }).where(eq(schema.globalConfig.key, key)).run()
+      this.db.update(schema.globalConfig).set({ value, updatedAt: now }).where(eq(schema.globalConfig.key, key)).run()
     } else {
-      this.db.insert(schema.globalConfig).values({ key, value }).run()
+      this.db.insert(schema.globalConfig).values({ key, value, createdAt: now, updatedAt: now }).run()
     }
   }
 
@@ -243,6 +244,7 @@ export class StoreService {
     const current = this.getAccountConfig(accountId)
     const merged = this.normalizeAccountConfig({ ...current, ...nextConfig }, fallback)
 
+    const now = Date.now()
     const existing = this.db.select().from(schema.accountConfigs).where(eq(schema.accountConfigs.accountId, accountId)).get()
     const data = {
       automation: merged.automation as any,
@@ -255,9 +257,9 @@ export class StoreService {
     }
 
     if (existing) {
-      this.db.update(schema.accountConfigs).set(data).where(eq(schema.accountConfigs.accountId, accountId)).run()
+      this.db.update(schema.accountConfigs).set({ ...data, updatedAt: now }).where(eq(schema.accountConfigs.accountId, accountId)).run()
     } else {
-      this.db.insert(schema.accountConfigs).values({ accountId, ...data }).run()
+      this.db.insert(schema.accountConfigs).values({ accountId, ...data, createdAt: now, updatedAt: now }).run()
     }
 
     return this.cloneAccountConfig(merged)
@@ -280,6 +282,7 @@ export class StoreService {
     const cfg = this.normalizeAccountConfig(fallback, DEFAULT_ACCOUNT_CONFIG)
     cfg.automation.fertilizer = 'none'
 
+    const now = Date.now()
     this.db.insert(schema.accountConfigs).values({
       accountId,
       automation: cfg.automation as any,
@@ -288,7 +291,9 @@ export class StoreService {
       intervals: cfg.intervals as any,
       friendQuietHours: cfg.friendQuietHours as any,
       friendBlacklist: cfg.friendBlacklist as any,
-      stealCropBlacklist: cfg.stealCropBlacklist as any
+      stealCropBlacklist: cfg.stealCropBlacklist as any,
+      createdAt: now,
+      updatedAt: now
     }).run()
 
     return this.cloneAccountConfig(cfg)

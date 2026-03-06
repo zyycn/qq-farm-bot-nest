@@ -48,6 +48,11 @@ export class ConnectionManagerService {
       this.emitEvent(accountId, 'connected', state)
     })
 
+    client.on('reconnecting', (info: any) => {
+      this.logger.log(`账号 ${accountId} 正在重连 (${info.attempt}/${info.maxAttempts})`)
+      this.emitEvent(accountId, 'reconnecting', info)
+    })
+
     client.on('close', (_code: number) => {
       this.logger.log(`账号 ${accountId} 连接关闭, code=${_code}`)
       this.emitEvent(accountId, 'disconnected', { code: _code })

@@ -49,12 +49,16 @@ export const drizzleProvider = {
         intervals TEXT DEFAULT '{}',
         friend_quiet_hours TEXT DEFAULT '{}',
         friend_blacklist TEXT DEFAULT '[]',
-        steal_crop_blacklist TEXT DEFAULT '[]'
+        steal_crop_blacklist TEXT DEFAULT '[]',
+        created_at INTEGER DEFAULT 0,
+        updated_at INTEGER DEFAULT 0
       );
 
       CREATE TABLE IF NOT EXISTS global_config (
         key TEXT PRIMARY KEY,
-        value TEXT
+        value TEXT,
+        created_at INTEGER DEFAULT 0,
+        updated_at INTEGER DEFAULT 0
       );
 
       CREATE TABLE IF NOT EXISTS logs (
@@ -66,8 +70,8 @@ export const drizzleProvider = {
         event TEXT DEFAULT '',
         msg TEXT DEFAULT '',
         is_warn INTEGER DEFAULT 0,
-        ts INTEGER DEFAULT 0,
-        meta TEXT DEFAULT '{}'
+        meta TEXT DEFAULT '{}',
+        created_at INTEGER DEFAULT 0
       );
 
       CREATE TABLE IF NOT EXISTS account_logs (
@@ -77,17 +81,50 @@ export const drizzleProvider = {
         action TEXT DEFAULT '',
         msg TEXT DEFAULT '',
         reason TEXT DEFAULT '',
-        ts INTEGER DEFAULT 0,
-        extra TEXT DEFAULT '{}'
+        extra TEXT DEFAULT '{}',
+        created_at INTEGER DEFAULT 0,
+        updated_at INTEGER DEFAULT 0
       );
 
       CREATE INDEX IF NOT EXISTS idx_logs_account_id ON logs(account_id);
-      CREATE INDEX IF NOT EXISTS idx_logs_ts ON logs(ts);
-      CREATE INDEX IF NOT EXISTS idx_logs_account_ts ON logs(account_id, ts DESC);
-      CREATE INDEX IF NOT EXISTS idx_logs_account_module_event_ts ON logs(account_id, module, event, ts DESC);
-      CREATE INDEX IF NOT EXISTS idx_account_logs_ts ON account_logs(ts);
-      CREATE INDEX IF NOT EXISTS idx_account_logs_account_ts ON account_logs(account_id, ts DESC);
     `)
+
+    // Migrate existing DB: ts -> created_at, add updated_at where missing; then ensure new indexes exist
+    try {
+      const logInfo = sqlite.prepare('PRAGMA table_info(logs)').all() as { name: string }[]
+      if (logInfo.some((c: { name: string }) => c.name === 'ts')) {
+        sqlite.exec('ALTER TABLE logs RENAME COLUMN ts TO created_at')
+        sqlite.exec('DROP INDEX IF EXISTS idx_logs_ts')
+        sqlite.exec('DROP INDEX IF EXISTS idx_logs_account_ts')
+        sqlite.exec('DROP INDEX IF EXISTS idx_logs_account_module_event_ts')
+      }
+      const alInfo = sqlite.prepare('PRAGMA table_info(account_logs)').all() as { name: string }[]
+      if (alInfo.some((c: { name: string }) => c.name === 'ts')) {
+        sqlite.exec('ALTER TABLE account_logs RENAME COLUMN ts TO created_at')
+        sqlite.exec('DROP INDEX IF EXISTS idx_account_logs_ts')
+        sqlite.exec('DROP INDEX IF EXISTS idx_account_logs_account_ts')
+      }
+      if (!alInfo.some((c: { name: string }) => c.name === 'updated_at')) {
+        sqlite.exec('ALTER TABLE account_logs ADD COLUMN updated_at INTEGER DEFAULT 0')
+      }
+      const acInfo = sqlite.prepare('PRAGMA table_info(account_configs)').all() as { name: string }[]
+      if (!acInfo.some((c: { name: string }) => c.name === 'created_at')) {
+        sqlite.exec('ALTER TABLE account_configs ADD COLUMN created_at INTEGER DEFAULT 0')
+        sqlite.exec('ALTER TABLE account_configs ADD COLUMN updated_at INTEGER DEFAULT 0')
+      }
+      const gcInfo = sqlite.prepare('PRAGMA table_info(global_config)').all() as { name: string }[]
+      if (!gcInfo.some((c: { name: string }) => c.name === 'created_at')) {
+        sqlite.exec('ALTER TABLE global_config ADD COLUMN created_at INTEGER DEFAULT 0')
+        sqlite.exec('ALTER TABLE global_config ADD COLUMN updated_at INTEGER DEFAULT 0')
+      }
+      sqlite.exec(`
+        CREATE INDEX IF NOT EXISTS idx_logs_created_at ON logs(created_at);
+        CREATE INDEX IF NOT EXISTS idx_logs_account_created_at ON logs(account_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_logs_account_module_event_created_at ON logs(account_id, module, event, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_account_logs_created_at ON account_logs(created_at);
+        CREATE INDEX IF NOT EXISTS idx_account_logs_account_created_at ON account_logs(account_id, created_at DESC);
+      `)
+    } catch {}
 
     return db
   }

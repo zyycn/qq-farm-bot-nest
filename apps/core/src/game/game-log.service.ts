@@ -32,7 +32,7 @@ export class GameLogService {
       ...entry,
       accountId,
       accountName,
-      ts: Date.now(),
+      createdAt: Date.now(),
       _searchText: `${entry?.msg || ''} ${entry?.tag || ''} ${JSON.stringify(entry?.meta || {})}`.toLowerCase()
     }
 
@@ -78,7 +78,8 @@ export class GameLogService {
   }
 
   addAccountLog(action: string, msg: string, accountId: string, accountName: string, extra?: any) {
-    const entry = { action, msg, accountId, accountName, ts: Date.now(), ...extra }
+    const now = Date.now()
+    const entry = { action, msg, accountId, accountName, createdAt: now, ...extra }
     this.accountLogs.push(entry)
     if (this.accountLogs.length > 500)
       this.accountLogs.shift()
@@ -88,7 +89,8 @@ export class GameLogService {
       action,
       msg,
       reason: extra?.reason || '',
-      ts: Date.now(),
+      createdAt: now,
+      updatedAt: now,
       extra: entry
     }).catch(() => {})
     this.onAccountLogCallback?.(entry)
@@ -123,7 +125,7 @@ export class GameLogService {
         event: entry?.meta?.event || '',
         msg: entry?.msg || '',
         isWarn: !!entry?.isWarn,
-        ts: entry?.ts || Date.now(),
+        createdAt: entry?.createdAt || Date.now(),
         meta: entry?.meta || {}
       })
     } catch {}
@@ -136,18 +138,18 @@ export class GameLogService {
       const logsResult = this.db.run(sql`
         DELETE FROM logs WHERE id IN (
           SELECT l.id FROM logs l
-          INNER JOIN (SELECT account_id, MAX(ts) AS last_ts FROM logs GROUP BY account_id) g
+          INNER JOIN (SELECT account_id, MAX(created_at) AS last_created_at FROM logs GROUP BY account_id) g
           ON l.account_id = g.account_id
-          WHERE l.ts < g.last_ts - ${RETENTION_MS}
+          WHERE l.created_at < g.last_created_at - ${RETENTION_MS}
         )
       `) as { changes?: number }
 
       const accountLogsResult = this.db.run(sql`
         DELETE FROM account_logs WHERE id IN (
           SELECT l.id FROM account_logs l
-          INNER JOIN (SELECT account_id, MAX(ts) AS last_ts FROM account_logs GROUP BY account_id) g
+          INNER JOIN (SELECT account_id, MAX(created_at) AS last_created_at FROM account_logs GROUP BY account_id) g
           ON l.account_id = g.account_id
-          WHERE l.ts < g.last_ts - ${RETENTION_MS}
+          WHERE l.created_at < g.last_created_at - ${RETENTION_MS}
         )
       `) as { changes?: number }
 
