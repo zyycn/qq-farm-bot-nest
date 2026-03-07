@@ -157,6 +157,67 @@ export class GameClient extends EventEmitter {
         return
       }
 
+      if (type.includes('ItemNotify')) {
+        try {
+          const notify: any = t.ItemNotify.decode(eventBody)
+          const items = notify.items || []
+          for (const itemChg of items) {
+            const item = itemChg.item
+            if (!item)
+              continue
+            const id = toNum(item.id)
+            const count = toNum(item.count)
+            const delta = toNum(itemChg.delta)
+
+            if (id === 1101) {
+              if (count > 0)
+                this.userState.exp = count
+              else if (delta !== 0)
+                this.userState.exp = Math.max(0, (this.userState.exp || 0) + delta)
+            } else if (id === 1 || id === 1001) {
+              if (count > 0)
+                this.userState.gold = count
+              else if (delta !== 0)
+                this.userState.gold = Math.max(0, (this.userState.gold || 0) + delta)
+            } else if (id === 1002) {
+              if (count > 0)
+                this.userState.coupon = count
+              else if (delta !== 0)
+                this.userState.coupon = Math.max(0, (this.userState.coupon || 0) + delta)
+            }
+          }
+          this.emit('stateChanged', { ...this.userState })
+        } catch {}
+        this.emit('notify', { type, body: Buffer.from(eventBody).toString('base64') })
+        return
+      }
+
+      if (type.includes('BasicNotify')) {
+        try {
+          const notify: any = t.BasicNotify.decode(eventBody)
+          if (notify.basic) {
+            if (Object.prototype.hasOwnProperty.call(notify.basic, 'level')) {
+              const next = toNum(notify.basic.level)
+              if (Number.isFinite(next) && next > 0)
+                this.userState.level = next
+            }
+            if (Object.prototype.hasOwnProperty.call(notify.basic, 'gold')) {
+              const next = toNum(notify.basic.gold)
+              if (Number.isFinite(next) && next >= 0)
+                this.userState.gold = next
+            }
+            if (Object.prototype.hasOwnProperty.call(notify.basic, 'exp')) {
+              const exp = toNum(notify.basic.exp)
+              if (Number.isFinite(exp) && exp >= 0)
+                this.userState.exp = exp
+            }
+            this.emit('stateChanged', { ...this.userState })
+          }
+        } catch {}
+        this.emit('notify', { type, body: Buffer.from(eventBody).toString('base64') })
+        return
+      }
+
       // Forward all other notifications as raw data to the core process
       this.emit('notify', { type, body: Buffer.from(eventBody).toString('base64') })
     } catch (e: any) {

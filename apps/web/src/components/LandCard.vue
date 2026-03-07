@@ -128,8 +128,8 @@ function getLandTypeName(level: number) {
 
 /* 3 黑土地 */
 .land-black {
-  background-color: rgb(241 245 249 / 75%);
-  border-color: rgb(241 245 249 / 100%);
+  background-color: rgba(163 165 168 / 16%);
+  border-color: rgb(163 165 168 / 20%);
 }
 
 /* 4 金土地 - 明亮金灿灿，略深一档 */

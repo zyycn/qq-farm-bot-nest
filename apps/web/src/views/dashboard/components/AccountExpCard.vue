@@ -16,7 +16,7 @@ function getExpPercent(p: { current: number, needed: number } | null | undefined
 </script>
 
 <template>
-  <a-card variant="borderless" size="small" :classes="{ body: '!px-4 !py-3.5' }">
+  <a-card variant="borderless" size="small" :classes="{ body: '!px-4 !py-3.5 !flex !flex-col !justify-between !h-full' }">
     <div class="flex items-center justify-between">
       <div class="flex gap-4 items-center">
         <div class="i-twemoji-farmer text-3xl" />
@@ -31,24 +31,22 @@ function getExpPercent(p: { current: number, needed: number } | null | undefined
       </div>
       <a-badge :status="connected ? 'processing' : 'error'" :text="connected ? '在线' : '离线'" />
     </div>
-    <div class="mt-4">
-      <div class="mb-1 flex items-center justify-between a-color-text-secondary">
-        <span class="flex gap-1 items-center">
-          <div class="i-twemoji-glowing-star" />
-          经验
-        </span>
-        <span>{{ levelProgress?.current || 0 }} / {{ levelProgress?.needed || '?' }}</span>
-      </div>
-      <a-progress
-        :percent="getExpPercent(levelProgress)"
-        :show-info="false"
-        size="small"
-        stroke-color="var(--ant-color-primary)"
-      />
-      <div class="mt-1.5 flex items-center justify-between a-color-text-tertiary text-sm">
-        <span>{{ expRate }}</span>
-        <span>{{ timeToLevel }}</span>
-      </div>
+    <div class="flex items-center justify-between a-color-text-secondary">
+      <span class="flex gap-1 items-center">
+        <div class="i-twemoji-glowing-star" />
+        经验
+      </span>
+      <span>{{ levelProgress?.current || 0 }} / {{ levelProgress?.needed || '?' }}</span>
+    </div>
+    <a-progress
+      :percent="getExpPercent(levelProgress)"
+      :show-info="false"
+      size="small"
+      stroke-color="var(--ant-color-primary)"
+    />
+    <div class="flex items-center justify-between a-color-text-tertiary text-sm">
+      <span>{{ expRate }}</span>
+      <span>{{ timeToLevel }}</span>
     </div>
   </a-card>
 </template>

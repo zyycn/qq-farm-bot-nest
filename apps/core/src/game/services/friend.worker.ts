@@ -454,9 +454,7 @@ export class FriendWorker {
         count = await this.runBatchWithFallback(target, ids => this.stealHarvest(gid, ids), ids => this.stealHarvest(gid, ids))
         if (count > 0) {
           this.stats.recordOperation('steal', count)
-          try {
-            await this.warehouse.sellAllFruits()
-          } catch {}
+          await this.warehouse.sellAllFruits()
         }
         return { ok: true, opType, count, message: `偷取完成 ${count} 块` }
       }
@@ -724,9 +722,7 @@ export class FriendWorker {
       }
 
       if (totalActions.steal > 0) {
-        try {
-          await this.warehouse.sellAllFruits()
-        } catch {}
+        await this.warehouse.sellAllFruits()
       }
 
       const summary: string[] = []

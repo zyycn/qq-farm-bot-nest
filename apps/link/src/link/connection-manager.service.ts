@@ -81,6 +81,10 @@ export class ConnectionManagerService {
       this.emitEvent(accountId, 'notify', data)
     })
 
+    client.on('stateChanged', (userState: UserState) => {
+      this.emitEvent(accountId, 'state_update', userState)
+    })
+
     this.clients.set(accountId, client)
     await client.connect(code, platform)
     return { ...client.userState }

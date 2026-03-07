@@ -236,6 +236,7 @@ export class AccountRunner {
         await this.warehouse.autoOpenFertilizerGiftPacks()
       if (auto.fertilizer_buy)
         await this.dailyRewards.autoBuyOrganicFertilizer()
+      await this.warehouse.sellAllFruits()
     } catch (e: any) {
       this.warn(`农场调度执行失败: ${e?.message}`, 'schedule_error')
     } finally {
@@ -420,6 +421,17 @@ export class AccountRunner {
         if (data) {
           this.userState = { ...this.userState, ...data }
           this.loginReady = true
+          this.syncStatus()
+        }
+        break
+      case 'state_update':
+        if (data && typeof data === 'object') {
+          const merged = { ...this.userState, ...data }
+          // Link 登录响应不含 coupon，只有 ItemNotify(id=1002) 会更新；避免用 Link 的 0 覆盖 Core 已从 getBag 得到的点券
+          if (Number(data.coupon) === 0 && Number(this.userState.coupon) > 0)
+            merged.coupon = this.userState.coupon
+          this.userState = merged
+          this.syncTransportUserState()
           this.syncStatus()
         }
         break

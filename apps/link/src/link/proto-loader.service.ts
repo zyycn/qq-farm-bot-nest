@@ -22,7 +22,7 @@ export class ProtoLoaderService implements OnModuleInit {
     const protoDir = path.join(assetsDir, 'proto')
     const root = new protobuf.Root()
 
-    const protoFiles = ['game.proto', 'userpb.proto'].map(f => path.join(protoDir, f))
+    const protoFiles = ['game.proto', 'userpb.proto', 'corepb.proto', 'notifypb.proto'].map(f => path.join(protoDir, f))
     await root.load(protoFiles, { keepCase: true })
 
     const lookup = (name: string) => root.lookupType(name)
@@ -39,6 +39,10 @@ export class ProtoLoaderService implements OnModuleInit {
     types.LoginReply = lookup('gamepb.userpb.LoginReply')
     types.HeartbeatRequest = lookup('gamepb.userpb.HeartbeatRequest')
     types.HeartbeatReply = lookup('gamepb.userpb.HeartbeatReply')
+
+    // Notify (for session gains: gold/exp/coupon)
+    types.BasicNotify = lookup('gamepb.userpb.BasicNotify')
+    types.ItemNotify = lookup('gamepb.itempb.ItemNotify')
 
     return types
   }

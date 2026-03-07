@@ -29,34 +29,34 @@ function formatDuration(seconds: number): string {
     :classes="{ body: '!px-4 !py-3 !h-full !flex !flex-col !min-h-0' }"
   >
     <div class="flex-1 gap-3 grid grid-cols-2 min-h-0">
-      <div class="p-3 flex flex-col items-center justify-center a-bg-layout rounded-lg">
+      <div class="p-2 flex flex-col items-center justify-center a-bg-layout rounded-lg">
         <div class="flex gap-1.5 items-center a-color-text-secondary">
           <div class="i-twemoji-coin" />
           金币
         </div>
-        <div class="font-bold mt-1.5 a-color-text text-xl">
+        <div class="font-bold a-color-text text-xl">
           {{ gold || 0 }}
         </div>
         <div
           v-if="sessionGoldGained !== 0"
-          class="mt-0.5 flex gap-0.5 items-center justify-center"
+          class="flex gap-0.5 items-center justify-center"
           :class="sessionGoldGained > 0 ? 'a-color-success' : 'a-color-error'"
         >
           <span class="font-bold">{{ sessionGoldGained > 0 ? '↑' : '↓' }}</span>
           <span>{{ Math.abs(sessionGoldGained) }}</span>
         </div>
       </div>
-      <div class="p-3 flex flex-col items-center justify-center a-bg-layout rounded-lg">
+      <div class="p-2 flex flex-col items-center justify-center a-bg-layout rounded-lg">
         <div class="flex gap-1.5 items-center a-color-text-secondary">
           <div class="i-twemoji-ticket" />
           点券
         </div>
-        <div class="font-bold mt-1.5 a-color-text text-xl">
+        <div class="font-bold a-color-text text-xl">
           {{ coupon || 0 }}
         </div>
         <div
           v-if="sessionCouponGained !== 0"
-          class="mt-0.5 flex gap-0.5 items-center justify-center"
+          class="flex gap-0.5 items-center justify-center"
           :class="sessionCouponGained > 0 ? 'a-color-success' : 'a-color-error'"
         >
           <span class="font-bold">{{ sessionCouponGained > 0 ? '↑' : '↓' }}</span>

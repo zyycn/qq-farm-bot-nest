@@ -81,6 +81,9 @@ export const useStatusStore = defineStore('status', () => {
       status.value = normalizeStatusPayload(body.status)
       error.value = ''
     }
+    else {
+      status.value = null
+    }
   }
 
   function handleRealtimeLog(payload: any) {
@@ -156,6 +159,8 @@ export const useStatusStore = defineStore('status', () => {
     const id = String(accountId || '').trim()
     if (!id)
       return
+    if (currentRealtimeAccountId.value && currentRealtimeAccountId.value !== id)
+      resetState()
     currentRealtimeAccountId.value = id
     subscribedResolvedAccountId.value = ''
     const token = useUserStore().adminToken
