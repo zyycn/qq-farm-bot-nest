@@ -378,8 +378,8 @@ export class WsServerService implements OnModuleInit {
     if (accountId && topics.has('settings')) {
       const settingsData = {
         intervals: this.store.getIntervals(accountId),
-        strategy: this.store.getPlantingStrategy(accountId),
-        preferredSeed: this.store.getPreferredSeed(accountId),
+        plantingStrategy: this.store.getPlantingStrategy(accountId),
+        preferredSeedId: this.store.getPreferredSeed(accountId),
         friendQuietHours: this.store.getFriendQuietHours(accountId),
         stealCropBlacklist: this.store.getStealCropBlacklist(accountId),
         friendBlacklist: this.store.getFriendBlacklist(accountId),

@@ -79,8 +79,8 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
       return
     const data = {
       intervals: this.store.getIntervals(id),
-      strategy: this.store.getPlantingStrategy(id),
-      preferredSeed: this.store.getPreferredSeed(id),
+      plantingStrategy: this.store.getPlantingStrategy(id),
+      preferredSeedId: this.store.getPreferredSeed(id),
       friendQuietHours: this.store.getFriendQuietHours(id),
       stealCropBlacklist: this.store.getStealCropBlacklist(id),
       friendBlacklist: this.store.getFriendBlacklist(id),
