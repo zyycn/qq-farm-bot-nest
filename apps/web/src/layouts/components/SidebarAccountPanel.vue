@@ -42,7 +42,7 @@ const selectedAccountId = defineModel<any>('selectedAccountId', { required: true
           :options="accountOptions"
           placeholder="切换账号..."
           size="small"
-          class="w-full"
+          class="w-full h-6!"
         >
           <template #optionRender="{ option }">
             <div class="flex gap-1 items-center">

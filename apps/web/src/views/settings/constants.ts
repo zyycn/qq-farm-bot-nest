@@ -64,28 +64,6 @@ export const CHANNEL_DOCS: Record<string, string> = {
   wxpusher: 'https://wxpusher.zjiecode.com/docs/#/'
 }
 
-export const AUTOMATION_DEFAULTS = {
-  farm: false,
-  task: false,
-  sell: false,
-  friend: false,
-  farm_push: false,
-  land_upgrade: false,
-  friend_steal: false,
-  friend_help: false,
-  friend_bad: false,
-  friend_help_exp_limit: false,
-  email: false,
-  fertilizer_gift: false,
-  fertilizer_buy: false,
-  free_gifts: false,
-  share_reward: false,
-  vip_gift: false,
-  month_card: false,
-  open_server_gift: false,
-  fertilizer: 'none' as const
-}
-
 export const ANALYTICS_SORT_BY_MAP: Record<string, string> = {
   max_exp: 'exp',
   max_fert_exp: 'fert',

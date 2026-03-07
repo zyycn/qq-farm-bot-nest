@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { storeToRefs } from 'pinia'
 import { computed, ref, watchEffect } from 'vue'
-import { ws } from '@/api'
+import { analyticsApi } from '@/api'
+import { useSettingStore } from '@/stores'
 import { ANALYTICS_SORT_BY_MAP, FERTILIZER_OPTIONS, PLANTING_STRATEGY_OPTIONS } from '../constants'
 
 const props = defineProps<{
@@ -17,14 +19,8 @@ function handleSave() {
   emit('save')
 }
 
-const localSettings = defineModel<{
-  plantingStrategy: string
-  preferredSeedId: number
-  intervals: { farmMin: number, farmMax: number, friendMin: number, friendMax: number }
-  friendQuietHours: { enabled: boolean, start: string, end: string }
-  stealCropBlacklist: number[]
-  automation: Record<string, boolean | string>
-}>('localSettings', { required: true })
+const settingStore = useSettingStore()
+const { settings } = storeToRefs(settingStore)
 
 const preferredSeedOptions = computed(() => {
   const options = [{ label: '自动选择', value: 0 }]
@@ -52,7 +48,7 @@ const stealBlacklistOptions = computed(() => {
 const strategyPreviewLabel = ref<string | null>(null)
 
 watchEffect(async () => {
-  const strategy = localSettings.value.plantingStrategy
+  const strategy = settings.value.plantingStrategy
   if (strategy === 'preferred') {
     strategyPreviewLabel.value = null
     return
@@ -74,7 +70,7 @@ watchEffect(async () => {
   const sortBy = ANALYTICS_SORT_BY_MAP[strategy]
   if (sortBy && props.currentAccountId) {
     try {
-      const res = await ws.request<any[]>('analytics:get', { sortBy })
+      const res = await analyticsApi.get(sortBy)
       const rankings: any[] = Array.isArray(res) ? res : []
       const availableIds = new Set(available.map((s: any) => s.seedId))
       const match = rankings.find((r: any) => availableIds.has(Number(r.seedId)))
@@ -105,12 +101,12 @@ watchEffect(async () => {
     <div class="gap-x-3 grid grid-cols-2 lg:grid-cols-6 md:grid-cols-3">
       <a-form layout="vertical" class="lg:col-span-2">
         <a-form-item label="种植策略">
-          <a-select v-model:value="localSettings.plantingStrategy" :options="PLANTING_STRATEGY_OPTIONS" />
+          <a-select v-model:value="settings.plantingStrategy" :options="PLANTING_STRATEGY_OPTIONS" />
         </a-form-item>
       </a-form>
-      <a-form v-if="localSettings.plantingStrategy === 'preferred'" layout="vertical" class="lg:col-span-2">
+      <a-form v-if="settings.plantingStrategy === 'preferred'" layout="vertical" class="lg:col-span-2">
         <a-form-item label="优先种子">
-          <a-select v-model:value="localSettings.preferredSeedId" :options="preferredSeedOptions" />
+          <a-select v-model:value="settings.preferredSeedId" :options="preferredSeedOptions" />
         </a-form-item>
       </a-form>
       <a-form v-else layout="vertical">
@@ -120,121 +116,120 @@ watchEffect(async () => {
       </a-form>
       <a-form layout="vertical">
         <a-form-item label="农场最小(秒)">
-          <a-input-number v-model:value="localSettings.intervals.farmMin" :min="1" style="width: 100%" />
+          <a-input-number v-model:value="settings.intervals.farmMin" :min="1" style="width: 100%" />
         </a-form-item>
       </a-form>
       <a-form layout="vertical">
         <a-form-item label="农场最大(秒)">
-          <a-input-number v-model:value="localSettings.intervals.farmMax" :min="1" style="width: 100%" />
+          <a-input-number v-model:value="settings.intervals.farmMax" :min="1" style="width: 100%" />
         </a-form-item>
       </a-form>
       <a-form layout="vertical">
         <a-form-item label="好友最小(秒)">
-          <a-input-number v-model:value="localSettings.intervals.friendMin" :min="1" style="width: 100%" />
+          <a-input-number v-model:value="settings.intervals.friendMin" :min="1" style="width: 100%" />
         </a-form-item>
       </a-form>
       <a-form layout="vertical">
         <a-form-item label="好友最大(秒)">
-          <a-input-number v-model:value="localSettings.intervals.friendMax" :min="1" style="width: 100%" />
+          <a-input-number v-model:value="settings.intervals.friendMax" :min="1" style="width: 100%" />
         </a-form-item>
       </a-form>
     </div>
     <div class="flex flex-wrap gap-4 items-center">
       <label class="flex gap-2 cursor-pointer items-center">
-        <a-switch v-model:checked="localSettings.friendQuietHours.enabled" size="small" />
+        <a-switch v-model:checked="settings.friendQuietHours.enabled" size="small" />
         <span>好友静默时段</span>
       </label>
       <div class="flex gap-2 items-center">
         <a-input
-          v-model:value="localSettings.friendQuietHours.start"
+          v-model:value="settings.friendQuietHours.start"
           type="time"
           class="w-28"
-          :disabled="!localSettings.friendQuietHours.enabled"
+          :disabled="!settings.friendQuietHours.enabled"
         />
         <span class="a-color-text-tertiary">—</span>
         <a-input
-          v-model:value="localSettings.friendQuietHours.end"
+          v-model:value="settings.friendQuietHours.end"
           type="time"
           class="w-28"
-          :disabled="!localSettings.friendQuietHours.enabled"
+          :disabled="!settings.friendQuietHours.enabled"
         />
       </div>
     </div>
 
     <a-divider />
 
-    <div class="font-bold mb-3 flex gap-2 items-center a-color-text">
-      <div class="i-twemoji-robot" />
-      自动控制
-    </div>
     <div class="gap-4 grid grid-cols-2 lg:grid-cols-5 md:grid-cols-4">
       <label class="flex gap-2 cursor-pointer items-center">
-        <a-switch v-model:checked="localSettings.automation.farm" size="small" /><span>自动种植收获</span>
+        <a-switch v-model:checked="settings.automation.farm" size="small" /><span>自动种植收获</span>
       </label>
       <label class="flex gap-2 cursor-pointer items-center">
-        <a-switch v-model:checked="localSettings.automation.task" size="small" /><span>自动做任务</span>
+        <a-switch v-model:checked="settings.automation.task" size="small" /><span>自动做任务</span>
       </label>
       <label class="flex gap-2 cursor-pointer items-center">
-        <a-switch v-model:checked="localSettings.automation.sell" size="small" /><span>自动卖果实</span>
+        <a-switch v-model:checked="settings.automation.sell" size="small" /><span>自动卖果实</span>
       </label>
       <label class="flex gap-2 cursor-pointer items-center">
-        <a-switch v-model:checked="localSettings.automation.friend" size="small" /><span>自动好友互动</span>
+        <a-switch v-model:checked="settings.automation.friend" size="small" /><span>自动好友互动</span>
       </label>
       <label class="flex gap-2 cursor-pointer items-center">
-        <a-switch v-model:checked="localSettings.automation.farm_push" size="small" /><span>推送触发巡田</span>
+        <a-switch v-model:checked="settings.automation.farm_push" size="small" /><span>推送触发巡田</span>
       </label>
       <label class="flex gap-2 cursor-pointer items-center">
-        <a-switch v-model:checked="localSettings.automation.land_upgrade" size="small" /><span>自动升级土地</span>
+        <a-switch v-model:checked="settings.automation.land_upgrade" size="small" /><span>自动升级土地</span>
       </label>
       <label class="flex gap-2 cursor-pointer items-center">
-        <a-switch v-model:checked="localSettings.automation.email" size="small" /><span>自动领取邮件</span>
+        <a-switch v-model:checked="settings.automation.email" size="small" /><span>自动领取邮件</span>
       </label>
       <label class="flex gap-2 cursor-pointer items-center">
-        <a-switch v-model:checked="localSettings.automation.free_gifts" size="small" /><span>自动商城礼包</span>
+        <a-switch v-model:checked="settings.automation.free_gifts" size="small" /><span>自动商城礼包</span>
       </label>
       <label class="flex gap-2 cursor-pointer items-center">
-        <a-switch v-model:checked="localSettings.automation.share_reward" size="small" /><span>自动分享奖励</span>
+        <a-switch v-model:checked="settings.automation.share_reward" size="small" /><span>自动分享奖励</span>
       </label>
       <label class="flex gap-2 cursor-pointer items-center">
-        <a-switch v-model:checked="localSettings.automation.vip_gift" size="small" /><span>自动VIP礼包</span>
+        <a-switch v-model:checked="settings.automation.vip_gift" size="small" /><span>自动VIP礼包</span>
       </label>
       <label class="flex gap-2 cursor-pointer items-center">
-        <a-switch v-model:checked="localSettings.automation.month_card" size="small" /><span>自动月卡奖励</span>
+        <a-switch v-model:checked="settings.automation.month_card" size="small" /><span>自动月卡奖励</span>
       </label>
       <label class="flex gap-2 cursor-pointer items-center">
-        <a-switch v-model:checked="localSettings.automation.open_server_gift" size="small" /><span>自动开服红包</span>
+        <a-switch v-model:checked="settings.automation.open_server_gift" size="small" /><span>自动开服红包</span>
       </label>
       <label class="flex gap-2 cursor-pointer items-center">
-        <a-switch v-model:checked="localSettings.automation.fertilizer_gift" size="small" /><span>自动填充化肥</span>
+        <a-switch v-model:checked="settings.automation.fertilizer_gift" size="small" /><span>自动填充化肥</span>
       </label>
       <label class="flex gap-2 cursor-pointer items-center">
-        <a-switch v-model:checked="localSettings.automation.fertilizer_buy" size="small" /><span>自动购买化肥</span>
+        <a-switch v-model:checked="settings.automation.fertilizer_buy" size="small" /><span>自动购买化肥</span>
       </label>
     </div>
-    <div v-if="localSettings.automation.friend" class="mt-2 py-2 flex flex-wrap gap-6">
+    <div v-if="settings.automation.friend" class="mt-2 py-2 flex flex-wrap gap-6">
       <label class="flex gap-2 cursor-pointer items-center">
-        <a-switch v-model:checked="localSettings.automation.friend_steal" size="small" /><span>偷菜</span>
+        <a-switch v-model:checked="settings.automation.friend_steal" size="small" /><span>偷菜</span>
       </label>
       <label class="flex gap-2 cursor-pointer items-center">
-        <a-switch v-model:checked="localSettings.automation.friend_help" size="small" /><span>帮忙</span>
+        <a-switch v-model:checked="settings.automation.friend_help" size="small" /><span>帮忙</span>
       </label>
       <label class="flex gap-2 cursor-pointer items-center">
-        <a-switch v-model:checked="localSettings.automation.friend_bad" size="small" /><span>捣乱</span>
+        <a-switch v-model:checked="settings.automation.friend_bad" size="small" /><span>捣乱</span>
       </label>
       <label class="flex gap-2 cursor-pointer items-center">
-        <a-switch v-model:checked="localSettings.automation.friend_help_exp_limit" size="small" /><span>经验上限停帮</span>
+        <a-switch v-model:checked="settings.automation.friend_help_exp_limit" size="small" /><span>经验上限停帮</span>
       </label>
     </div>
+
+    <a-divider />
+
     <div class="mt-3 gap-x-3 grid grid-cols-1 w-full md:grid-cols-2">
       <a-form layout="vertical">
         <a-form-item label="施肥策略">
-          <a-select v-model:value="localSettings.automation.fertilizer" :options="FERTILIZER_OPTIONS" />
+          <a-select v-model:value="settings.automation.fertilizer" :options="FERTILIZER_OPTIONS" />
         </a-form-item>
       </a-form>
       <a-form layout="vertical">
         <a-form-item label="偷取作物黑名单">
           <a-select
-            v-model:value="localSettings.stealCropBlacklist"
+            v-model:value="settings.stealCropBlacklist"
             mode="multiple"
             :options="stealBlacklistOptions"
             placeholder="选择不偷取的作物..."

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { ws } from '@/api'
+import { friendApi, settingsApi } from '@/api'
 
 export const useFriendStore = defineStore('friend', () => {
   const friends = ref<any[]>([])
@@ -8,7 +8,7 @@ export const useFriendStore = defineStore('friend', () => {
   const friendLandsLoading = ref<Record<string, boolean>>({})
   const blacklist = ref<number[]>([])
 
-  function buildPlantSummaryFromDetail(lands: any[], summary: any) {
+  function buildPlantSummaryFromDetail(lands: any[], summary: any): Record<string, number> {
     const stealNumFromSummary = Array.isArray(summary?.stealable) ? summary.stealable.length : null
     const dryNumFromSummary = Array.isArray(summary?.needWater) ? summary.needWater.length : null
     const weedNumFromSummary = Array.isArray(summary?.needWeed) ? summary.needWeed.length : null
@@ -47,7 +47,7 @@ export const useFriendStore = defineStore('friend', () => {
     }
   }
 
-  function syncFriendPlantSummary(friendId: string, lands: any[], summary: any) {
+  function syncFriendPlantSummary(friendId: string, lands: any[], summary: any): void {
     const key = String(friendId)
     const idx = friends.value.findIndex(f => String(f?.gid || '') === key)
     if (idx < 0)
@@ -60,19 +60,19 @@ export const useFriendStore = defineStore('friend', () => {
     }
   }
 
-  async function toggleBlacklist(accountId: string, gid: number) {
+  async function toggleBlacklist(accountId: string, gid: number): Promise<void> {
     if (!accountId || !gid)
       return
-    const res = await ws.request<number[]>('friend:toggle-blacklist', { gid })
+    const res = await friendApi.toggleBlacklist(gid)
     blacklist.value = res || []
   }
 
-  async function fetchFriendLands(accountId: string, friendId: string) {
+  async function fetchFriendLands(accountId: string, friendId: string): Promise<void> {
     if (!accountId || !friendId)
       return
     friendLandsLoading.value[friendId] = true
     try {
-      const res = await ws.request<{ lands?: any[], summary?: any }>('friend:lands', { gid: Number(friendId) })
+      const res = await friendApi.getLands(Number(friendId))
       const rawLands = res?.lands || []
       const nowSec = Math.floor(Date.now() / 1000)
       const lands = rawLands.map((l: any) => ({
@@ -87,19 +87,33 @@ export const useFriendStore = defineStore('friend', () => {
     }
   }
 
-  async function operate(accountId: string, friendId: string, opType: string) {
+  async function operateFriend(accountId: string, friendId: string, opType: string): Promise<void> {
     if (!accountId || !friendId)
       return
-    await ws.request('friend:operate', { gid: Number(friendId), opType })
+    await friendApi.operate(Number(friendId), opType)
   }
 
-  function setFriendsFromRealtime(list: any[]) {
+  function setFriendsFromRealtime(list: any[]): void {
     friends.value = Array.isArray(list) ? list : []
   }
 
-  function setBlacklistFromRealtime(list: number[] | any[]) {
+  function setBlacklistFromRealtime(list: number[] | any[]): void {
     blacklist.value = Array.isArray(list) ? list.map((x: any) => Number(x)).filter(n => !Number.isNaN(n)) : []
   }
+
+  friendApi.onFriendsUpdate((data: any) => {
+    if (data != null)
+      setFriendsFromRealtime(Array.isArray(data) ? data : [])
+  })
+
+  settingsApi.onSettingsUpdate((data: any) => {
+    if (data != null) {
+      if (Array.isArray(data.friendBlacklist))
+        setBlacklistFromRealtime(data.friendBlacklist)
+      else if (Array.isArray(data.stealCropBlacklist))
+        setBlacklistFromRealtime(data.stealCropBlacklist)
+    }
+  })
 
   return {
     friends,
@@ -108,8 +122,12 @@ export const useFriendStore = defineStore('friend', () => {
     blacklist,
     toggleBlacklist,
     fetchFriendLands,
-    operate,
+    operate: operateFriend,
     setFriendsFromRealtime,
     setBlacklistFromRealtime
+  }
+}, {
+  persist: {
+    storage: sessionStorage
   }
 })

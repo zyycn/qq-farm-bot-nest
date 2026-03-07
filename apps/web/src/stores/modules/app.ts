@@ -88,7 +88,6 @@ export const useAppStore = defineStore('app', () => {
   }
 }, {
   persist: {
-    pick: ['isDark', 'sidebarCollapsed'],
     storage: localStorage
   }
 })

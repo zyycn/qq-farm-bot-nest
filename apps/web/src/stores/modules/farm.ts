@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { ws } from '@/api'
+import { farmApi } from '@/api'
 
 export interface Land {
   id: number
@@ -20,19 +20,19 @@ export const useFarmStore = defineStore('farm', () => {
   const seeds = ref<any[]>([])
   const summary = ref<any>({})
 
-  async function operate(accountId: string, opType: string) {
+  async function operate(accountId: string, opType: string): Promise<void> {
     if (!accountId)
       return
-    await ws.request('farm:operate', { opType })
+    await farmApi.operate(opType)
   }
 
-  function resetState() {
+  function resetState(): void {
     lands.value = []
     summary.value = {}
     seeds.value = []
   }
 
-  function setLandsFromRealtime(res: any) {
+  function setLandsFromRealtime(res: any): void {
     if (!res)
       return
     const nowSec = Math.floor(Date.now() / 1000)
@@ -43,9 +43,23 @@ export const useFarmStore = defineStore('farm', () => {
     summary.value = res.summary || {}
   }
 
-  function setSeedsFromRealtime(list: any[]) {
+  function setSeedsFromRealtime(list: any[]): void {
     seeds.value = Array.isArray(list) ? list : []
   }
 
+  farmApi.onLandsUpdate((data: any) => {
+    if (data != null)
+      setLandsFromRealtime(data)
+  })
+
+  farmApi.onSeedsUpdate((data: any) => {
+    if (data != null)
+      setSeedsFromRealtime(Array.isArray(data) ? data : [])
+  })
+
   return { lands, summary, seeds, operate, resetState, setLandsFromRealtime, setSeedsFromRealtime }
+}, {
+  persist: {
+    storage: sessionStorage
+  }
 })

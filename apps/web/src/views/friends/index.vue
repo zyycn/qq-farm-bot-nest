@@ -3,7 +3,6 @@ import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import { useAccountRefresh } from '@/composables/useAccountRefresh'
 import { useFriendLandsWithCountdown } from '@/composables/useFriendLandsWithCountdown'
 import { useWsTopics } from '@/composables/useWsTopics'
 import { useAccountStore, useFriendStore, useStatusStore } from '@/stores'
@@ -79,20 +78,7 @@ async function onConfirm() {
   }
 }
 
-function loadFriends() {
-  if (!currentAccountId.value || !currentAccount.value?.running)
-    return
-  if (status.value?.connection?.connected)
-    avatarErrorKeys.value.clear()
-}
-
 const friendLandsWithCountdown = useFriendLandsWithCountdown(friendLands)
-
-useWsTopics(['friends', 'settings'])
-useAccountRefresh(() => {
-  expandedFriends.value.clear()
-  loadFriends()
-})
 
 function toggleFriend(friendId: string) {
   if (expandedFriends.value.has(friendId)) {
@@ -134,6 +120,8 @@ async function handleToggleBlacklist(friend: any, e: Event) {
 function handleAvatarError(key: string) {
   avatarErrorKeys.value.add(key)
 }
+
+useWsTopics(['friends', 'settings'])
 </script>
 
 <template>

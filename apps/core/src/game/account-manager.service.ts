@@ -83,6 +83,7 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
       preferredSeed: this.store.getPreferredSeed(id),
       friendQuietHours: this.store.getFriendQuietHours(id),
       stealCropBlacklist: this.store.getStealCropBlacklist(id),
+      friendBlacklist: this.store.getFriendBlacklist(id),
       automation: this.store.getAutomation(id),
       ui: this.store.getUI(),
       offlineReminder: this.store.getOfflineReminder()

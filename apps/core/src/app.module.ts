@@ -33,7 +33,12 @@ const serveStaticModules = [
     ? [ServeStaticModule.forRoot({
         rootPath: gameConfigDir,
         serveRoot: '/game-config',
-        serveStaticOptions: { fallthrough: true }
+        serveStaticOptions: {
+          fallthrough: true,
+          etag: true,
+          lastModified: true,
+          maxAge: 2592000000 // 30 days
+        }
       })]
     : []),
   ...(webDist ? [ServeStaticModule.forRoot({ rootPath: webDist, serveStaticOptions: webStaticOptions })] : [])

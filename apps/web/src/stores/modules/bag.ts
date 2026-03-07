@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { bagApi } from '@/api'
 import { BAG_DASHBOARD_ITEM_IDS, BAG_HIDDEN_ITEM_IDS } from '../constants'
 
 export const useBagStore = defineStore('bag', () => {
@@ -13,14 +14,23 @@ export const useBagStore = defineStore('bag', () => {
     return allItems.value.filter((it: any) => BAG_DASHBOARD_ITEM_IDS.has(Number(it.id || 0)))
   })
 
-  function resetState() {
+  function resetState(): void {
     allItems.value = []
   }
 
-  function setBagFromRealtime(res: any) {
+  function setBagFromRealtime(res: any): void {
     if (res && Array.isArray(res.items))
       allItems.value = res.items
   }
 
+  bagApi.onBagUpdate((data: any) => {
+    if (data != null)
+      setBagFromRealtime(data)
+  })
+
   return { items, allItems, dashboardItems, resetState, setBagFromRealtime }
+}, {
+  persist: {
+    storage: sessionStorage
+  }
 })

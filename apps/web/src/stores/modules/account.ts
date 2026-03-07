@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { ws } from '@/api'
+import { accountApi } from '@/api'
 import { useBagStore } from './bag'
 import { useFarmStore } from './farm'
 import { useStatusStore } from './status'
@@ -14,7 +14,6 @@ export interface Account {
   running?: boolean
   avatar?: string
   connected?: boolean
-  // Add other fields as discovered
 }
 
 export const useAccountStore = defineStore('account', () => {
@@ -25,30 +24,30 @@ export const useAccountStore = defineStore('account', () => {
     accounts.value.find(a => String(a.uin) === currentAccountId.value)
   )
 
-  function selectAccount(id: string) {
+  function selectAccount(id: string): void {
     currentAccountId.value = id
   }
 
-  function setCurrentAccount(acc: Account) {
+  function setCurrentAccount(acc: Account): void {
     selectAccount(String(acc.uin))
   }
 
-  async function startAccount(uin: string) {
+  async function startAccount(uin: string): Promise<void> {
     if (!uin)
       throw new Error('账号标识为空，无法启动')
-    await ws.request('account:start', { id: uin })
+    await accountApi.start(uin)
   }
 
-  async function stopAccount(uin: string) {
+  async function stopAccount(uin: string): Promise<void> {
     if (!uin)
       throw new Error('账号标识为空，无法停止')
-    await ws.request('account:stop', { id: uin })
+    await accountApi.stop(uin)
   }
 
-  async function deleteAccount(ref: string) {
+  async function deleteAccount(ref: string): Promise<void> {
     if (!ref)
       throw new Error('账号标识为空，无法删除')
-    await ws.request('account:delete', { id: ref })
+    await accountApi.remove(ref)
     if (currentAccountId.value === ref) {
       currentAccountId.value = ''
       useStatusStore().resetState()
@@ -57,22 +56,29 @@ export const useAccountStore = defineStore('account', () => {
     }
   }
 
-  async function addAccount(payload: any) {
-    const res = await ws.request<{ accounts?: any[] }>('account:create', payload)
+  async function addAccount(payload: any): Promise<void> {
+    const res = await accountApi.create(payload)
     if (res?.accounts && Array.isArray(res.accounts))
       accounts.value = res.accounts as Account[]
   }
 
-  async function updateAccount(uin: string, payload: any) {
-    const res = await ws.request<{ accounts?: any[] }>('account:create', { ...payload, uin })
+  async function updateAccount(uin: string, payload: any): Promise<void> {
+    const res = await accountApi.create({ ...payload, uin })
     if (res?.accounts && Array.isArray(res.accounts))
       accounts.value = res.accounts as Account[]
   }
 
-  function setAccountsFromRealtime(data: { accounts?: any[] }) {
+  function setAccountsFromRealtime(data: any): void {
     if (data?.accounts && Array.isArray(data.accounts))
       accounts.value = data.accounts as Account[]
+    if (!currentAccountId.value && accounts.value.length > 0)
+      currentAccountId.value = String(accounts.value[0].uin ?? accounts.value[0].id ?? '')
   }
+
+  accountApi.onAccountsUpdate((data: any) => {
+    const payload = data && typeof data === 'object' ? data : {}
+    setAccountsFromRealtime(payload)
+  })
 
   return {
     accounts,
@@ -89,7 +95,6 @@ export const useAccountStore = defineStore('account', () => {
   }
 }, {
   persist: {
-    pick: ['currentAccountId'],
-    storage: localStorage
+    storage: sessionStorage
   }
 })

@@ -2,17 +2,19 @@
 import { useResizeObserver } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import { ws } from '@/api'
+import { analyticsApi } from '@/api'
 import EmptyState from '@/components/EmptyState.vue'
 import { useAccountRefresh } from '@/composables/useAccountRefresh'
-import { useAccountStore } from '@/stores'
+import { useAccountStore, useAnalyticsStore } from '@/stores'
 import CropTable from './components/CropTable.vue'
 import SortToolbar from './components/SortToolbar.vue'
 import StrategyPanel from './components/StrategyPanel.vue'
 import { METRIC_MAP } from './constants'
 
 const accountStore = useAccountStore()
+const analyticsStore = useAnalyticsStore()
 const { currentAccountId } = storeToRefs(accountStore)
+const { list } = storeToRefs(analyticsStore)
 const hasAccount = computed(() => !!currentAccountId.value)
 
 const tableWrapperRef = ref<HTMLElement | null>(null)
@@ -26,7 +28,6 @@ useResizeObserver(tableWrapperRef, (entries) => {
 })
 
 const loading = ref(false)
-const list = ref<any[]>([])
 const sortKey = ref('exp')
 const searchQuery = ref('')
 const levelFilter = ref<number | null>(null)
@@ -48,7 +49,7 @@ async function loadAnalytics() {
     return
   loading.value = true
   try {
-    const res = await ws.request<any[]>('analytics:get', { sortBy: sortKey.value })
+    const res = await analyticsApi.get(sortKey.value)
     const data = Array.isArray(res) ? res : []
     if (data.length > 0) {
       list.value = data

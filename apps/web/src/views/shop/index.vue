@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
-import { ws } from '@/api'
+import { shopApi } from '@/api'
 import EmptyState from '@/components/EmptyState.vue'
 import { useAccountRefresh } from '@/composables/useAccountRefresh'
 import { useImageFallback } from '@/composables/useImageFallback'
@@ -43,12 +43,7 @@ async function confirmBuy(count: number): Promise<void> {
     return
   buying.value = true
   try {
-    await ws.request('shop:buy', {
-      goodsId: target.goodsId,
-      seedId: target.seedId,
-      price: target.price,
-      count
-    })
+    await shopApi.buy(target.goodsId, count, target.price)
     buyModalVisible.value = false
     buyTarget.value = null
     message.success(`已购买 ${target.name} x${count}`)

@@ -61,10 +61,10 @@ function refresh() {
     accountStore.selectAccount(String(firstAcc.uin))
 }
 
+const landsWithCountdown = useLandsWithCountdown(lands)
+
 useWsTopics(['lands', 'bag', 'daily-gifts'])
 useAccountRefresh(refresh)
-
-const landsWithCountdown = useLandsWithCountdown(lands)
 </script>
 
 <template>

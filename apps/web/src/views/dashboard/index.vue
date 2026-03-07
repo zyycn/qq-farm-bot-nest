@@ -2,7 +2,7 @@
 import { useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, reactive, ref, watch } from 'vue'
-import { ws } from '@/api'
+import { logsApi } from '@/api'
 import { useAccountRefresh } from '@/composables/useAccountRefresh'
 import { useWsTopics } from '@/composables/useWsTopics'
 import { useAccountStore, useBagStore, useStatusStore } from '@/stores'
@@ -30,7 +30,7 @@ async function queryLogs() {
   const hasFilter = !!(filter.module || filter.event || filter.keyword.trim() || filter.isWarn)
   statusStore.setLogFilterActive(hasFilter)
   try {
-    const data = await ws.request<any[]>('logs:query', {
+    const data = await logsApi.query({
       module: filter.module || undefined,
       event: filter.event || undefined,
       keyword: filter.keyword.trim() || undefined,

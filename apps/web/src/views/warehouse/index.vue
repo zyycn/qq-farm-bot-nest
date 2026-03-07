@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
-import { ws } from '@/api'
+import { warehouseApi } from '@/api'
 import EmptyState from '@/components/EmptyState.vue'
 import { useAccountRefresh } from '@/composables/useAccountRefresh'
 import { useImageFallback } from '@/composables/useImageFallback'
@@ -56,7 +56,7 @@ async function confirmSell(sellCount: number): Promise<void> {
     return
   selling.value = true
   try {
-    await ws.request('warehouse:sell', { itemId: target.id, count: sellCount })
+    await warehouseApi.sell(target.id, sellCount)
     sellConfirmVisible.value = false
     const gold = (target.price ?? 0) * sellCount
     sellTarget.value = null

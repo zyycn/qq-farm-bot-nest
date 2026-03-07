@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
-import { useAccountRefresh } from '@/composables/useAccountRefresh'
 import { useWsTopics } from '@/composables/useWsTopics'
 import { useAccountStore, useFarmStore, useSettingStore } from '@/stores'
 import message from '@/utils/message'
@@ -9,13 +8,11 @@ import AccountInfoCard from './components/AccountInfoCard.vue'
 import OfflineReminderCard from './components/OfflineReminderCard.vue'
 import PasswordCard from './components/PasswordCard.vue'
 import StrategyAutomationCard from './components/StrategyAutomationCard.vue'
-import { AUTOMATION_DEFAULTS } from './constants'
 
 const settingStore = useSettingStore()
 const accountStore = useAccountStore()
 const farmStore = useFarmStore()
 
-const { settings } = storeToRefs(settingStore)
 const { currentAccountId, currentAccount } = storeToRefs(accountStore)
 const { seeds } = storeToRefs(farmStore)
 
@@ -35,74 +32,18 @@ const currentAccountUin = computed(() => {
 
 const currentAccountAvatar = computed(() => currentAccount.value?.avatar ?? undefined)
 
-const localSettings = ref({
-  plantingStrategy: 'preferred',
-  preferredSeedId: 0,
-  intervals: { farmMin: 2, farmMax: 2, friendMin: 10, friendMax: 10 },
-  friendQuietHours: { enabled: false, start: '23:00', end: '07:00' },
-  stealCropBlacklist: [] as number[],
-  automation: { ...AUTOMATION_DEFAULTS }
-})
-
-const localOffline = ref({
-  channel: 'webhook',
-  reloginUrlMode: 'none',
-  endpoint: '',
-  token: '',
-  title: '',
-  msg: '',
-  offlineDeleteSec: 120
-})
-
 const passwordForm = ref({
   old: '',
   new: '',
   confirm: ''
 })
 
-function syncLocalSettings() {
-  if (settings.value) {
-    localSettings.value = JSON.parse(
-      JSON.stringify({
-        plantingStrategy: settings.value.plantingStrategy,
-        preferredSeedId: settings.value.preferredSeedId,
-        intervals: settings.value.intervals,
-        friendQuietHours: settings.value.friendQuietHours,
-        stealCropBlacklist: Array.isArray(settings.value.stealCropBlacklist) ? settings.value.stealCropBlacklist : [],
-        automation: settings.value.automation
-      })
-    )
-
-    if (!localSettings.value.automation) {
-      localSettings.value.automation = { ...AUTOMATION_DEFAULTS }
-    } else {
-      localSettings.value.automation = {
-        ...AUTOMATION_DEFAULTS,
-        ...localSettings.value.automation
-      }
-    }
-
-    if (settings.value.offlineReminder) {
-      localOffline.value = JSON.parse(JSON.stringify(settings.value.offlineReminder))
-    }
-  }
-}
-
-function loadData() {
-  if (!currentAccountId.value)
-    return
-  syncLocalSettings()
-}
-
-useWsTopics(['settings', 'seeds'])
-useAccountRefresh(loadData)
-
 async function saveAccountSettings() {
   if (!currentAccountId.value)
     return
   saving.value = true
   try {
-    const res = await settingStore.saveSettings(currentAccountId.value, localSettings.value)
+    const res = await settingStore.saveSettings(currentAccountId.value)
     if (res.ok) {
       message.success('账号设置已保存')
     } else {
@@ -145,7 +86,7 @@ async function handleChangePassword() {
 async function handleSaveOffline() {
   offlineSaving.value = true
   try {
-    const res = await settingStore.saveOfflineConfig(localOffline.value)
+    const res = await settingStore.saveOfflineConfig()
 
     if (res.ok) {
       message.success('下线提醒设置已保存')
@@ -156,6 +97,8 @@ async function handleSaveOffline() {
     offlineSaving.value = false
   }
 }
+
+useWsTopics(['settings', 'seeds'])
 </script>
 
 <template>
@@ -170,7 +113,6 @@ async function handleSaveOffline() {
 
       <StrategyAutomationCard
         v-if="currentAccountId"
-        v-model:local-settings="localSettings"
         :seeds="seeds"
         :current-account-id="currentAccountId"
         :saving="saving"
@@ -184,7 +126,6 @@ async function handleSaveOffline() {
           @submit="handleChangePassword"
         />
         <OfflineReminderCard
-          v-model:local-offline="localOffline"
           :saving="offlineSaving"
           @save="handleSaveOffline"
         />

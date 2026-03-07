@@ -1,10 +1,17 @@
-import { onBeforeUnmount, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
+import { onBeforeUnmount, onMounted, watch } from 'vue'
 import { ws } from '@/api'
+import { useAccountStore } from '@/stores'
 
-/**
- * 按页面订阅 WS topic，进入页面时订阅指定 topics，离开时清空订阅
- */
-export function useWsTopics(topics: string[]) {
-  onMounted(() => ws.subscribeTopics(topics))
-  onBeforeUnmount(() => ws.subscribeTopics([]))
+export function useWsTopics(topics: string[]): void {
+  const accountStore = useAccountStore()
+  const { currentAccountId } = storeToRefs(accountStore)
+
+  function doSubscribe(tops: string[]) {
+    ws.subscribe(currentAccountId.value, tops)
+  }
+
+  onMounted(() => doSubscribe(topics))
+  watch(currentAccountId, () => doSubscribe(topics))
+  onBeforeUnmount(() => doSubscribe([]))
 }

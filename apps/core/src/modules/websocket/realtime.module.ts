@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common'
 import { AccountModule } from '../account/account.module'
 import { AuthModule } from '../auth/auth.module'
-import { RealtimeGateway } from './realtime.gateway'
+import { WsServerService } from './ws-server.service'
 
 @Module({
   imports: [AuthModule, AccountModule],
-  providers: [RealtimeGateway]
+  providers: [WsServerService]
 })
 export class RealtimeModule {}

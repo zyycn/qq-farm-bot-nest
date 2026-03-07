@@ -64,7 +64,7 @@ export default defineConfig(({ mode }) => {
 
     server: {
       proxy: {
-        ...createProxy('/socket.io', { ws: true }),
+        ...createProxy('/ws', { ws: true }),
         ...createProxy('/api'),
         ...createProxy('/game-config')
       }

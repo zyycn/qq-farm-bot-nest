@@ -2,6 +2,7 @@ import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 
 export { type Account, useAccountStore } from './modules/account'
+export { useAnalyticsStore } from './modules/analytics'
 export { useAppStore } from './modules/app'
 export { useBagStore } from './modules/bag'
 export { type Land, useFarmStore } from './modules/farm'

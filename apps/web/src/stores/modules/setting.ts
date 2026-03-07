@@ -1,43 +1,43 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { authApi, ws } from '@/api'
-import { DEFAULT_FRIEND_QUIET_HOURS, DEFAULT_OFFLINE_REMINDER } from '../constants'
+import { authApi, settingsApi } from '@/api'
+import { AUTOMATION_DEFAULTS, DEFAULT_FRIEND_QUIET_HOURS, DEFAULT_INTERVALS, DEFAULT_OFFLINE_REMINDER } from '../constants'
 
 export interface AutomationConfig {
-  farm?: boolean
-  farm_push?: boolean
-  land_upgrade?: boolean
-  friend?: boolean
-  friend_help_exp_limit?: boolean
-  friend_steal?: boolean
-  friend_help?: boolean
-  friend_bad?: boolean
-  task?: boolean
-  email?: boolean
-  fertilizer_gift?: boolean
-  fertilizer_buy?: boolean
-  free_gifts?: boolean
-  share_reward?: boolean
-  vip_gift?: boolean
-  month_card?: boolean
-  open_server_gift?: boolean
-  sell?: boolean
-  fertilizer?: string
+  farm: boolean
+  farm_push: boolean
+  land_upgrade: boolean
+  friend: boolean
+  friend_help_exp_limit: boolean
+  friend_steal: boolean
+  friend_help: boolean
+  friend_bad: boolean
+  task: boolean
+  email: boolean
+  fertilizer_gift: boolean
+  fertilizer_buy: boolean
+  free_gifts: boolean
+  share_reward: boolean
+  vip_gift: boolean
+  month_card: boolean
+  open_server_gift: boolean
+  sell: boolean
+  fertilizer: string
 }
 
 export interface IntervalsConfig {
-  farm?: number
-  friend?: number
-  farmMin?: number
-  farmMax?: number
-  friendMin?: number
-  friendMax?: number
+  farm: number
+  friend: number
+  farmMin: number
+  farmMax: number
+  friendMin: number
+  friendMax: number
 }
 
 export interface FriendQuietHoursConfig {
-  enabled?: boolean
-  start?: string
-  end?: string
+  enabled: boolean
+  start: string
+  end: string
 }
 
 export interface OfflineReminderConfig {
@@ -57,57 +57,59 @@ export interface UIConfig {
 export interface SettingsState {
   plantingStrategy: string
   preferredSeedId: number
-  intervals: Partial<IntervalsConfig>
-  friendQuietHours: Partial<FriendQuietHoursConfig>
-  stealCropBlacklist?: number[]
-  automation: Partial<AutomationConfig>
+  intervals: IntervalsConfig
+  friendQuietHours: FriendQuietHoursConfig
+  stealCropBlacklist: number[]
+  automation: AutomationConfig
   ui: UIConfig
   offlineReminder: OfflineReminderConfig
 }
 
-export const useSettingStore = defineStore('setting', () => {
-  const settings = ref<SettingsState>({
+function initialSettings(): SettingsState {
+  return {
     plantingStrategy: 'preferred',
     preferredSeedId: 0,
-    intervals: {},
+    intervals: { ...DEFAULT_INTERVALS },
     friendQuietHours: { ...DEFAULT_FRIEND_QUIET_HOURS },
     stealCropBlacklist: [],
-    automation: {},
+    automation: { ...AUTOMATION_DEFAULTS },
     ui: {},
     offlineReminder: { ...DEFAULT_OFFLINE_REMINDER }
-  })
+  }
+}
 
-  async function saveSettings(accountId: string, newSettings: any) {
+export const useSettingStore = defineStore('setting', () => {
+  const settings = ref<SettingsState>(initialSettings())
+
+  async function saveSettings(accountId: string): Promise<{ ok: boolean, error?: string }> {
     if (!accountId)
       return { ok: false, error: '未选择账号' }
+    const s = settings.value
     try {
-      const payload = {
-        plantingStrategy: newSettings.plantingStrategy,
-        preferredSeedId: newSettings.preferredSeedId,
-        intervals: newSettings.intervals,
-        friendQuietHours: newSettings.friendQuietHours,
-        stealCropBlacklist: newSettings.stealCropBlacklist
-      }
-      await ws.request('settings:save', payload)
-      if (newSettings.automation)
-        await ws.request('settings:automation', newSettings.automation)
+      await settingsApi.save({
+        plantingStrategy: s.plantingStrategy,
+        preferredSeedId: s.preferredSeedId,
+        intervals: s.intervals,
+        friendQuietHours: s.friendQuietHours,
+        stealCropBlacklist: s.stealCropBlacklist,
+        automation: s.automation
+      })
       return { ok: true }
     } catch (e: any) {
       return { ok: false, error: e.message || '保存失败' }
     }
   }
 
-  async function saveOfflineConfig(config: OfflineReminderConfig) {
+  async function saveOfflineConfig(): Promise<{ ok: boolean, error?: string }> {
     try {
-      await ws.request('settings:offline-reminder', config)
-      settings.value.offlineReminder = config
+      await settingsApi.saveOfflineReminder(settings.value.offlineReminder)
       return { ok: true }
     } catch (e: any) {
       return { ok: false, error: e.message || '保存失败' }
     }
   }
 
-  async function changeAdminPassword(oldPassword: string, newPassword: string) {
+  async function changeAdminPassword(oldPassword: string, newPassword: string): Promise<{ ok: boolean, error?: string }> {
     try {
       await authApi.changePassword(oldPassword, newPassword)
       return { ok: true }
@@ -116,31 +118,14 @@ export const useSettingStore = defineStore('setting', () => {
     }
   }
 
-  function setSettingsFromRealtime(d: Record<string, any>) {
-    if (!d || typeof d !== 'object')
-      return
-    if (d.strategy != null || d.plantingStrategy != null)
-      settings.value.plantingStrategy = String(d.strategy ?? d.plantingStrategy ?? settings.value.plantingStrategy)
-    if (d.preferredSeed != null || d.preferredSeedId != null)
-      settings.value.preferredSeedId = Number(d.preferredSeed ?? d.preferredSeedId ?? 0)
-    if (d.intervals != null)
-      settings.value.intervals = { ...settings.value.intervals, ...d.intervals }
-    if (d.friendQuietHours != null)
-      settings.value.friendQuietHours = { ...settings.value.friendQuietHours, ...d.friendQuietHours }
-    if (d.stealCropBlacklist != null)
-      settings.value.stealCropBlacklist = d.stealCropBlacklist
-    if (d.automation != null)
-      settings.value.automation = { ...settings.value.automation, ...d.automation }
-    if (d.ui != null)
-      settings.value.ui = { ...settings.value.ui, ...d.ui }
-    if (d.offlineReminder != null)
-      settings.value.offlineReminder = { ...settings.value.offlineReminder, ...d.offlineReminder }
-  }
+  settingsApi.onSettingsUpdate((data: any) => {
+    if (data != null)
+      Object.assign(settings.value, data)
+  })
 
-  return { settings, saveSettings, saveOfflineConfig, changeAdminPassword, setSettingsFromRealtime }
+  return { settings, saveSettings, saveOfflineConfig, changeAdminPassword }
 }, {
   persist: {
-    pick: ['settings'],
     storage: sessionStorage
   }
 })
