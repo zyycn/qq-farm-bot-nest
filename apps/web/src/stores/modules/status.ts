@@ -80,8 +80,7 @@ export const useStatusStore = defineStore('status', () => {
     if (body.status && typeof body.status === 'object') {
       status.value = normalizeStatusPayload(body.status)
       error.value = ''
-    }
-    else {
+    } else {
       status.value = null
     }
   }

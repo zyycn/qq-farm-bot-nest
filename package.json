@@ -5,18 +5,19 @@
   "packageManager": "pnpm@10.30.2",
   "scripts": {
     "build": "turbo run build",
-    "build:core": "turbo run build -F=core",
     "build:web": "turbo run build -F=web",
+    "build:core": "turbo run build -F=core",
     "build:link": "turbo run build -F=link",
     "dev": "turbo run dev",
-    "dev:core": "turbo run dev -F=core",
     "dev:web": "turbo run dev -F=web",
+    "dev:core": "turbo run dev -F=core",
     "dev:link": "turbo run dev -F=link",
     "start": "turbo run start -F=core",
     "start:link": "turbo run start -F=link",
     "lint": "turbo run lint",
     "lint:web": "turbo run lint -F=web",
     "lint:core": "turbo run lint -F=core",
+    "lint:link": "turbo run lint -F=link",
     "install:all": "pnpm install -r"
   },
   "devDependencies": {
