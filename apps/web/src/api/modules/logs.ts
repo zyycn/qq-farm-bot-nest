@@ -15,7 +15,3 @@ export function query(opts?: LogQueryOptions): Promise<any[]> {
 export function onLogNew(handler: (data: any) => void): void {
   ws.on('log:new', handler)
 }
-
-export function offLogNew(handler: (data: any) => void): void {
-  ws.off('log:new', handler)
-}

@@ -15,7 +15,3 @@ export function saveOfflineReminder(data: any): Promise<any> {
 export function onSettingsUpdate(handler: (data: any) => void): void {
   ws.on('settings:update', handler)
 }
-
-export function offSettingsUpdate(handler: (data: any) => void): void {
-  ws.off('settings:update', handler)
-}

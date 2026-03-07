@@ -530,7 +530,7 @@ export class AccountRunner {
       lastGoldGain: fullStats.lastGoldGain,
       levelProgress
     }
-    if (!this.dedup.hasChanged('session', data))
+    if (!this.dedup.hasChanged('session', data, ['uptime']))
       return
     this.emitStatusEvent('session', data)
   }

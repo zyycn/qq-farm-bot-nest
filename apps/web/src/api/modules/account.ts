@@ -32,7 +32,3 @@ export function remark(uin: string | number, name: string): Promise<any> {
 export function onAccountsUpdate(handler: (data: any) => void): void {
   ws.on('accounts:update', handler)
 }
-
-export function offAccountsUpdate(handler: (data: any) => void): void {
-  ws.off('accounts:update', handler)
-}
