@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import QqAvatar from '@/components/QqAvatar.vue'
-import { getPlatformIcon } from '@/stores'
+import { getPlatformIcon } from '@/utils/platform'
 
 defineProps<{
   collapsed?: boolean

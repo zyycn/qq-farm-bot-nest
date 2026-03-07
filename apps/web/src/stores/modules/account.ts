@@ -17,14 +17,6 @@ export interface Account {
   // Add other fields as discovered
 }
 
-export function getPlatformIcon(p?: string) {
-  if (p === 'qq')
-    return 'i-icon-park-solid-tencent-qq'
-  if (p === 'wx')
-    return 'i-icon-park-solid-wechat'
-  return ''
-}
-
 export const useAccountStore = defineStore('account', () => {
   const accounts = ref<Account[]>([])
   const currentAccountId = ref('')

@@ -1,6 +1,6 @@
 import type { AxiosRequestConfig } from 'axios'
 import axios from 'axios'
-import { useUserStore } from '@/stores'
+import { useUserStore } from '@/stores/modules/user'
 import message from '@/utils/message'
 
 const IGNORABLE_ERRORS = ['账号未运行', 'API Timeout']

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { getPlatformIcon } from '@/stores'
+import { getPlatformIcon } from '@/utils/platform'
 
 const props = withDefaults(
   defineProps<{
