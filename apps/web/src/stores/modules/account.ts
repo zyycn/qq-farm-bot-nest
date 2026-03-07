@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { accountApi } from '@/api'
 import { useBagStore } from './bag'
 import { useFarmStore } from './farm'
 import { useStatusStore } from './status'
@@ -43,30 +42,7 @@ export const useAccountStore = defineStore('account', () => {
   )
 
   async function fetchAccounts() {
-    loading.value = true
-    try {
-      // api interceptor adds Authorization header
-      const res = await accountApi.fetchAccounts()
-      if (res && res.accounts) {
-        accounts.value = res.accounts as Account[]
-
-        if (accounts.value.length > 0) {
-          const found = accounts.value.find(a => String(a.uin) === currentAccountId.value)
-          if (!found && accounts.value[0]) {
-            currentAccountId.value = String(accounts.value[0].uin)
-          }
-        } else if (currentAccountId.value) {
-          currentAccountId.value = ''
-          useStatusStore().resetState()
-          useBagStore().resetState()
-          useFarmStore().resetState()
-        }
-      }
-    } catch (e) {
-      console.error('获取账号失败', e)
-    } finally {
-      loading.value = false
-    }
+    // 账号列表仅通过 WebSocket accounts:update 推送，无 HTTP 回退
   }
 
   function selectAccount(id: string) {
@@ -80,57 +56,47 @@ export const useAccountStore = defineStore('account', () => {
   async function startAccount(uin: string) {
     if (!uin)
       throw new Error('账号标识为空，无法启动')
-    await accountApi.startAccount(uin)
-    await fetchAccounts()
+    const statusStore = useStatusStore()
+    await statusStore.wsRequest('account:start', { id: uin })
   }
 
   async function stopAccount(uin: string) {
     if (!uin)
       throw new Error('账号标识为空，无法停止')
-    await accountApi.stopAccount(uin)
-    await fetchAccounts()
+    const statusStore = useStatusStore()
+    await statusStore.wsRequest('account:stop', { id: uin })
   }
 
   async function deleteAccount(ref: string) {
     if (!ref)
       throw new Error('账号标识为空，无法删除')
-    await accountApi.deleteAccount(ref)
+    const statusStore = useStatusStore()
+    await statusStore.wsRequest('account:delete', { id: ref })
     if (currentAccountId.value === ref) {
       currentAccountId.value = ''
       useStatusStore().resetState()
       useBagStore().resetState()
       useFarmStore().resetState()
     }
-    await fetchAccounts()
   }
 
   async function fetchLogs() {
-    try {
-      const res = await accountApi.fetchAccountLogs(100)
-      logs.value = Array.isArray(res) ? res : []
-    } catch (e) {
-      console.error('获取账号日志失败', e)
-    }
+    // 账号日志仅通过 WebSocket account-logs:snapshot / account-log:new 推送
   }
 
   async function addAccount(payload: any) {
-    try {
-      await accountApi.saveAccount(payload)
-      await fetchAccounts()
-    } catch (e) {
-      console.error('添加账号失败', e)
-      throw e
-    }
+    const statusStore = useStatusStore()
+    await statusStore.wsRequest('account:create', payload)
   }
 
   async function updateAccount(uin: string, payload: any) {
-    try {
-      await accountApi.saveAccount({ ...payload, uin })
-      await fetchAccounts()
-    } catch (e) {
-      console.error('更新账号失败', e)
-      throw e
-    }
+    const statusStore = useStatusStore()
+    await statusStore.wsRequest('account:create', { ...payload, uin })
+  }
+
+  function setAccountsFromRealtime(data: { accounts?: any[] }) {
+    if (data?.accounts && Array.isArray(data.accounts))
+      accounts.value = data.accounts as Account[]
   }
 
   return {
@@ -147,7 +113,8 @@ export const useAccountStore = defineStore('account', () => {
     fetchLogs,
     addAccount,
     updateAccount,
-    setCurrentAccount
+    setCurrentAccount,
+    setAccountsFromRealtime
   }
 }, {
   persist: {

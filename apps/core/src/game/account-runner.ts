@@ -28,6 +28,10 @@ export interface AccountRunnerCallbacks {
   onKicked?: (accountId: string, reason: string) => void
   onWsError?: (accountId: string, code: number, message: string) => void
   onStopped?: (accountId: string) => void
+  onLandsUpdate?: (accountId: string, data: any) => void
+  onBagUpdate?: (accountId: string, data: any) => void
+  onDailyGiftsUpdate?: (accountId: string, data: any) => void
+  onFriendsUpdate?: (accountId: string, data: any) => void
 }
 
 export class AccountRunner {
@@ -175,6 +179,7 @@ export class AccountRunner {
         this.startDailyRoutineTimer()
 
         this.syncStatus()
+        this.pushLandsAndBag().catch(() => {})
       }
     } catch (e: any) {
       this.warn(`连接失败: ${e?.message}`, 'connect')
@@ -239,6 +244,7 @@ export class AccountRunner {
       this.nextFarmRunAt = Date.now() + this.randomInterval(this.farmIntervalMin, this.farmIntervalMax)
       this.farmTaskRunning = false
       this.syncStatus()
+      this.pushLandsAndBag().catch(() => {})
     }
   }
 
@@ -256,7 +262,26 @@ export class AccountRunner {
       this.nextFriendRunAt = Date.now() + this.randomInterval(this.friendIntervalMin, this.friendIntervalMax)
       this.friendTaskRunning = false
       this.syncStatus()
+      this.pushFriends().catch(() => {})
     }
+  }
+
+  private async pushLandsAndBag() {
+    try {
+      const [lands, bag] = await Promise.all([this.getLands(), this.getBag()])
+      if (lands)
+        this.callbacks.onLandsUpdate?.(this.accountId, lands)
+      if (bag)
+        this.callbacks.onBagUpdate?.(this.accountId, bag)
+    } catch {}
+  }
+
+  private async pushFriends() {
+    try {
+      const friends = await this.getFriends()
+      if (friends != null)
+        this.callbacks.onFriendsUpdate?.(this.accountId, friends)
+    } catch {}
   }
 
   private scheduleNext() {
@@ -315,6 +340,9 @@ export class AccountRunner {
         await this.dailyRewards.buyFreeGifts(force)
       if (auto.vip_gift)
         await this.dailyRewards.performDailyVipGift(force)
+      const overview = await this.getDailyGiftOverview().catch(() => null)
+      if (overview)
+        this.callbacks.onDailyGiftsUpdate?.(this.accountId, overview)
     } catch (e: any) {
       this.warn(`每日任务调度失败: ${e?.message}`, 'schedule_error')
     }
@@ -491,10 +519,20 @@ export class AccountRunner {
 
   async getLands() { return this.farm.getLandsDetail() }
   async getSeeds() { return this.farm.getAvailableSeeds() }
-  async doFarmOp(opType: string) { return this.farm.runFarmOperation(opType) }
+  async doFarmOp(opType: string) {
+    const result = await this.farm.runFarmOperation(opType)
+    this.pushLandsAndBag().catch(() => {})
+    return result
+  }
+
   async getFriends() { return this.friend.getFriendsList() }
   async getFriendLands(gid: number) { return this.friend.getFriendLandsDetail(gid) }
-  async doFriendOp(gid: number, opType: string) { return this.friend.doFriendOperation(gid, opType) }
+  async doFriendOp(gid: number, opType: string) {
+    const result = await this.friend.doFriendOperation(gid, opType)
+    this.pushFriends().catch(() => {})
+    return result
+  }
+
   async getBag() { return this.warehouse.getBagDetail() }
   getAnalytics(sortBy: string) { return this.analytics.getPlantRankings(sortBy) }
 

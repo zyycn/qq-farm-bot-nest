@@ -2,8 +2,12 @@ import type { Socket } from 'socket.io-client'
 import { defineStore } from 'pinia'
 import { io } from 'socket.io-client'
 import { ref } from 'vue'
-import { statusApi } from '@/api'
 import { ACCOUNT_LOGS_MAX_LENGTH, LOGS_MAX_LENGTH, SOCKET_PATH } from '../constants'
+import { useAccountStore } from './account'
+import { useBagStore } from './bag'
+import { useFarmStore } from './farm'
+import { useFriendStore } from './friend'
+import { useSettingStore } from './setting'
 import { useUserStore } from './user'
 
 interface DailyGift {
@@ -107,6 +111,68 @@ export const useStatusStore = defineStore('status', () => {
     accountLogs.value = list
   }
 
+  function handleAccountsUpdate(payload: any) {
+    const data = payload && typeof payload === 'object' ? payload : {}
+    useAccountStore().setAccountsFromRealtime(data)
+  }
+
+  function handleLandsUpdate(payload: any) {
+    const body = payload && typeof payload === 'object' ? payload : {}
+    const accountId = String(body.accountId || '').trim()
+    if (accountId && subscribedResolvedAccountId.value && accountId !== subscribedResolvedAccountId.value)
+      return
+    if (body.data != null)
+      useFarmStore().setLandsFromRealtime(body.data)
+  }
+
+  function handleSeedsUpdate(payload: any) {
+    const body = payload && typeof payload === 'object' ? payload : {}
+    const accountId = String(body.accountId || '').trim()
+    if (accountId && subscribedResolvedAccountId.value && accountId !== subscribedResolvedAccountId.value)
+      return
+    if (body.data != null)
+      useFarmStore().setSeedsFromRealtime(Array.isArray(body.data) ? body.data : [])
+  }
+
+  function handleBagUpdate(payload: any) {
+    const body = payload && typeof payload === 'object' ? payload : {}
+    const accountId = String(body.accountId || '').trim()
+    if (accountId && subscribedResolvedAccountId.value && accountId !== subscribedResolvedAccountId.value)
+      return
+    if (body.data != null)
+      useBagStore().setBagFromRealtime(body.data)
+  }
+
+  function handleDailyGiftsUpdate(payload: any) {
+    const body = payload && typeof payload === 'object' ? payload : {}
+    const accountId = String(body.accountId || '').trim()
+    if (accountId && subscribedResolvedAccountId.value && accountId !== subscribedResolvedAccountId.value)
+      return
+    if (body.data != null)
+      dailyGifts.value = body.data
+  }
+
+  function handleFriendsUpdate(payload: any) {
+    const body = payload && typeof payload === 'object' ? payload : {}
+    const accountId = String(body.accountId || '').trim()
+    if (accountId && subscribedResolvedAccountId.value && accountId !== subscribedResolvedAccountId.value)
+      return
+    if (body.data != null)
+      useFriendStore().setFriendsFromRealtime(Array.isArray(body.data) ? body.data : [])
+  }
+
+  function handleSettingsUpdate(payload: any) {
+    const body = payload && typeof payload === 'object' ? payload : {}
+    const accountId = String(body.accountId || '').trim()
+    if (accountId && subscribedResolvedAccountId.value && accountId !== subscribedResolvedAccountId.value)
+      return
+    if (body.data != null) {
+      useSettingStore().setSettingsFromRealtime(body.data)
+      if (Array.isArray(body.data.stealCropBlacklist))
+        useFriendStore().setBlacklistFromRealtime(body.data.stealCropBlacklist)
+    }
+  }
+
   function ensureRealtimeSocket() {
     if (socket)
       return socket
@@ -151,6 +217,13 @@ export const useStatusStore = defineStore('status', () => {
     socket.on('account-log:new', handleRealtimeAccountLog)
     socket.on('logs:snapshot', handleRealtimeLogsSnapshot)
     socket.on('account-logs:snapshot', handleRealtimeAccountLogsSnapshot)
+    socket.on('accounts:update', handleAccountsUpdate)
+    socket.on('lands:update', handleLandsUpdate)
+    socket.on('seeds:update', handleSeedsUpdate)
+    socket.on('bag:update', handleBagUpdate)
+    socket.on('daily-gifts:update', handleDailyGiftsUpdate)
+    socket.on('friends:update', handleFriendsUpdate)
+    socket.on('settings:update', handleSettingsUpdate)
     return socket
   }
 
@@ -191,60 +264,50 @@ export const useStatusStore = defineStore('status', () => {
     socket.off('account-log:new', handleRealtimeAccountLog)
     socket.off('logs:snapshot', handleRealtimeLogsSnapshot)
     socket.off('account-logs:snapshot', handleRealtimeAccountLogsSnapshot)
+    socket.off('accounts:update', handleAccountsUpdate)
+    socket.off('lands:update', handleLandsUpdate)
+    socket.off('seeds:update', handleSeedsUpdate)
+    socket.off('bag:update', handleBagUpdate)
+    socket.off('daily-gifts:update', handleDailyGiftsUpdate)
+    socket.off('friends:update', handleFriendsUpdate)
+    socket.off('settings:update', handleSettingsUpdate)
     socket.disconnect()
     socket = null
     realtimeConnected.value = false
   }
 
-  async function fetchStatus(accountId: string) {
-    if (!accountId)
-      return
-    loading.value = true
-    try {
-      const res = await statusApi.fetchStatus()
-      status.value = normalizeStatusPayload(res)
-      error.value = ''
-    } catch (e: any) {
-      error.value = e.message
-    } finally {
-      loading.value = false
-    }
+  async function fetchStatus(_accountId: string) {
+    // 数据仅通过 WebSocket 推送，无 HTTP 回退
   }
 
-  async function fetchLogs(accountId: string, options: any = {}) {
-    if (!accountId && options.accountId !== 'all')
-      return
-    try {
-      const res = await statusApi.fetchLogs(accountId, options)
-      logs.value = (res || []).map((item: any) => normalizeLogEntry(item))
-      error.value = ''
-    } catch (e: any) {
-      console.error(e)
-    }
+  async function fetchLogs(_accountId: string, _options: any = {}) {
+    // 数据仅通过 WebSocket 推送
   }
 
-  async function fetchDailyGifts(accountId: string) {
-    if (!accountId)
-      return
-    try {
-      const res = await statusApi.fetchDailyGifts()
-      dailyGifts.value = res || null
-    } catch (e) {
-      console.error('获取每日奖励失败', e)
-    }
+  async function fetchDailyGifts(_accountId: string) {
+    // 数据仅通过 WebSocket 推送
   }
 
-  async function fetchAccountLogs(limit = 100) {
-    try {
-      const res = await statusApi.fetchAccountLogs(limit)
-      accountLogs.value = Array.isArray(res) ? res : []
-    } catch (e) {
-      console.error(e)
-    }
+  async function fetchAccountLogs(_limit = 100) {
+    // 数据仅通过 WebSocket 推送
   }
 
   function setRealtimeLogsEnabled(enabled: boolean) {
     realtimeLogsEnabled.value = !!enabled
+  }
+
+  function wsRequest<T = any>(event: string, payload: any): Promise<T> {
+    const s = socket
+    if (!s || !s.connected)
+      return Promise.reject(new Error('WebSocket 未连接'))
+    return new Promise((resolve, reject) => {
+      s.emit(event, payload ?? {}, (response: any) => {
+        if (response && response.status === 'ok')
+          resolve(response.data as T)
+        else
+          reject(new Error(response?.message || '请求失败'))
+      })
+    })
   }
 
   function resetState() {
@@ -270,6 +333,7 @@ export const useStatusStore = defineStore('status', () => {
     setRealtimeLogsEnabled,
     resetState,
     connectRealtime,
-    disconnectRealtime
+    disconnectRealtime,
+    wsRequest
   }
 })

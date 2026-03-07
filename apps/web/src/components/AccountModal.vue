@@ -2,6 +2,7 @@
 import { useIntervalFn } from '@vueuse/core'
 import { computed, reactive, ref, watch } from 'vue'
 import { accountApi } from '@/api'
+import { useAccountStore } from '@/stores'
 
 const props = defineProps<{
   show: boolean
@@ -103,11 +104,13 @@ function openQRCodeLoginUrl() {
   }
 }
 
+const accountStore = useAccountStore()
+
 async function addAccount(data: any) {
   loading.value = true
   errorMessage.value = ''
   try {
-    await accountApi.saveAccount(data)
+    await accountStore.addAccount(data)
     emit('saved')
     close()
   } catch (e: any) {

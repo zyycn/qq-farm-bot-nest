@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { friendApi } from '@/api'
+import { useStatusStore } from './status'
 
 export const useFriendStore = defineStore('friend', () => {
   const friends = ref<any[]>([])
@@ -61,31 +61,19 @@ export const useFriendStore = defineStore('friend', () => {
     }
   }
 
-  async function fetchFriends(accountId: string) {
-    if (!accountId)
-      return
-    loading.value = true
-    try {
-      const res = await friendApi.fetchFriends()
-      friends.value = res || []
-    } finally {
-      loading.value = false
-    }
+  async function fetchFriends(_accountId: string) {
+    // 好友列表仅通过 WebSocket friends:update 推送
   }
 
-  async function fetchBlacklist(accountId: string) {
-    if (!accountId)
-      return
-    try {
-      const res = await friendApi.fetchBlacklist()
-      blacklist.value = res || []
-    } catch { /* ignore */ }
+  async function fetchBlacklist(_accountId: string) {
+    // 黑名单随 settings:update 推送
   }
 
   async function toggleBlacklist(accountId: string, gid: number) {
     if (!accountId || !gid)
       return
-    const res = await friendApi.toggleBlacklist(gid)
+    const statusStore = useStatusStore()
+    const res = await statusStore.wsRequest<number[]>('friend:toggle-blacklist', { gid })
     blacklist.value = res || []
   }
 
@@ -94,7 +82,8 @@ export const useFriendStore = defineStore('friend', () => {
       return
     friendLandsLoading.value[friendId] = true
     try {
-      const res = await friendApi.fetchFriendLands(friendId)
+      const statusStore = useStatusStore()
+      const res = await statusStore.wsRequest<{ lands?: any[], summary?: any }>('friend:lands', { gid: Number(friendId) })
       const rawLands = res?.lands || []
       const nowSec = Math.floor(Date.now() / 1000)
       const lands = rawLands.map((l: any) => ({
@@ -112,10 +101,16 @@ export const useFriendStore = defineStore('friend', () => {
   async function operate(accountId: string, friendId: string, opType: string) {
     if (!accountId || !friendId)
       return
-    const targetFriendId = String(friendId)
-    await friendApi.operateFriend(friendId, opType)
-    await fetchFriends(accountId)
-    await fetchFriendLands(accountId, targetFriendId)
+    const statusStore = useStatusStore()
+    await statusStore.wsRequest('friend:operate', { gid: Number(friendId), opType })
+  }
+
+  function setFriendsFromRealtime(list: any[]) {
+    friends.value = Array.isArray(list) ? list : []
+  }
+
+  function setBlacklistFromRealtime(list: number[] | any[]) {
+    blacklist.value = Array.isArray(list) ? list.map((x: any) => Number(x)).filter(n => !Number.isNaN(n)) : []
   }
 
   return {
@@ -128,6 +123,8 @@ export const useFriendStore = defineStore('friend', () => {
     fetchBlacklist,
     toggleBlacklist,
     fetchFriendLands,
-    operate
+    operate,
+    setFriendsFromRealtime,
+    setBlacklistFromRealtime
   }
 })

@@ -219,7 +219,6 @@ onMounted(() => {
   statusStore.setRealtimeLogsEnabled(!hasActiveLogFilter.value)
 })
 
-useIntervalFn(refresh, 10000)
 useIntervalFn(updateCountdowns, 1000)
 </script>
 

@@ -24,6 +24,12 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
   private logger = new Logger('AccountManager')
   private runners = new Map<string, RunningAccount>()
   private onStatusSyncCallback: ((accountId: string, status: any) => void) | null = null
+  private onAccountsUpdateCallback: ((data: any) => void) | null = null
+  private onLandsUpdateCallback: ((accountId: string, data: any) => void) | null = null
+  private onBagUpdateCallback: ((accountId: string, data: any) => void) | null = null
+  private onDailyGiftsUpdateCallback: ((accountId: string, data: any) => void) | null = null
+  private onFriendsUpdateCallback: ((accountId: string, data: any) => void) | null = null
+  private onSettingsUpdateCallback: ((accountId: string, data: any) => void) | null = null
   private linkClient!: LinkClient
 
   constructor(
@@ -38,13 +44,46 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
     onStatusSync?: (accountId: string, status: any) => void
     onLog?: (entry: any) => void
     onAccountLog?: (entry: any) => void
+    onAccountsUpdate?: (data: any) => void
+    onLandsUpdate?: (accountId: string, data: any) => void
+    onBagUpdate?: (accountId: string, data: any) => void
+    onDailyGiftsUpdate?: (accountId: string, data: any) => void
+    onFriendsUpdate?: (accountId: string, data: any) => void
+    onSettingsUpdate?: (accountId: string, data: any) => void
   }) {
     if (callbacks.onStatusSync)
       this.onStatusSyncCallback = callbacks.onStatusSync
+    this.onAccountsUpdateCallback = callbacks.onAccountsUpdate ?? null
+    this.onLandsUpdateCallback = callbacks.onLandsUpdate ?? null
+    this.onBagUpdateCallback = callbacks.onBagUpdate ?? null
+    this.onDailyGiftsUpdateCallback = callbacks.onDailyGiftsUpdate ?? null
+    this.onFriendsUpdateCallback = callbacks.onFriendsUpdate ?? null
+    this.onSettingsUpdateCallback = callbacks.onSettingsUpdate ?? null
     this.gameLog.setCallbacks({
       onLog: callbacks.onLog ?? undefined,
       onAccountLog: callbacks.onAccountLog ?? undefined
     })
+  }
+
+  notifyAccountsUpdate() {
+    this.onAccountsUpdateCallback?.(this.getAccounts())
+  }
+
+  notifySettingsUpdate(accountId: string) {
+    const id = String(accountId || '').trim()
+    if (!id)
+      return
+    const data = {
+      intervals: this.store.getIntervals(id),
+      strategy: this.store.getPlantingStrategy(id),
+      preferredSeed: this.store.getPreferredSeed(id),
+      friendQuietHours: this.store.getFriendQuietHours(id),
+      stealCropBlacklist: this.store.getStealCropBlacklist(id),
+      automation: this.store.getAutomation(id),
+      ui: this.store.getUI(),
+      offlineReminder: this.store.getOfflineReminder()
+    }
+    this.onSettingsUpdateCallback?.(id, data)
   }
 
   async onModuleInit() {
@@ -80,7 +119,6 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
     this.linkClient?.destroy()
   }
 
-  /** TCP 重连后从 Link 拉取各账号真实连接状态，避免显示一会在线一会离线 */
   private async syncAccountsStateFromLink() {
     if (!this.linkClient?.connected)
       return
@@ -147,7 +185,11 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
         const r = this.runners.get(aid)
         if (r && !r.runner.isActive())
           this.runners.delete(aid)
-      }
+      },
+      onLandsUpdate: (aid, data) => this.onLandsUpdateCallback?.(aid, data),
+      onBagUpdate: (aid, data) => this.onBagUpdateCallback?.(aid, data),
+      onDailyGiftsUpdate: (aid, data) => this.onDailyGiftsUpdateCallback?.(aid, data),
+      onFriendsUpdate: (aid, data) => this.onFriendsUpdateCallback?.(aid, data)
     }
 
     const runner = new AccountRunner(id, this.linkClient, this.proto, this.gameConfig, this.store, callbacks)
@@ -171,6 +213,7 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
     })
 
     this.gameLog.addAccountLog('start', `启动账号: ${acc.name}`, id, acc.name || '')
+    this.notifyAccountsUpdate()
     return true
   }
 
@@ -193,6 +236,7 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
     this.onStatusSyncCallback?.(accountId, stoppedStatus)
 
     this.gameLog.addAccountLog('stop', `停止账号: ${name}`, accountId, name)
+    this.notifyAccountsUpdate()
     return true
   }
 
@@ -338,7 +382,6 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
     return this.runners.get(accountId)?.runner || null
   }
 
-  /** 获取运行中账号的 Runner，不存在则抛出 BadRequestException，供 Controller 直接调用 runner 方法 */
   getRunnerOrThrow(accountId: string): AccountRunner {
     const runner = this.getRunner(accountId)
     if (!runner)

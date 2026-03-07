@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { farmApi } from '@/api'
+import { useStatusStore } from './status'
 
 export interface Land {
   id: number
@@ -21,37 +21,19 @@ export const useFarmStore = defineStore('farm', () => {
   const summary = ref<any>({})
   const loading = ref(false)
 
-  async function fetchLands(accountId: string) {
-    if (!accountId)
-      return
-    loading.value = true
-    try {
-      const res = await farmApi.fetchLands()
-      if (res) {
-        const nowSec = Math.floor(Date.now() / 1000)
-        lands.value = (res.lands || []).map((l: any) => ({
-          ...l,
-          matureAt: nowSec + (l.matureInSec ?? 0)
-        }))
-        summary.value = res.summary || {}
-      }
-    } finally {
-      loading.value = false
-    }
+  async function fetchLands(_accountId: string) {
+    // 土地数据仅通过 WebSocket lands:update 推送
   }
 
-  async function fetchSeeds(accountId: string) {
-    if (!accountId)
-      return
-    const res = await farmApi.fetchSeeds()
-    seeds.value = Array.isArray(res) ? res : []
+  async function fetchSeeds(_accountId: string) {
+    // 种子数据在订阅时随 lands 等一并推送，暂无单独接口
   }
 
   async function operate(accountId: string, opType: string) {
     if (!accountId)
       return
-    await farmApi.operate(opType)
-    await fetchLands(accountId)
+    const statusStore = useStatusStore()
+    await statusStore.wsRequest('farm:operate', { opType })
   }
 
   function resetState() {
@@ -60,5 +42,20 @@ export const useFarmStore = defineStore('farm', () => {
     seeds.value = []
   }
 
-  return { lands, summary, seeds, loading, fetchLands, fetchSeeds, operate, resetState }
+  function setLandsFromRealtime(res: any) {
+    if (!res)
+      return
+    const nowSec = Math.floor(Date.now() / 1000)
+    lands.value = (res.lands || []).map((l: any) => ({
+      ...l,
+      matureAt: (l.matureInSec ?? 0) > 0 ? nowSec + l.matureInSec : 0
+    }))
+    summary.value = res.summary || {}
+  }
+
+  function setSeedsFromRealtime(list: any[]) {
+    seeds.value = Array.isArray(list) ? list : []
+  }
+
+  return { lands, summary, seeds, loading, fetchLands, fetchSeeds, operate, resetState, setLandsFromRealtime, setSeedsFromRealtime }
 })

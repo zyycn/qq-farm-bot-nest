@@ -13,7 +13,7 @@ export function useSidebarData() {
   const route = useRoute()
   const router = useRouter()
   const { accounts, currentAccount } = storeToRefs(accountStore)
-  const { status, realtimeConnected } = storeToRefs(statusStore)
+  const { status } = storeToRefs(statusStore)
   const { sidebarCollapsed, sidebarOpen } = storeToRefs(appStore)
 
   // Modals
@@ -52,25 +52,13 @@ export function useSidebarData() {
     }
   }
 
-  async function refreshStatusFallback() {
-    if (realtimeConnected.value)
-      return
-    const acc = currentAccount.value
-    const accountRef = acc?.uin
-    if (accountRef)
-      await statusStore.fetchStatus(String(accountRef))
-  }
-
   async function handleAccountSaved() {
-    await accountStore.fetchAccounts()
-    await refreshStatusFallback()
     showAccountModal.value = false
     showRemarkModal.value = false
   }
 
   // Lifecycle
   onMounted(() => {
-    accountStore.fetchAccounts()
     checkConnection()
   })
 
@@ -80,20 +68,13 @@ export function useSidebarData() {
 
   useIntervalFn(() => {
     checkConnection()
-    if (!realtimeConnected.value) {
-      refreshStatusFallback()
-      accountStore.fetchAccounts()
-    }
   }, 15000)
 
   // Watch account changes
   watch(
-    () => currentAccount.value?.uin || '',
+    () => currentAccount.value?.uin ?? '',
     (newUin) => {
-      if (!newUin)
-        return
-      statusStore.connectRealtime(String(newUin))
-      refreshStatusFallback()
+      statusStore.connectRealtime(String(newUin || 'all'))
     },
     { immediate: true }
   )

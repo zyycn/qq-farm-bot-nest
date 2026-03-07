@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
@@ -80,8 +79,6 @@ async function refresh() {
 useAccountRefresh(refresh)
 
 const landsWithCountdown = useLandsWithCountdown(lands)
-
-useIntervalFn(refresh, 60000)
 </script>
 
 <template>

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
@@ -108,7 +107,6 @@ useAccountRefresh(() => {
   expandedFriends.value.clear()
   loadFriends()
 })
-useIntervalFn(() => loadFriends(), 30000)
 
 function toggleFriend(friendId: string) {
   if (expandedFriends.value.has(friendId)) {

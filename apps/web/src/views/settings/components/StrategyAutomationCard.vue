@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watchEffect } from 'vue'
-import { analyticsApi } from '@/api'
+import { useStatusStore } from '@/stores'
 import { ANALYTICS_SORT_BY_MAP, FERTILIZER_OPTIONS, PLANTING_STRATEGY_OPTIONS } from '../constants'
 
 const props = defineProps<{
@@ -74,7 +74,8 @@ watchEffect(async () => {
   const sortBy = ANALYTICS_SORT_BY_MAP[strategy]
   if (sortBy && props.currentAccountId) {
     try {
-      const res = await analyticsApi.fetchAnalytics(sortBy)
+      const statusStore = useStatusStore()
+      const res = await statusStore.wsRequest<any[]>('analytics:get', { sortBy })
       const rankings: any[] = Array.isArray(res) ? res : []
       const availableIds = new Set(available.map((s: any) => s.seedId))
       const match = rankings.find((r: any) => availableIds.has(Number(r.seedId)))

@@ -86,6 +86,7 @@ export class AccountService {
       await this.manager.restartAccount(accountId)
     }
 
+    this.manager.notifyAccountsUpdate()
     return data
   }
 
@@ -108,6 +109,7 @@ export class AccountService {
       target ? target.name : ''
     )
 
+    this.manager.notifyAccountsUpdate()
     return data
   }
 
@@ -150,6 +152,7 @@ export class AccountService {
     const data = this.store.addOrUpdateAccount({ id: String(target.id), name: remark })
     this.manager.setRuntimeAccountName(String(target.id), remark)
     this.manager.addAccountLog('update', `更新账号备注: ${remark}`, String(target.id), remark)
+    this.manager.notifyAccountsUpdate()
 
     return data
   }

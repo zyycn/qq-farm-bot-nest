@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -20,7 +19,6 @@ const editingAccount = ref<any>(null)
 const accountToDelete = ref<any>(null)
 
 onMounted(() => accountStore.fetchAccounts())
-useIntervalFn(() => accountStore.fetchAccounts(), 3000)
 
 function openSettings(account: any) {
   accountStore.selectAccount(String(account.uin))

@@ -1,7 +1,6 @@
 import type { GlobalToken } from 'antdv-next'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import { settingsApi } from '@/api'
 
 const lightTokens: Partial<GlobalToken> = {
   colorPrimary: '#22c55e',
@@ -55,15 +54,7 @@ export const useAppStore = defineStore('app', () => {
   }
 
   async function fetchTheme() {
-    try {
-      const res = await settingsApi.fetchSettings()
-      if (res?.ui) {
-        const t = res.ui.theme
-        isDark.value = t === 'dark'
-      }
-    } catch {
-      // 未登录时静默失败，使用本地缓存值
-    }
+    // 主题通过 WebSocket settings:update 或本地持久化获取
   }
 
   async function setTheme(t: 'light' | 'dark') {
