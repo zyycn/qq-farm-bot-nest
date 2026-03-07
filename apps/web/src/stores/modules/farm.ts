@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { farmApi } from '@/api'
+import { ws } from '@/api'
 
 export interface Land {
   id: number
@@ -19,39 +19,11 @@ export const useFarmStore = defineStore('farm', () => {
   const lands = ref<Land[]>([])
   const seeds = ref<any[]>([])
   const summary = ref<any>({})
-  const loading = ref(false)
-
-  async function fetchLands(accountId: string) {
-    if (!accountId)
-      return
-    loading.value = true
-    try {
-      const res = await farmApi.fetchLands()
-      if (res) {
-        const nowSec = Math.floor(Date.now() / 1000)
-        lands.value = (res.lands || []).map((l: any) => ({
-          ...l,
-          matureAt: nowSec + (l.matureInSec ?? 0)
-        }))
-        summary.value = res.summary || {}
-      }
-    } finally {
-      loading.value = false
-    }
-  }
-
-  async function fetchSeeds(accountId: string) {
-    if (!accountId)
-      return
-    const res = await farmApi.fetchSeeds()
-    seeds.value = Array.isArray(res) ? res : []
-  }
 
   async function operate(accountId: string, opType: string) {
     if (!accountId)
       return
-    await farmApi.operate(opType)
-    await fetchLands(accountId)
+    await ws.request('farm:operate', { opType })
   }
 
   function resetState() {
@@ -60,5 +32,20 @@ export const useFarmStore = defineStore('farm', () => {
     seeds.value = []
   }
 
-  return { lands, summary, seeds, loading, fetchLands, fetchSeeds, operate, resetState }
+  function setLandsFromRealtime(res: any) {
+    if (!res)
+      return
+    const nowSec = Math.floor(Date.now() / 1000)
+    lands.value = (res.lands || []).map((l: any) => ({
+      ...l,
+      matureAt: (l.matureInSec ?? 0) > 0 ? nowSec + l.matureInSec : 0
+    }))
+    summary.value = res.summary || {}
+  }
+
+  function setSeedsFromRealtime(list: any[]) {
+    seeds.value = Array.isArray(list) ? list : []
+  }
+
+  return { lands, summary, seeds, operate, resetState, setLandsFromRealtime, setSeedsFromRealtime }
 })

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { settingsApi } from '@/api'
+import { authApi, ws } from '@/api'
 import { DEFAULT_FRIEND_QUIET_HOURS, DEFAULT_OFFLINE_REMINDER } from '../constants'
 
 export interface AutomationConfig {
@@ -50,9 +50,6 @@ export interface OfflineReminderConfig {
   offlineDeleteSec: number
 }
 
-/** @deprecated 使用 OfflineReminderConfig */
-export type OfflineConfig = OfflineReminderConfig
-
 export interface UIConfig {
   theme?: string
 }
@@ -80,33 +77,20 @@ export const useSettingStore = defineStore('setting', () => {
     offlineReminder: { ...DEFAULT_OFFLINE_REMINDER }
   })
 
-  async function fetchSettings(accountId: string) {
-    if (!accountId)
-      return
-    const d = await settingsApi.fetchSettings()
-    if (d) {
-      settings.value.plantingStrategy = d.strategy || 'preferred'
-      settings.value.preferredSeedId = d.preferredSeed || 0
-      settings.value.intervals = d.intervals || {}
-      settings.value.friendQuietHours = d.friendQuietHours || { ...DEFAULT_FRIEND_QUIET_HOURS }
-      settings.value.stealCropBlacklist = Array.isArray(d.stealCropBlacklist) ? d.stealCropBlacklist : []
-      settings.value.automation = d.automation || {}
-      settings.value.ui = d.ui || {}
-      settings.value.offlineReminder = d.offlineReminder || { ...DEFAULT_OFFLINE_REMINDER }
-    }
-  }
-
   async function saveSettings(accountId: string, newSettings: any) {
     if (!accountId)
       return { ok: false, error: '未选择账号' }
     try {
-      await settingsApi.saveSettings(newSettings)
-
-      if (newSettings.automation) {
-        await settingsApi.saveAutomation(newSettings.automation)
+      const payload = {
+        plantingStrategy: newSettings.plantingStrategy,
+        preferredSeedId: newSettings.preferredSeedId,
+        intervals: newSettings.intervals,
+        friendQuietHours: newSettings.friendQuietHours,
+        stealCropBlacklist: newSettings.stealCropBlacklist
       }
-
-      await fetchSettings(accountId)
+      await ws.request('settings:save', payload)
+      if (newSettings.automation)
+        await ws.request('settings:automation', newSettings.automation)
       return { ok: true }
     } catch (e: any) {
       return { ok: false, error: e.message || '保存失败' }
@@ -115,7 +99,7 @@ export const useSettingStore = defineStore('setting', () => {
 
   async function saveOfflineConfig(config: OfflineReminderConfig) {
     try {
-      await settingsApi.saveOfflineReminder(config)
+      await ws.request('settings:offline-reminder', config)
       settings.value.offlineReminder = config
       return { ok: true }
     } catch (e: any) {
@@ -125,14 +109,35 @@ export const useSettingStore = defineStore('setting', () => {
 
   async function changeAdminPassword(oldPassword: string, newPassword: string) {
     try {
-      await settingsApi.changePassword(oldPassword, newPassword)
+      await authApi.changePassword(oldPassword, newPassword)
       return { ok: true }
     } catch (e: any) {
       return { ok: false, error: e.message || '修改失败' }
     }
   }
 
-  return { settings, fetchSettings, saveSettings, saveOfflineConfig, changeAdminPassword }
+  function setSettingsFromRealtime(d: Record<string, any>) {
+    if (!d || typeof d !== 'object')
+      return
+    if (d.strategy != null || d.plantingStrategy != null)
+      settings.value.plantingStrategy = String(d.strategy ?? d.plantingStrategy ?? settings.value.plantingStrategy)
+    if (d.preferredSeed != null || d.preferredSeedId != null)
+      settings.value.preferredSeedId = Number(d.preferredSeed ?? d.preferredSeedId ?? 0)
+    if (d.intervals != null)
+      settings.value.intervals = { ...settings.value.intervals, ...d.intervals }
+    if (d.friendQuietHours != null)
+      settings.value.friendQuietHours = { ...settings.value.friendQuietHours, ...d.friendQuietHours }
+    if (d.stealCropBlacklist != null)
+      settings.value.stealCropBlacklist = d.stealCropBlacklist
+    if (d.automation != null)
+      settings.value.automation = { ...settings.value.automation, ...d.automation }
+    if (d.ui != null)
+      settings.value.ui = { ...settings.value.ui, ...d.ui }
+    if (d.offlineReminder != null)
+      settings.value.offlineReminder = { ...settings.value.offlineReminder, ...d.offlineReminder }
+  }
+
+  return { settings, saveSettings, saveOfflineConfig, changeAdminPassword, setSettingsFromRealtime }
 }, {
   persist: {
     pick: ['settings'],

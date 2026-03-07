@@ -1,9 +1,10 @@
 import type { OnModuleDestroy, OnModuleInit } from '@nestjs/common'
-import type { AccountRunnerCallbacks } from './account-runner'
+import type { AccountRunnerCallbacks, StatusEventName } from './account-runner'
 import process from 'node:process'
 import { BadRequestException, Injectable, Logger } from '@nestjs/common'
 import { StoreService } from '../store/store.service'
 import { AccountRunner } from './account-runner'
+import { EmitDeduplicator } from './emit-deduplicator'
 import { GameConfigService } from './game-config.service'
 import { GameLogService } from './game-log.service'
 import { GamePushService } from './game-push.service'
@@ -13,7 +14,6 @@ import { ProtoService } from './proto.service'
 interface RunningAccount {
   runner: AccountRunner
   name: string
-  status: any
   disconnectedSince: number
   autoDeleteTriggered: boolean
   wsError: { code: number, message: string, at: number } | null
@@ -23,8 +23,15 @@ interface RunningAccount {
 export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
   private logger = new Logger('AccountManager')
   private runners = new Map<string, RunningAccount>()
-  private onStatusSyncCallback: ((accountId: string, status: any) => void) | null = null
+  private onStatusEventCallback: ((accountId: string, event: StatusEventName, data: any) => void) | null = null
+  private onAccountsUpdateCallback: ((data: any) => void) | null = null
+  private onLandsUpdateCallback: ((accountId: string, data: any) => void) | null = null
+  private onBagUpdateCallback: ((accountId: string, data: any) => void) | null = null
+  private onDailyGiftsUpdateCallback: ((accountId: string, data: any) => void) | null = null
+  private onFriendsUpdateCallback: ((accountId: string, data: any) => void) | null = null
+  private onSettingsUpdateCallback: ((accountId: string, data: any) => void) | null = null
   private linkClient!: LinkClient
+  private dedup = new EmitDeduplicator()
 
   constructor(
     private proto: ProtoService,
@@ -35,16 +42,54 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   setRealtimeCallbacks(callbacks: {
-    onStatusSync?: (accountId: string, status: any) => void
+    onStatusEvent?: (accountId: string, event: StatusEventName, data: any) => void
     onLog?: (entry: any) => void
     onAccountLog?: (entry: any) => void
+    onAccountsUpdate?: (data: any) => void
+    onLandsUpdate?: (accountId: string, data: any) => void
+    onBagUpdate?: (accountId: string, data: any) => void
+    onDailyGiftsUpdate?: (accountId: string, data: any) => void
+    onFriendsUpdate?: (accountId: string, data: any) => void
+    onSettingsUpdate?: (accountId: string, data: any) => void
   }) {
-    if (callbacks.onStatusSync)
-      this.onStatusSyncCallback = callbacks.onStatusSync
+    if (callbacks.onStatusEvent)
+      this.onStatusEventCallback = callbacks.onStatusEvent
+    this.onAccountsUpdateCallback = callbacks.onAccountsUpdate ?? null
+    this.onLandsUpdateCallback = callbacks.onLandsUpdate ?? null
+    this.onBagUpdateCallback = callbacks.onBagUpdate ?? null
+    this.onDailyGiftsUpdateCallback = callbacks.onDailyGiftsUpdate ?? null
+    this.onFriendsUpdateCallback = callbacks.onFriendsUpdate ?? null
+    this.onSettingsUpdateCallback = callbacks.onSettingsUpdate ?? null
     this.gameLog.setCallbacks({
       onLog: callbacks.onLog ?? undefined,
       onAccountLog: callbacks.onAccountLog ?? undefined
     })
+  }
+
+  notifyAccountsUpdate() {
+    const data = this.getAccounts()
+    if (!this.dedup.hasChanged('accounts', data))
+      return
+    this.onAccountsUpdateCallback?.(data)
+  }
+
+  notifySettingsUpdate(accountId: string) {
+    const id = String(accountId || '').trim()
+    if (!id)
+      return
+    const data = {
+      intervals: this.store.getIntervals(id),
+      strategy: this.store.getPlantingStrategy(id),
+      preferredSeed: this.store.getPreferredSeed(id),
+      friendQuietHours: this.store.getFriendQuietHours(id),
+      stealCropBlacklist: this.store.getStealCropBlacklist(id),
+      automation: this.store.getAutomation(id),
+      ui: this.store.getUI(),
+      offlineReminder: this.store.getOfflineReminder()
+    }
+    if (!this.dedup.hasChanged(`settings:${id}`, data))
+      return
+    this.onSettingsUpdateCallback?.(id, data)
   }
 
   async onModuleInit() {
@@ -80,7 +125,6 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
     this.linkClient?.destroy()
   }
 
-  /** TCP 重连后从 Link 拉取各账号真实连接状态，避免显示一会在线一会离线 */
   private async syncAccountsStateFromLink() {
     if (!this.linkClient?.connected)
       return
@@ -129,13 +173,13 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
       return false
 
     const callbacks: AccountRunnerCallbacks = {
-      onStatusSync: (runnerId, status, name, callerRunner) => {
+      onStatusEvent: (runnerId, event, data, name, callerRunner) => {
         const record = this.runners.get(runnerId)
         if (!record)
           return
         if (callerRunner != null && record.runner !== callerRunner)
           return
-        this.handleStatusSync(runnerId, status, name)
+        this.handleStatusEvent(runnerId, event, data, name ?? record.name)
       },
       onLog: (entry) => {
         const r = this.runners.get(id)
@@ -147,7 +191,11 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
         const r = this.runners.get(aid)
         if (r && !r.runner.isActive())
           this.runners.delete(aid)
-      }
+      },
+      onLandsUpdate: (aid, data) => this.onLandsUpdateCallback?.(aid, data),
+      onBagUpdate: (aid, data) => this.onBagUpdateCallback?.(aid, data),
+      onDailyGiftsUpdate: (aid, data) => this.onDailyGiftsUpdateCallback?.(aid, data),
+      onFriendsUpdate: (aid, data) => this.onFriendsUpdateCallback?.(aid, data)
     }
 
     const runner = new AccountRunner(id, this.linkClient, this.proto, this.gameConfig, this.store, callbacks)
@@ -156,7 +204,6 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
     const record: RunningAccount = {
       runner,
       name: acc.name || '',
-      status: null,
       disconnectedSince: 0,
       autoDeleteTriggered: false,
       wsError: null
@@ -171,6 +218,7 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
     })
 
     this.gameLog.addAccountLog('start', `启动账号: ${acc.name}`, id, acc.name || '')
+    this.notifyAccountsUpdate()
     return true
   }
 
@@ -179,20 +227,14 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
     if (!record)
       return false
     const name = record.name
-    const lastStatus = record.status
     await record.runner.stop()
     this.runners.delete(accountId)
     this.store.setAccountRunning(accountId, false)
 
-    const stoppedStatus = {
-      ...(lastStatus || {}),
-      accountId,
-      accountName: name,
-      connection: { connected: false }
-    }
-    this.onStatusSyncCallback?.(accountId, stoppedStatus)
+    this.onStatusEventCallback?.(accountId, 'connection', { connected: false, accountName: name })
 
     this.gameLog.addAccountLog('stop', `停止账号: ${name}`, accountId, name)
+    this.notifyAccountsUpdate()
     return true
   }
 
@@ -212,71 +254,89 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
 
   // ========== Event Handlers ==========
 
-  private handleStatusSync(accountId: string, status: any, name: string) {
+  private handleStatusEvent(accountId: string, event: StatusEventName, data: any, _name: string) {
     const record = this.runners.get(accountId)
     if (!record)
       return
 
-    record.status = { accountId, accountName: record.name, ...status }
-    if (name && name !== '未知' && name !== '未登录' && record.name !== name) {
-      const oldName = record.name
-      record.name = name
-      record.runner.name = name
-      this.store.addOrUpdateAccount({ id: accountId, nick: name })
-      this.logger.log(`已同步账号昵称: ${oldName || 'None'} -> ${name}`)
-      this.gameLog.appendLog(accountId, record.name, {
-        msg: `已同步账号昵称: ${oldName || 'None'} -> ${name}`,
-        tag: '系统',
-        meta: { module: 'system', event: 'nick_sync' }
-      })
-    }
+    if (event === 'connection') {
+      const connected = !!data?.connected
+      if (data?.accountName && data.accountName !== '未知' && data.accountName !== '未登录' && record.name !== data.accountName) {
+        const oldName = record.name
+        record.name = data.accountName
+        record.runner.name = data.accountName
+        this.store.addOrUpdateAccount({ id: accountId, nick: data.accountName })
+        this.logger.log(`已同步账号昵称: ${oldName || 'None'} -> ${data.accountName}`)
+        this.gameLog.appendLog(accountId, record.name, {
+          msg: `已同步账号昵称: ${oldName || 'None'} -> ${data.accountName}`,
+          tag: '系统',
+          meta: { module: 'system', event: 'nick_sync' }
+        })
+      }
+      if (connected) {
+        record.disconnectedSince = 0
+        record.autoDeleteTriggered = false
+        record.wsError = null
+      } else if (record.runner.isActive()) {
+        const now = Date.now()
+        if (!record.disconnectedSince)
+          record.disconnectedSince = now
+        const offlineMs = now - record.disconnectedSince
+        const offlineReminder = this.store.getOfflineReminder()
+        const autoDeleteMs = (offlineReminder?.offlineDeleteSec || 120) * 1000
 
-    const avatarUrl = status?.status?.avatarUrl
-    if (avatarUrl && typeof avatarUrl === 'string' && avatarUrl.trim() !== '') {
-      const existing = this.store.getAccountById(accountId)
-      if (!existing?.avatar || String(existing.avatar).trim() === '') {
-        this.store.addOrUpdateAccount({ id: accountId, avatarUrl })
+        if (!record.autoDeleteTriggered && offlineMs >= autoDeleteMs) {
+          record.autoDeleteTriggered = true
+          const offlineMin = Math.floor(offlineMs / 60000)
+          this.logger.warn(`账号 ${record.name} 持续离线 ${offlineMin} 分钟，自动删除`)
+          this.gamePush.triggerOfflineReminder(accountId, record.name, 'offline_timeout', offlineMs)
+          this.gameLog.addAccountLog(
+            'offline_delete',
+            `账号 ${record.name} 持续离线 ${offlineMin} 分钟，已自动删除`,
+            accountId,
+            record.name
+          )
+          this.stopAccount(accountId).then(() => this.disconnectFromLink(accountId)).catch(() => {})
+          this.store.deleteAccount(accountId)
+        }
       }
     }
 
-    const openId = status?.status?.openId
-    if (openId && typeof openId === 'string' && openId.trim() !== '') {
-      const existing = this.store.getAccountById(accountId)
-      if (!existing?.uin || String(existing.uin).trim() === '') {
-        this.store.addOrUpdateAccount({ id: accountId, uin: openId })
+    if (event === 'profile') {
+      const profileName = data?.name
+      if (profileName && profileName !== '未知' && profileName !== '未登录' && record.name !== profileName) {
+        const oldName = record.name
+        record.name = profileName
+        record.runner.name = profileName
+        this.store.addOrUpdateAccount({ id: accountId, nick: profileName })
+        this.logger.log(`已同步账号昵称: ${oldName || 'None'} -> ${profileName}`)
+        this.gameLog.appendLog(accountId, record.name, {
+          msg: `已同步账号昵称: ${oldName || 'None'} -> ${profileName}`,
+          tag: '系统',
+          meta: { module: 'system', event: 'nick_sync' }
+        })
+      }
+      const avatarUrl = data?.avatarUrl
+      if (avatarUrl && typeof avatarUrl === 'string' && avatarUrl.trim() !== '') {
+        const existing = this.store.getAccountById(accountId)
+        if (!existing?.avatar || String(existing.avatar).trim() === '') {
+          this.store.addOrUpdateAccount({ id: accountId, avatarUrl })
+        }
+      }
+      const openId = data?.openId
+      if (openId && typeof openId === 'string' && openId.trim() !== '') {
+        const existing = this.store.getAccountById(accountId)
+        if (!existing?.uin || String(existing.uin).trim() === '') {
+          this.store.addOrUpdateAccount({ id: accountId, uin: openId })
+        }
       }
     }
 
-    const connected = !!status?.connection?.connected
-    if (connected) {
-      record.disconnectedSince = 0
-      record.autoDeleteTriggered = false
-      record.wsError = null
-    } else if (record.runner.isActive()) {
-      const now = Date.now()
-      if (!record.disconnectedSince)
-        record.disconnectedSince = now
-      const offlineMs = now - record.disconnectedSince
-      const offlineReminder = this.store.getOfflineReminder()
-      const autoDeleteMs = (offlineReminder?.offlineDeleteSec || 120) * 1000
+    if (event === 'connection' || event === 'profile')
+      this.notifyAccountsUpdate()
 
-      if (!record.autoDeleteTriggered && offlineMs >= autoDeleteMs) {
-        record.autoDeleteTriggered = true
-        const offlineMin = Math.floor(offlineMs / 60000)
-        this.logger.warn(`账号 ${record.name} 持续离线 ${offlineMin} 分钟，自动删除`)
-        this.gamePush.triggerOfflineReminder(accountId, record.name, 'offline_timeout', offlineMs)
-        this.gameLog.addAccountLog(
-          'offline_delete',
-          `账号 ${record.name} 持续离线 ${offlineMin} 分钟，已自动删除`,
-          accountId,
-          record.name
-        )
-        this.stopAccount(accountId).then(() => this.disconnectFromLink(accountId)).catch(() => {})
-        this.store.deleteAccount(accountId)
-      }
-    }
-
-    this.onStatusSyncCallback?.(accountId, record.status)
+    const payload = event === 'connection' ? { ...data, wsError: record.wsError } : data
+    this.onStatusEventCallback?.(accountId, event, payload)
   }
 
   private async handleKicked(accountId: string, reason: string) {
@@ -310,7 +370,7 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
       return {
         ...rest,
         running: this.isAccountRunning(acc.id),
-        connected: !!record?.status?.connection?.connected,
+        connected: !!record?.runner?.isConnected?.(),
         wsError: record?.wsError || null
       }
     })
@@ -338,7 +398,6 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
     return this.runners.get(accountId)?.runner || null
   }
 
-  /** 获取运行中账号的 Runner，不存在则抛出 BadRequestException，供 Controller 直接调用 runner 方法 */
   getRunnerOrThrow(accountId: string): AccountRunner {
     const runner = this.getRunner(accountId)
     if (!runner)
@@ -347,7 +406,11 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
   }
 
   getStatus(accountId: string) {
-    return this.runners.get(accountId)?.status || null
+    const record = this.runners.get(accountId)
+    if (!record?.runner)
+      return null
+    const snapshot = record.runner.getStatusSnapshot()
+    return { accountId, accountName: record.name, ...snapshot }
   }
 
   getLogs(

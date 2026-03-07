@@ -2,6 +2,7 @@
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { useAccountRefresh } from '@/composables/useAccountRefresh'
+import { useWsTopics } from '@/composables/useWsTopics'
 import { useAccountStore, useFarmStore, useSettingStore } from '@/stores'
 import message from '@/utils/message'
 import AccountInfoCard from './components/AccountInfoCard.vue'
@@ -87,14 +88,13 @@ function syncLocalSettings() {
   }
 }
 
-async function loadData() {
+function loadData() {
   if (!currentAccountId.value)
     return
-  await settingStore.fetchSettings(currentAccountId.value)
-  await farmStore.fetchSeeds(currentAccountId.value)
   syncLocalSettings()
 }
 
+useWsTopics(['settings', 'seeds'])
 useAccountRefresh(loadData)
 
 async function saveAccountSettings() {

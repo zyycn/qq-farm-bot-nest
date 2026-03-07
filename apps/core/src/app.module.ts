@@ -8,15 +8,8 @@ import { ASSETS_DIR, resolveWebDist } from './config/paths'
 import { DatabaseModule } from './database/database.module'
 import { GameModule } from './game/game.module'
 import { AccountModule } from './modules/account/account.module'
-import { AnalyticsModule } from './modules/analytics/analytics.module'
 import { AuthModule } from './modules/auth/auth.module'
-import { FarmModule } from './modules/farm/farm.module'
-import { FriendModule } from './modules/friend/friend.module'
-import { LogModule } from './modules/log/log.module'
 import { QrModule } from './modules/qr/qr.module'
-import { SchedulerModule } from './modules/scheduler/scheduler.module'
-import { SettingsModule } from './modules/settings/settings.module'
-import { StatusModule } from './modules/status/status.module'
 import { RealtimeModule } from './modules/websocket/realtime.module'
 import { StoreModule } from './store/store.module'
 
@@ -56,15 +49,8 @@ const serveStaticModules = [
     StoreModule,
     AuthModule,
     AccountModule,
-    FarmModule,
-    FriendModule,
-    SettingsModule,
-    AnalyticsModule,
-    LogModule,
     QrModule,
-    SchedulerModule,
-    RealtimeModule,
-    StatusModule
+    RealtimeModule
   ]
 })
 export class AppModule {}

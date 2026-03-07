@@ -1,9 +1,9 @@
 import type { AxiosRequestConfig } from 'axios'
 import axios from 'axios'
-import { useAccountStore, useUserStore } from '@/stores'
+import { useUserStore } from '@/stores'
 import message from '@/utils/message'
 
-const IGNORABLE_ERRORS = ['账号未运行', 'API Timeout'] as const
+const IGNORABLE_ERRORS = ['账号未运行', 'API Timeout']
 
 interface NestResponse<T = unknown> {
   code: number
@@ -18,11 +18,8 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = useUserStore().adminToken
-  const accountId = useAccountStore().currentAccountId
   if (token)
     config.headers.Authorization = `Bearer ${token}`
-  if (accountId)
-    config.headers['x-account-id'] = accountId
   return config
 }, error => Promise.reject(error))
 

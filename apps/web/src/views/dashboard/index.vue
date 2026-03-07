@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { useIntervalFn, watchThrottled } from '@vueuse/core'
+import { useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
+import { ws } from '@/api'
 import { useAccountRefresh } from '@/composables/useAccountRefresh'
+import { useWsTopics } from '@/composables/useWsTopics'
 import { useAccountStore, useBagStore, useStatusStore } from '@/stores'
 import AccountExpCard from './components/AccountExpCard.vue'
 import AssetsCard from './components/AssetsCard.vue'
@@ -14,29 +16,8 @@ import OperationsCard from './components/OperationsCard.vue'
 const statusStore = useStatusStore()
 const accountStore = useAccountStore()
 const bagStore = useBagStore()
-const { status, logs: statusLogs, accountLogs: statusAccountLogs, realtimeConnected } = storeToRefs(statusStore)
-const { currentAccountId, currentAccount } = storeToRefs(accountStore)
+const { status, logs: statusLogs } = storeToRefs(statusStore)
 const { dashboardItems } = storeToRefs(bagStore)
-const lastBagFetchAt = ref(0)
-
-function formatTimeChina(ts: number): string {
-  return new Date(ts).toLocaleString('sv-SE', { timeZone: 'Asia/Shanghai' })
-}
-
-const allLogs = computed(() => {
-  const sLogs = statusLogs.value || []
-  const aLogs = (statusAccountLogs.value || []).map((l: any) => {
-    const createdAt = l.createdAt ?? (l.time ? new Date(l.time).getTime() : Date.now())
-    return {
-      createdAt,
-      time: l.time ?? formatTimeChina(createdAt),
-      tag: l.action === 'Error' ? '错误' : '系统',
-      msg: l.reason ? `${l.msg} (${l.reason})` : l.msg,
-      isAccountLog: true
-    }
-  })
-  return [...sLogs, ...aLogs].sort((a: any, b: any) => (a.createdAt ?? 0) - (b.createdAt ?? 0)).filter((l: any) => !l.isAccountLog)
-})
 
 const filter = reactive({
   module: '',
@@ -45,7 +26,27 @@ const filter = reactive({
   isWarn: ''
 })
 
-const hasActiveLogFilter = computed(() => !!(filter.module || filter.event || filter.keyword || filter.isWarn))
+async function queryLogs() {
+  const hasFilter = !!(filter.module || filter.event || filter.keyword.trim() || filter.isWarn)
+  statusStore.setLogFilterActive(hasFilter)
+  try {
+    const data = await ws.request<any[]>('logs:query', {
+      module: filter.module || undefined,
+      event: filter.event || undefined,
+      keyword: filter.keyword.trim() || undefined,
+      isWarn: filter.isWarn || undefined,
+      limit: 50
+    })
+    statusStore.setLogs(Array.isArray(data) ? data : [])
+  } catch {
+    statusStore.setLogs([])
+  }
+}
+
+function onFilterUpdate(payload: typeof filter) {
+  Object.assign(filter, payload)
+  queryLogs()
+}
 
 const displayName = computed(() => {
   const account = accountStore.currentAccount
@@ -142,84 +143,28 @@ function updateCountdowns() {
 }
 
 watch(
-  status,
-  (newVal) => {
-    if (newVal?.nextChecks) {
-      localNextFarmRemainSec = newVal.nextChecks.farmRemainSec || 0
-      localNextFriendRemainSec = newVal.nextChecks.friendRemainSec || 0
+  () => status.value?.nextChecks,
+  (nextChecks) => {
+    if (nextChecks) {
+      localNextFarmRemainSec = nextChecks.farmRemainSec || 0
+      localNextFriendRemainSec = nextChecks.friendRemainSec || 0
       updateCountdowns()
-    }
-    if (newVal?.uptime !== undefined) {
-      localUptime.value = newVal.uptime
     }
   },
   { deep: true }
 )
-
-async function refreshBag(force = false) {
-  if (!currentAccountId.value)
-    return
-  if (!currentAccount.value?.running)
-    return
-  if (!status.value?.connection?.connected)
-    return
-  const now = Date.now()
-  if (!force && now - lastBagFetchAt.value < 2500)
-    return
-  lastBagFetchAt.value = now
-  await bagStore.fetchBag(currentAccountId.value)
-}
-
-async function refresh(forceReloadLogs = false) {
-  if (!currentAccountId.value)
-    return
-  const acc = currentAccount.value
-  if (!acc)
-    return
-  if (!realtimeConnected.value) {
-    await statusStore.fetchStatus(currentAccountId.value)
-    await statusStore.fetchAccountLogs()
+watch(
+  () => status.value?.uptime,
+  (uptime) => {
+    if (uptime !== undefined)
+      localUptime.value = uptime
   }
-  // 日志：仅账号运行中时才请求
-  if (acc.running && (forceReloadLogs || hasActiveLogFilter.value || !realtimeConnected.value)) {
-    await statusStore.fetchLogs(currentAccountId.value, {
-      module: filter.module || undefined,
-      event: filter.event || undefined,
-      keyword: filter.keyword || undefined,
-      isWarn: filter.isWarn === 'warn' ? true : filter.isWarn === 'info' ? false : undefined
-    })
-  }
-  await refreshBag()
-}
-
-function onLogFilterChange() {
-  refresh(true)
-}
-
-useAccountRefresh(refresh)
-
-watchThrottled(
-  () => ({
-    connected: status.value?.connection?.connected,
-    ops: status.value?.operations
-  }),
-  ({ connected }) => {
-    if (connected)
-      refreshBag(true)
-  },
-  { throttle: 3000, deep: true }
 )
 
-watch(hasActiveLogFilter, (enabled) => {
-  statusStore.setRealtimeLogsEnabled(!enabled)
-  refresh(enabled)
-})
+useWsTopics(['logs', 'bag', 'status'])
 
-onMounted(() => {
-  statusStore.setRealtimeLogsEnabled(!hasActiveLogFilter.value)
-})
+useAccountRefresh(queryLogs)
 
-useIntervalFn(refresh, 10000)
 useIntervalFn(updateCountdowns, 1000)
 </script>
 
@@ -252,10 +197,9 @@ useIntervalFn(updateCountdowns, 1000)
     <div class="flex flex-1 flex-col gap-3 items-stretch md:flex-row md:overflow-hidden">
       <div class="flex flex-1 flex-col md:w-3/4 md:overflow-hidden">
         <LogPanel
-          :logs="allLogs"
+          :logs="statusLogs"
           :filter="filter"
-          @update:filter="Object.assign(filter, $event)"
-          @filter-change="onLogFilterChange"
+          @update:filter="onFilterUpdate"
         />
       </div>
 

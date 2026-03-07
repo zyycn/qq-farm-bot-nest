@@ -1,10 +1,10 @@
-import { useDateFormat, useIntervalFn, useNow } from '@vueuse/core'
+import { useDateFormat, useNow } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { authApi } from '@/api'
+import { ws } from '@/api'
 import routes from '@/router/routes'
-import { useAccountStore, useAppStore, useStatusStore } from '@/stores'
+import { useAccountStore, useAppStore, useStatusStore, useUserStore } from '@/stores'
 
 export function useSidebarData() {
   const accountStore = useAccountStore()
@@ -12,8 +12,8 @@ export function useSidebarData() {
   const appStore = useAppStore()
   const route = useRoute()
   const router = useRouter()
-  const { accounts, currentAccount } = storeToRefs(accountStore)
-  const { status, realtimeConnected } = storeToRefs(statusStore)
+  const { accounts, currentAccount, currentAccountId } = storeToRefs(accountStore)
+  const { status } = storeToRefs(statusStore)
   const { sidebarCollapsed, sidebarOpen } = storeToRefs(appStore)
 
   // Modals
@@ -23,77 +23,30 @@ export function useSidebarData() {
 
   // Connection
   const wsErrorNotifiedAt = ref<Record<string, number>>({})
-  const systemConnected = ref(true)
-  const serverUptimeBase = ref(0)
-  const serverVersion = ref('')
-  const lastPingTime = ref(Date.now())
   const now = useNow()
   const formattedTime = useDateFormat(now, 'YYYY-MM-DD HH:mm:ss')
 
-  async function checkConnection() {
-    try {
-      const res = await authApi.ping()
-      systemConnected.value = true
-      if (res) {
-        if (res.uptime) {
-          serverUptimeBase.value = res.uptime
-          lastPingTime.value = Date.now()
-        }
-        if (res.version) {
-          serverVersion.value = res.version
-        }
-      }
-      const accountRef = currentAccount.value?.uin
-      if (accountRef) {
-        statusStore.connectRealtime(String(accountRef))
-      }
-    } catch {
-      systemConnected.value = false
-    }
-  }
-
-  async function refreshStatusFallback() {
-    if (realtimeConnected.value)
-      return
-    const acc = currentAccount.value
-    const accountRef = acc?.uin
-    if (accountRef)
-      await statusStore.fetchStatus(String(accountRef))
-  }
-
-  async function handleAccountSaved() {
-    await accountStore.fetchAccounts()
-    await refreshStatusFallback()
+  function handleAccountSaved() {
     showAccountModal.value = false
     showRemarkModal.value = false
   }
 
   // Lifecycle
-  onMounted(() => {
-    accountStore.fetchAccounts()
-    checkConnection()
-  })
-
   onBeforeUnmount(() => {
-    statusStore.disconnectRealtime()
+    ws.disconnect()
   })
 
-  useIntervalFn(() => {
-    checkConnection()
-    if (!realtimeConnected.value) {
-      refreshStatusFallback()
-      accountStore.fetchAccounts()
-    }
-  }, 15000)
-
-  // Watch account changes
+  // Watch account changes（F5 时 currentAccount 可能尚未就绪，用持久化的 currentAccountId 发起连接）
   watch(
-    () => currentAccount.value?.uin || '',
+    () => currentAccount.value?.uin ?? currentAccountId.value ?? '',
     (newUin) => {
-      if (!newUin)
+      const token = useUserStore().adminToken
+      if (!token)
         return
-      statusStore.connectRealtime(String(newUin))
-      refreshStatusFallback()
+      const toConnect = String(newUin || 'all')
+      if (ws.currentAccountId.value && ws.currentAccountId.value !== toConnect)
+        statusStore.resetState()
+      ws.connect(token, toConnect)
     },
     { immediate: true }
   )
@@ -127,9 +80,13 @@ export function useSidebarData() {
     }
   )
 
-  // Computed
+  // Computed（uptime / serverVersion 来自 ws subscribed 事件，连接断开即视为 ping 失败）
   const uptime = computed(() => {
-    const diff = Math.floor(serverUptimeBase.value + (now.value.getTime() - lastPingTime.value) / 1000)
+    const base = ws.serverUptime.value
+    const receivedAt = ws.uptimeReceivedAt.value
+    const diff = receivedAt
+      ? Math.floor(base + (now.value.getTime() - receivedAt) / 1000)
+      : 0
     const h = Math.floor(diff / 3600)
     const m = Math.floor((diff % 3600) / 60)
     const s = diff % 60
@@ -167,7 +124,7 @@ export function useSidebarData() {
   })
 
   const connectionStatus = computed<{ text: string, badge: 'error' | 'default' | 'processing' }>(() => {
-    if (!systemConnected.value)
+    if (!ws.connected.value)
       return { text: '系统离线', badge: 'error' }
     if (!currentAccount.value?.uin)
       return { text: '请添加账号', badge: 'default' }
@@ -222,8 +179,8 @@ export function useSidebarData() {
     handleAccountSaved,
     openRemarkForCurrent,
 
-    // Connection
-    serverVersion,
+    // Connection（serverVersion 来自 ws.subscribed）
+    serverVersion: ws.serverVersion,
     uptime,
     formattedTime,
     connectionStatus,

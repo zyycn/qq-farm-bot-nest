@@ -61,9 +61,16 @@ function getLandTypeName(level: number) {
 <template>
   <a-card
     size="small"
-    :classes="{ body: '!p-2 !flex !flex-col !items-center !min-h-[130px]' }"
+    :classes="{ body: '!p-1.5 !flex !flex-col !items-center !min-h-[130px] relative' }"
     :class="getLandStatusClass(land)"
   >
+    <div class="p-1.5 flex gap-1.5 right-0 top-0 absolute">
+      <i v-if="land.needWater" class="i-twemoji-droplet" title="需浇水" />
+      <i v-if="land.needWeed" class="i-twemoji-herb" title="需除草" />
+      <i v-if="land.needBug" class="i-twemoji-bug" title="需除虫" />
+      <i v-if="land.status === 'harvestable'" class="i-twemoji-pinching-hand" title="可偷取" />
+    </div>
+
     <span class="font-mono self-start a-color-text-tertiary text-xs">#{{ land.id }}</span>
 
     <div class="my-1 flex h-10 w-10 items-center justify-center">
@@ -92,21 +99,6 @@ function getLandTypeName(level: number) {
 
     <div class="a-color-text-tertiary text-xs">
       {{ getLandTypeName(land.level) }}
-    </div>
-
-    <div class="mt-auto flex gap-0.5">
-      <a-tag v-if="land.needWater" color="blue" class="!leading-tight !m-0 !px-1 !py-0 !text-xs">
-        水
-      </a-tag>
-      <a-tag v-if="land.needWeed" color="green" class="!leading-tight !m-0 !px-1 !py-0 !text-xs">
-        草
-      </a-tag>
-      <a-tag v-if="land.needBug" color="red" class="!leading-tight !m-0 !px-1 !py-0 !text-xs">
-        虫
-      </a-tag>
-      <a-tag v-if="land.status === 'harvestable'" color="orange" class="!leading-tight !m-0 !px-1 !py-0 !text-xs">
-        可偷
-      </a-tag>
     </div>
   </a-card>
 </template>

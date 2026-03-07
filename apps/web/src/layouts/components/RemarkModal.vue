@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { accountApi } from '@/api'
+import { ws } from '@/api'
 import QqAvatar from '@/components/QqAvatar.vue'
 
 const props = defineProps<{
@@ -34,12 +34,7 @@ async function save() {
   loading.value = true
   errorMessage.value = ''
   try {
-    const payload = {
-      uin: props.account.uin,
-      name: name.value
-    }
-
-    await accountApi.saveAccount(payload)
+    await ws.request('account:remark', { uin: props.account.uin, name: name.value })
     emit('saved')
     emit('close')
   } catch (e: any) {

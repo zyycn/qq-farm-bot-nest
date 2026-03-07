@@ -1,7 +1,6 @@
 import type { GlobalToken } from 'antdv-next'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import { settingsApi } from '@/api'
 
 const lightTokens: Partial<GlobalToken> = {
   colorPrimary: '#22c55e',
@@ -54,18 +53,6 @@ export const useAppStore = defineStore('app', () => {
     setSidebarCollapsed(!sidebarCollapsed.value)
   }
 
-  async function fetchTheme() {
-    try {
-      const res = await settingsApi.fetchSettings()
-      if (res?.ui) {
-        const t = res.ui.theme
-        isDark.value = t === 'dark'
-      }
-    } catch {
-      // 未登录时静默失败，使用本地缓存值
-    }
-  }
-
   async function setTheme(t: 'light' | 'dark') {
     try {
       isDark.value = t === 'dark'
@@ -97,7 +84,6 @@ export const useAppStore = defineStore('app', () => {
     openSidebar,
     setSidebarCollapsed,
     toggleSidebarCollapsed,
-    fetchTheme,
     setTheme
   }
 }, {

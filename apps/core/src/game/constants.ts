@@ -21,7 +21,7 @@ export enum PlantPhase {
   DEAD = 7
 }
 
-export const PHASE_NAMES = ['未知', '种子', '发芽', '小叶', '大叶', '开花', '成熟', '枯死'] as const
+export const PHASE_NAMES = ['未知', '种子', '发芽', '小叶', '大叶', '开花', '成熟', '枯死']
 
 export const ALLOWED_PLANTING_STRATEGIES = [
   'preferred',

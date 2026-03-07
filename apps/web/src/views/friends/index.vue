@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useAccountRefresh } from '@/composables/useAccountRefresh'
 import { useFriendLandsWithCountdown } from '@/composables/useFriendLandsWithCountdown'
+import { useWsTopics } from '@/composables/useWsTopics'
 import { useAccountStore, useFriendStore, useStatusStore } from '@/stores'
 import message from '@/utils/message'
 import FriendRow from './components/FriendRow.vue'
@@ -19,7 +19,7 @@ const friendStore = useFriendStore()
 const statusStore = useStatusStore()
 const { currentAccountId, currentAccount } = storeToRefs(accountStore)
 const { friends, friendLands, friendLandsLoading, blacklist } = storeToRefs(friendStore)
-const { status, realtimeConnected } = storeToRefs(statusStore)
+const { status } = storeToRefs(statusStore)
 
 const showConfirm = ref(false)
 const confirmMessage = ref('')
@@ -79,36 +79,20 @@ async function onConfirm() {
   }
 }
 
-async function loadFriends() {
-  if (!currentAccountId.value)
+function loadFriends() {
+  if (!currentAccountId.value || !currentAccount.value?.running)
     return
-
-  if (!accountStore.accounts.length)
-    await accountStore.fetchAccounts()
-
-  const acc = currentAccount.value
-  if (!acc)
-    return
-  if (!acc.running)
-    return
-
-  if (!realtimeConnected.value)
-    await statusStore.fetchStatus(currentAccountId.value)
-
-  if (status.value?.connection?.connected) {
+  if (status.value?.connection?.connected)
     avatarErrorKeys.value.clear()
-    friendStore.fetchFriends(currentAccountId.value)
-    friendStore.fetchBlacklist(currentAccountId.value)
-  }
 }
 
 const friendLandsWithCountdown = useFriendLandsWithCountdown(friendLands)
 
+useWsTopics(['friends', 'settings'])
 useAccountRefresh(() => {
   expandedFriends.value.clear()
   loadFriends()
 })
-useIntervalFn(() => loadFriends(), 30000)
 
 function toggleFriend(friendId: string) {
   if (expandedFriends.value.has(friendId)) {

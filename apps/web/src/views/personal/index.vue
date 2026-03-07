@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import { useAccountRefresh } from '@/composables/useAccountRefresh'
 import { useLandsWithCountdown } from '@/composables/useLandsWithCountdown'
+import { useWsTopics } from '@/composables/useWsTopics'
 import { useAccountStore, useBagStore, useFarmStore, useStatusStore } from '@/stores'
 import BagPanel from './components/BagPanel.vue'
 import DailyGiftPanel from './components/DailyGiftPanel.vue'
@@ -17,8 +17,8 @@ const statusStore = useStatusStore()
 const bagStore = useBagStore()
 
 const { lands, summary } = storeToRefs(farmStore)
-const { currentAccountId, currentAccount } = storeToRefs(accountStore)
-const { status, dailyGifts, realtimeConnected } = storeToRefs(statusStore)
+const { currentAccountId } = storeToRefs(accountStore)
+const { status, dailyGifts } = storeToRefs(statusStore)
 const { items: bagItems } = storeToRefs(bagStore)
 
 const operating = ref(false)
@@ -55,33 +55,16 @@ function handleOperate(opType: string) {
   confirmVisible.value = true
 }
 
-async function refresh() {
-  if (!accountStore.accounts.length)
-    await accountStore.fetchAccounts()
-
+function refresh() {
   const firstAcc = accountStore.accounts[0]
   if (!currentAccountId.value && firstAcc)
     accountStore.selectAccount(String(firstAcc.uin))
-
-  const acc = currentAccount.value
-  if (!acc || !currentAccountId.value)
-    return
-  if (!acc.running)
-    return
-
-  if (!realtimeConnected.value)
-    await statusStore.fetchStatus(currentAccountId.value)
-
-  farmStore.fetchLands(currentAccountId.value)
-  bagStore.fetchBag(currentAccountId.value)
-  statusStore.fetchDailyGifts(currentAccountId.value)
 }
 
+useWsTopics(['lands', 'bag', 'daily-gifts'])
 useAccountRefresh(refresh)
 
 const landsWithCountdown = useLandsWithCountdown(lands)
-
-useIntervalFn(refresh, 60000)
 </script>
 
 <template>

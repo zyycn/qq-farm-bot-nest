@@ -12,12 +12,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:filter': [value: typeof props.filter]
-  'filterChange': []
 }>()
 
 function updateFilterField(key: keyof typeof props.filter, value: string) {
   emit('update:filter', { ...props.filter, [key]: value })
-  emit('filterChange')
 }
 
 function onModuleChange(v: SelectValue) {
@@ -37,7 +35,7 @@ function updateKeyword(value: string) {
 }
 
 function triggerFilterChange() {
-  emit('filterChange')
+  emit('update:filter', { ...props.filter })
 }
 
 const logContainer = ref<HTMLElement | null>(null)

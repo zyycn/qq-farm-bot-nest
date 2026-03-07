@@ -2,7 +2,7 @@
 import { useResizeObserver } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import { analyticsApi } from '@/api'
+import { ws } from '@/api'
 import EmptyState from '@/components/EmptyState.vue'
 import { useAccountRefresh } from '@/composables/useAccountRefresh'
 import { useAccountStore } from '@/stores'
@@ -48,7 +48,7 @@ async function loadAnalytics() {
     return
   loading.value = true
   try {
-    const res = await analyticsApi.fetchAnalytics(sortKey.value)
+    const res = await ws.request<any[]>('analytics:get', { sortBy: sortKey.value })
     const data = Array.isArray(res) ? res : []
     if (data.length > 0) {
       list.value = data

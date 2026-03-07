@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { onMounted, ref } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AccountModal from '@/components/AccountModal.vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
@@ -18,9 +17,6 @@ const showDeleteConfirm = ref(false)
 const deleteLoading = ref(false)
 const editingAccount = ref<any>(null)
 const accountToDelete = ref<any>(null)
-
-onMounted(() => accountStore.fetchAccounts())
-useIntervalFn(() => accountStore.fetchAccounts(), 3000)
 
 function openSettings(account: any) {
   accountStore.selectAccount(String(account.uin))
@@ -60,10 +56,6 @@ async function toggleAccount(account: any) {
   if (account.running)
     await accountStore.stopAccount(ref)
   else await accountStore.startAccount(ref)
-}
-
-function handleSaved() {
-  accountStore.fetchAccounts()
 }
 </script>
 
@@ -144,7 +136,7 @@ function handleSaved() {
       </div>
     </div>
 
-    <AccountModal :show="showModal" :edit-data="editingAccount" @close="showModal = false" @saved="handleSaved" />
+    <AccountModal :show="showModal" :edit-data="editingAccount" @close="showModal = false" @saved="showModal = false" />
 
     <ConfirmModal
       :show="showDeleteConfirm"

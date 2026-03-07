@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { accountApi } from '@/api'
+import { ws } from '@/api'
 import { useBagStore } from './bag'
 import { useFarmStore } from './farm'
 import { useStatusStore } from './status'
@@ -17,13 +17,6 @@ export interface Account {
   // Add other fields as discovered
 }
 
-export interface AccountLog {
-  time: string
-  action: string
-  msg: string
-  reason?: string
-}
-
 export function getPlatformIcon(p?: string) {
   if (p === 'qq')
     return 'i-icon-park-solid-tencent-qq'
@@ -35,39 +28,10 @@ export function getPlatformIcon(p?: string) {
 export const useAccountStore = defineStore('account', () => {
   const accounts = ref<Account[]>([])
   const currentAccountId = ref('')
-  const loading = ref(false)
-  const logs = ref<AccountLog[]>([])
 
   const currentAccount = computed(() =>
     accounts.value.find(a => String(a.uin) === currentAccountId.value)
   )
-
-  async function fetchAccounts() {
-    loading.value = true
-    try {
-      // api interceptor adds Authorization header
-      const res = await accountApi.fetchAccounts()
-      if (res && res.accounts) {
-        accounts.value = res.accounts as Account[]
-
-        if (accounts.value.length > 0) {
-          const found = accounts.value.find(a => String(a.uin) === currentAccountId.value)
-          if (!found && accounts.value[0]) {
-            currentAccountId.value = String(accounts.value[0].uin)
-          }
-        } else if (currentAccountId.value) {
-          currentAccountId.value = ''
-          useStatusStore().resetState()
-          useBagStore().resetState()
-          useFarmStore().resetState()
-        }
-      }
-    } catch (e) {
-      console.error('获取账号失败', e)
-    } finally {
-      loading.value = false
-    }
-  }
 
   function selectAccount(id: string) {
     currentAccountId.value = id
@@ -80,74 +44,56 @@ export const useAccountStore = defineStore('account', () => {
   async function startAccount(uin: string) {
     if (!uin)
       throw new Error('账号标识为空，无法启动')
-    await accountApi.startAccount(uin)
-    await fetchAccounts()
+    await ws.request('account:start', { id: uin })
   }
 
   async function stopAccount(uin: string) {
     if (!uin)
       throw new Error('账号标识为空，无法停止')
-    await accountApi.stopAccount(uin)
-    await fetchAccounts()
+    await ws.request('account:stop', { id: uin })
   }
 
   async function deleteAccount(ref: string) {
     if (!ref)
       throw new Error('账号标识为空，无法删除')
-    await accountApi.deleteAccount(ref)
+    await ws.request('account:delete', { id: ref })
     if (currentAccountId.value === ref) {
       currentAccountId.value = ''
       useStatusStore().resetState()
       useBagStore().resetState()
       useFarmStore().resetState()
     }
-    await fetchAccounts()
-  }
-
-  async function fetchLogs() {
-    try {
-      const res = await accountApi.fetchAccountLogs(100)
-      logs.value = Array.isArray(res) ? res : []
-    } catch (e) {
-      console.error('获取账号日志失败', e)
-    }
   }
 
   async function addAccount(payload: any) {
-    try {
-      await accountApi.saveAccount(payload)
-      await fetchAccounts()
-    } catch (e) {
-      console.error('添加账号失败', e)
-      throw e
-    }
+    const res = await ws.request<{ accounts?: any[] }>('account:create', payload)
+    if (res?.accounts && Array.isArray(res.accounts))
+      accounts.value = res.accounts as Account[]
   }
 
   async function updateAccount(uin: string, payload: any) {
-    try {
-      await accountApi.saveAccount({ ...payload, uin })
-      await fetchAccounts()
-    } catch (e) {
-      console.error('更新账号失败', e)
-      throw e
-    }
+    const res = await ws.request<{ accounts?: any[] }>('account:create', { ...payload, uin })
+    if (res?.accounts && Array.isArray(res.accounts))
+      accounts.value = res.accounts as Account[]
+  }
+
+  function setAccountsFromRealtime(data: { accounts?: any[] }) {
+    if (data?.accounts && Array.isArray(data.accounts))
+      accounts.value = data.accounts as Account[]
   }
 
   return {
     accounts,
     currentAccountId,
     currentAccount,
-    loading,
-    logs,
-    fetchAccounts,
     selectAccount,
     startAccount,
     stopAccount,
     deleteAccount,
-    fetchLogs,
     addAccount,
     updateAccount,
-    setCurrentAccount
+    setCurrentAccount,
+    setAccountsFromRealtime
   }
 }, {
   persist: {

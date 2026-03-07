@@ -1,4 +1,3 @@
-import process from 'node:process'
 import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common'
 import { Public } from '../../common/decorators/public.decorator'
 import { AuthService } from './auth.service'
@@ -33,11 +32,5 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async logout() {
     return null
-  }
-
-  @Get('ping')
-  async ping() {
-    const pkg = require('../../../package.json')
-    return { ok: true, uptime: process.uptime(), version: pkg.version }
   }
 }

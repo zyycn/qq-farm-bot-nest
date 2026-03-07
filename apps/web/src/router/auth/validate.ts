@@ -1,4 +1,4 @@
-import api from '@/api/request'
+import api from '@/api/services/request'
 import { useUserStore } from '@/stores'
 
 let validatedToken = ''
