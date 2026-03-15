@@ -190,7 +190,7 @@ export class GameClient extends EventEmitter {
       if (cb) {
         this.pendingCallbacks.delete(clientSeqVal)
         if (errorCode !== 0)
-          cb(new Error(`${meta.service_name}.${meta.method_name} 错误: code=${errorCode} ${meta.error_message || ''}`))
+          cb(new Error(meta.error_message || `${meta.method_name} 错误(${errorCode})`))
         else
           cb(null, Buffer.from(msg.body), meta)
       }
