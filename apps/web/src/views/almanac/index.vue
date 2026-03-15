@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import type { AlmanacCategoryFilter, AlmanacStatusFilter } from './constants'
-import type { AlmanacItem, AlmanacOverview, AlmanacSummary } from '@/api/modules/almanac'
+import type { AlmanacItem, AlmanacSummary } from '@/api/modules/almanac'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { almanacApi } from '@/api'
@@ -10,262 +9,261 @@ import { useImageFallback } from '@/composables/useImageFallback'
 import { useWs } from '@/composables/useWs'
 import { useAccountStore } from '@/stores'
 import message from '@/utils/message'
+import AlmanacCard from './components/AlmanacCard.vue'
 import AlmanacDetailModal from './components/AlmanacDetailModal.vue'
-import AlmanacFilters from './components/AlmanacFilters.vue'
-import AlmanacItemCard from './components/AlmanacItemCard.vue'
-import AlmanacSummaryCard from './components/AlmanacSummaryCard.vue'
-
-const DEFAULT_SUMMARY: AlmanacSummary = {
-  level: 0,
-  exp: 0,
-  nextLevelExp: 0,
-  progressPercent: 0,
-  rewardFlag: 0,
-  rewardBoxVisible: false,
-  rewardBoxEnabled: false,
-  rewardBoxRedDot: false,
-  rewardBoxClaimable: false,
-  rewardBoxClaimableRaw: false,
-  rewardBoxPreview: null,
-  litCount: 0,
-  newCount: 0,
-  totalCount: 0,
-  categoryCounts: {
-    normal: 0,
-    treasure: 0,
-    unknown: 0
-  }
-}
+import { DEFAULT_SUMMARY } from './constants'
 
 const accountStore = useAccountStore()
 const { currentAccountId } = storeToRefs(accountStore)
-const { onImageError, hasImageError, resetImageErrors } = useImageFallback()
+const currentAccount = computed(() => accountStore.currentAccount)
+const accountRunning = computed(() => !!currentAccount.value?.running)
+const { hasImageError, onImageError, resetImageErrors } = useImageFallback()
 
 const loading = ref(false)
 const claiming = ref(false)
 const items = ref<AlmanacItem[]>([])
 const summary = ref<AlmanacSummary | null>(null)
-const categoryFilter = ref<AlmanacCategoryFilter>('all')
-const statusFilter = ref<AlmanacStatusFilter>('all')
 const searchQuery = ref('')
-const selectedItem = ref<AlmanacItem | null>(null)
+const selectedPlant = ref<AlmanacItem | null>(null)
+const detailVisible = ref(false)
 
 const hasAccount = computed(() => !!currentAccountId.value)
 const summaryModel = computed(() => summary.value ?? DEFAULT_SUMMARY)
-
-const categoryCounts = computed<Record<AlmanacCategoryFilter, number>>(() => ({
-  all: items.value.length,
-  normal: summaryModel.value.categoryCounts.normal,
-  treasure: summaryModel.value.categoryCounts.treasure,
-  unknown: summaryModel.value.categoryCounts.unknown
-}))
-
-const statusCounts = computed<Record<AlmanacStatusFilter, number>>(() => ({
-  all: items.value.length,
-  lit: items.value.filter(item => item.lit).length,
-  new: items.value.filter(item => item.isNew).length,
-  unlit: items.value.filter(item => !item.lit).length
-}))
-
-const filteredItems = computed(() => {
-  const query = searchQuery.value.trim().toLowerCase()
-
-  return items.value.filter((item) => {
-    if (categoryFilter.value !== 'all' && item.category !== categoryFilter.value)
-      return false
-
-    if (statusFilter.value === 'lit' && !item.lit)
-      return false
-
-    if (statusFilter.value === 'new' && !item.isNew)
-      return false
-
-    if (statusFilter.value === 'unlit' && item.lit)
-      return false
-
-    if (!query)
-      return true
-
-    const haystack = [
-      item.name,
-      item.qualityLabel,
-      item.rarityLabel,
-      item.categoryLabel,
-      item.statusLabel,
-      ...item.sourceLabels
-    ]
-      .join(' ')
-      .toLowerCase()
-
-    return haystack.includes(query)
-  })
+const almanacLevel = computed(() => summaryModel.value.level)
+const almanacProgress = computed(() => summaryModel.value.exp)
+const almanacTotalProgress = computed(() => Math.max(summaryModel.value.exp, summaryModel.value.nextLevelExp || 0))
+const unlockedCount = computed(() => summaryModel.value.litCount)
+const totalCount = computed(() => items.value.length)
+const progressPercent = computed(() => {
+  const need = almanacTotalProgress.value
+  if (need <= 0)
+    return 0
+  return Math.min(100, Math.round((almanacProgress.value / need) * 100))
 })
 
-let loadToken = 0
+const filteredList = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  if (!q)
+    return items.value
+  return items.value.filter(
+    item =>
+      (item.name || '').toLowerCase().includes(q)
+      || String(item.seedId || '').includes(q)
+  )
+})
 
-function getItemKey(item: Pick<AlmanacItem, 'fruitId' | 'seedId' | 'plantId' | 'name'>): string {
+function getItemKey(item: AlmanacItem): string {
   return String(item.fruitId || item.seedId || item.plantId || item.name)
 }
 
 function syncSelectedItem(nextItems: AlmanacItem[]): void {
-  if (!selectedItem.value)
+  if (!selectedPlant.value)
     return
-
-  const currentKey = getItemKey(selectedItem.value)
-  selectedItem.value = nextItems.find(item => getItemKey(item) === currentKey) ?? null
+  const key = getItemKey(selectedPlant.value)
+  selectedPlant.value = nextItems.find(item => getItemKey(item) === key) ?? null
 }
 
-function applyAlmanacOverview(overview: Partial<AlmanacOverview> | null | undefined): void {
+function applyAlmanacOverview(overview: any): void {
   summary.value = overview?.summary ?? DEFAULT_SUMMARY
   items.value = Array.isArray(overview?.items) ? overview.items : []
   syncSelectedItem(items.value)
   resetImageErrors()
 }
 
-async function loadAlmanac(refresh = false): Promise<void> {
-  const currentLoadToken = ++loadToken
-
+async function loadPlants(): Promise<void> {
   if (!currentAccountId.value) {
     summary.value = null
     items.value = []
-    selectedItem.value = null
+    selectedPlant.value = null
     return
   }
-
   loading.value = true
-
   try {
-    const response = await almanacApi.query(refresh)
-    if (currentLoadToken !== loadToken)
-      return
-
-    applyAlmanacOverview(response)
-  } catch (error: unknown) {
-    if (currentLoadToken !== loadToken)
-      return
-
+    const data = await almanacApi.query(true)
+    applyAlmanacOverview(data)
+  } catch (e) {
     summary.value = DEFAULT_SUMMARY
     items.value = []
-    selectedItem.value = null
-    const err = error as { message?: string }
-    message.error(err?.message || '加载图鉴数据失败')
+    selectedPlant.value = null
+    message.error((e as Error)?.message || '加载图鉴失败')
   } finally {
-    if (currentLoadToken === loadToken)
-      loading.value = false
+    loading.value = false
   }
-}
-
-async function refreshAlmanac(): Promise<void> {
-  await loadAlmanac(true)
 }
 
 async function claimRewards(): Promise<void> {
   if (claiming.value || !summaryModel.value.rewardBoxClaimable)
     return
-
   claiming.value = true
   try {
     const result = await almanacApi.claimRewards()
     const rewardCount = (result?.items?.length ?? 0) + (result?.bonusItems?.length ?? 0)
-
     if (rewardCount > 0)
       message.success(result?.summaryText || '已领取图鉴宝箱')
     else
       message.info(result?.summaryText || '当前没有可领取的图鉴宝箱')
-
-    await loadAlmanac(true)
-  } catch (error: unknown) {
-    const err = error as { message?: string }
-    message.error(err?.message || '领取图鉴宝箱失败')
+    await loadPlants()
+  } catch (e) {
+    message.error((e as Error)?.message || '领取图鉴宝箱失败')
   } finally {
     claiming.value = false
   }
 }
 
-function openItemDetail(item: AlmanacItem): void {
-  selectedItem.value = item
+function openDetail(plant: AlmanacItem): void {
+  selectedPlant.value = plant
+  detailVisible.value = true
 }
 
-function closeItemDetail(): void {
-  selectedItem.value = null
-}
-
-useAccountRefresh(() => loadAlmanac(true))
+useAccountRefresh(loadPlants)
 
 useWs()
   .sub('almanac')
-  .on('almanac.update', (payload) => {
-    applyAlmanacOverview(payload as Partial<AlmanacOverview>)
-  })
+  .on('almanac.update', applyAlmanacOverview)
 </script>
 
 <template>
   <div class="flex flex-col gap-3 h-full">
     <div class="font-bold flex gap-2 items-center a-color-text">
-      <div class="i-streamline-emojis-open-book text-lg" />
+      <div class="i-streamline-emojis-open-book text-green-6 text-xl" />
       <span class="text-lg">我的图鉴</span>
     </div>
 
-    <div v-if="!hasAccount" class="flex flex-1 items-center justify-center">
+    <div
+      v-if="!hasAccount"
+      class="flex flex-1 min-h-0 items-center justify-center"
+    >
       <EmptyState icon="i-streamline-emojis-open-book text-5xl" description="请先在侧边栏选择账号" />
     </div>
 
-    <template v-else>
-      <AlmanacSummaryCard
-        :summary="summaryModel"
-        :loading="loading"
-        :claiming="claiming"
-        @refresh="refreshAlmanac"
-        @claim="claimRewards"
-      />
+    <div
+      v-else-if="!accountRunning"
+      class="flex flex-1 min-h-0 items-center justify-center"
+    >
+      <EmptyState icon="i-streamline-emojis-electric-plug text-5xl" description="账号未运行，请先启动账号" />
+    </div>
 
-      <a-card
-        variant="borderless"
-        class="flex-1 overflow-hidden"
-        :classes="{ body: '!p-0 !h-full !flex !flex-col' }"
-      >
-        <div class="p-4 flex flex-1 flex-col gap-4 min-h-0 overflow-hidden">
-          <AlmanacFilters
-            v-model:category="categoryFilter"
-            v-model:status="statusFilter"
-            v-model:search-query="searchQuery"
-            :total-count="items.length"
-            :filtered-count="filteredItems.length"
-            :category-counts="categoryCounts"
-            :status-counts="statusCounts"
-          />
-
-          <div class="flex-1 min-h-0 overflow-y-auto">
-            <div v-if="loading && !items.length" class="flex h-full items-center justify-center">
-              <a-spin />
+    <a-card
+      v-else
+      variant="borderless"
+      class="flex-1 overflow-hidden rounded-2xl"
+      :classes="{ body: '!p-0 !h-full !flex !flex-col' }"
+    >
+      <header class="px-3 py-3 border-b flex flex-col gap-3 min-w-0 overflow-hidden a-border-b-border-sec sm:px-4 sm:py-3 sm:flex-row sm:gap-4 sm:items-start">
+        <!-- 左侧：状态 pills + 经验进度 + 六格统计 -->
+        <div class="flex flex-1 flex-col gap-3 min-w-0">
+          <div class="flex flex-wrap gap-2 min-w-0 items-center" role="group">
+            <span class="px-2 py-1 flex shrink-0 gap-1 items-center a-bg-layout text-xs rounded-md">
+              <span class="text-amber-5 i-streamline-emojis-sparkles shrink-0 text-sm" />
+              <span class="a-color-text-secondary">等级</span>
+              <span class="font-medium tabular-nums a-color-text">{{ almanacLevel }}</span>
+            </span>
+            <span class="px-2 py-1 flex shrink-0 gap-1 items-center a-bg-layout text-xs rounded-md">
+              <span class="i-streamline-emojis-four-leaf-clover text-green-5 shrink-0 text-sm" />
+              <span class="a-color-text-secondary">已点亮</span>
+              <span class="font-medium tabular-nums a-color-text">{{ unlockedCount }}/{{ totalCount }}</span>
+            </span>
+            <span class="px-2 py-1 flex shrink-0 gap-1 items-center a-bg-layout text-xs rounded-md">
+              <span class="i-streamline-emojis-package shrink-0 a-color-text-secondary text-sm" />
+              <span class="a-color-text-secondary">新解锁</span>
+              <span class="font-medium tabular-nums a-color-text">{{ summaryModel.newCount }}</span>
+            </span>
+            <a-button
+              v-if="summaryModel.rewardBoxVisible"
+              size="small"
+              type="primary"
+              :loading="claiming"
+              :disabled="!summaryModel.rewardBoxClaimable"
+              @click="claimRewards"
+            >
+              <span class="i-streamline-emojis-wrapped-gift-1" />
+              <span>领取</span>
+            </a-button>
+          </div>
+          <div class="mt-1 flex flex-col gap-2.5 min-w-0">
+            <div class="flex gap-2 items-baseline justify-between">
+              <span class="a-color-text-secondary text-xs">图鉴经验</span>
+              <span class="shrink-0 tabular-nums a-color-text-tertiary text-xs">{{ almanacProgress }} / {{ almanacTotalProgress }}</span>
             </div>
-            <div v-else-if="!items.length" class="flex h-full items-center justify-center">
-              <EmptyState icon="i-streamline-emojis-seedling text-3xl" description="当前账号暂无图鉴数据" />
-            </div>
-            <div v-else-if="!filteredItems.length" class="flex h-full items-center justify-center">
-              <EmptyState icon="i-streamline-emojis-magnifying-glass-tilted-left text-3xl" description="没有符合当前筛选条件的图鉴条目" />
-            </div>
-            <div v-else class="gap-3 grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))]">
-              <AlmanacItemCard
-                v-for="item in filteredItems"
-                :key="getItemKey(item)"
-                :item="item"
-                :image-error="hasImageError(getItemKey(item))"
-                @select="openItemDetail(item)"
-                @image-error="onImageError(getItemKey(item))"
-              />
-            </div>
+            <a-progress
+              :percent="progressPercent"
+              :show-info="false"
+              size="small"
+              stroke-color="var(--ant-color-success)"
+              class="min-w-0"
+            />
           </div>
         </div>
-      </a-card>
-    </template>
+
+        <!-- 右侧：操作按钮 + 搜索 -->
+        <div class="flex flex-1 flex-col gap-3">
+          <div class="gap-2 grid grid-cols-3 min-w-0 sm:grid-cols-5">
+            <div class="px-2 py-1.5 flex flex-col gap-0.5 items-center justify-center a-bg-layout rounded-md" role="group">
+              <span class="text-[10px] a-color-text-tertiary">普通</span>
+              <span class="font-medium tabular-nums a-color-text text-xs">{{ summaryModel.categoryCounts.normal }}</span>
+            </div>
+            <div class="px-2 py-1.5 flex flex-col gap-0.5 items-center justify-center a-bg-layout rounded-md" role="group">
+              <span class="text-[10px] a-color-text-tertiary">珍藏</span>
+              <span class="font-medium tabular-nums a-color-text text-xs">{{ summaryModel.categoryCounts.treasure }}</span>
+            </div>
+            <div class="px-2 py-1.5 flex flex-col gap-0.5 items-center justify-center a-bg-layout rounded-md" role="group">
+              <span class="text-[10px] a-color-text-tertiary">其他</span>
+              <span class="font-medium tabular-nums a-color-text text-xs">{{ summaryModel.categoryCounts.unknown }}</span>
+            </div>
+            <div class="px-2 py-1.5 flex flex-col gap-0.5 items-center justify-center a-bg-layout rounded-md" role="group">
+              <span class="text-[10px] a-color-text-tertiary">已亮</span>
+              <span class="font-medium tabular-nums a-color-text text-xs">{{ summaryModel.litCount }}</span>
+            </div>
+            <div class="px-2 py-1.5 flex flex-col gap-0.5 items-center justify-center a-bg-layout rounded-md" role="group">
+              <span class="text-[10px] a-color-text-tertiary">新品</span>
+              <span class="font-medium tabular-nums a-color-text text-xs">{{ summaryModel.newCount }}</span>
+            </div>
+          </div>
+          <div class="flex gap-1.5">
+            <a-input
+              v-model:value="searchQuery"
+              placeholder="搜索作物名称或 ID…"
+              allow-clear
+              size="small"
+              class="min-w-0 w-full"
+            >
+              <template #prefix>
+                <span class="i-ant-design-search-outlined a-color-text-tertiary" />
+              </template>
+            </a-input>
+            <a-button size="small" variant="filled" color="primary" :loading="loading" @click="loadPlants">
+              刷新
+            </a-button>
+          </div>
+        </div>
+      </header>
+
+      <div class="p-4 flex flex-1 flex-col min-h-0 min-w-0 overflow-y-auto">
+        <a-spin :spinning="loading" class="flex flex-1 flex-col min-h-0 min-w-0">
+          <div v-if="filteredList.length === 0" class="flex h-32 w-full items-center justify-center">
+            <EmptyState icon="i-streamline-emojis-open-book text-4xl" description="暂无数据" />
+          </div>
+
+          <ul
+            v-else
+            class="m-0 p-0 list-none gap-4 grid grid-cols-[repeat(auto-fill,minmax(210px,1fr))] min-w-0 w-full"
+          >
+            <li v-for="plant in filteredList" :key="getItemKey(plant)" role="listitem">
+              <AlmanacCard
+                :plant="plant"
+                :image-error="hasImageError(getItemKey(plant))"
+                @select="openDetail(plant)"
+                @image-error="onImageError(getItemKey(plant))"
+              />
+            </li>
+          </ul>
+        </a-spin>
+      </div>
+    </a-card>
 
     <AlmanacDetailModal
-      :open="!!selectedItem"
-      :item="selectedItem"
-      :image-error="selectedItem ? hasImageError(getItemKey(selectedItem)) : false"
-      @cancel="closeItemDetail"
-      @image-error="selectedItem && onImageError(getItemKey(selectedItem))"
+      v-model:open="detailVisible"
+      :plant="selectedPlant"
     />
   </div>
 </template>
