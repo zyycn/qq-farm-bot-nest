@@ -15,20 +15,57 @@ message CheckCanShareReply {
 
 // --- 报告分享 ---
 message ReportShareRequest {
-    bool shared = 1;  // 是否已分享
+    int32 share_channel = 1;  // 分享渠道（QQ/微信群/空间等，枚举由服务端约定）
+    bytes extra = 2;          // 扩展信息（服务端透传；常用于携带分享位/活动参数）
 }
 
 message ReportShareReply {
-    bool success = 1;  // 是否成功
+    ReportShareResult result = 1;  // 上报结果
+}
+
+message ReportShareResult {
+    bool success = 1;  // 是否上报成功
+    bytes extra = 2;   // 扩展返回（服务端透传）
 }
 
 // --- 领取分享奖励 ---
+// 获取邀请信息与邀请奖励状态
+message GetInviteInfoRequest {}
+
+message InviteRewardInfo {
+    int64 stage = 1;              // 奖励阶段/档位
+    int64 need_invite_count = 2;  // 达成所需邀请人数
+    corepb.Item reward = 3;       // 奖励物品
+}
+
+// 邀请信息状态（当前仓库仅保留字段占位，后续可按抓包补全字段结构）
+message InviteInfoState {}
+
+message InviteInfo {
+    InviteInfoState state = 1;           // 邀请信息状态（当前仓库未展开字段）
+    repeated InviteRewardInfo rewards = 4; // 奖励列表
+}
+
+message GetInviteInfoReply {
+    InviteInfo info = 1;  // 邀请信息与奖励状态
+}
+
 message ClaimShareRewardRequest {
-    bool claimed = 1;  // 请求领取
+    bool claimed = 1;  // 是否执行领取（客户端一般传 true）
 }
 
 message ClaimShareRewardReply {
-    bool success = 1;           // 是否成功
-    bool has_reward = 2;        // 是否有奖励
-    repeated corepb.Item items = 3;  // 奖励物品列表
+    corepb.Item reward = 1;           // 主要奖励
+    ClaimShareRewardState state = 2;  // 领取结果与标记
+    repeated corepb.Item items = 3;   // 额外奖励/补充奖励列表
+}
+
+message ClaimShareRewardState {
+    bool success = 1;              // 是否领取成功
+    ClaimShareRewardFlags flags = 2; // 标记位（是否还有奖励/是否已领取）
+}
+
+message ClaimShareRewardFlags {
+    bool has_reward = 1;  // 是否还有可领取奖励
+    bool claimed = 2;     // 是否已领取
 }

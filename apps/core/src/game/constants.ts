@@ -1,7 +1,7 @@
 import { CLIENT_VERSION, DEFAULT_DEVICE_ID, DEFAULT_DEVICE_MEMORY, DEFAULT_DEVICE_NETWORK, DEFAULT_DEVICE_SYS_SOFTWARE, DEFAULT_OS, GAME_SERVER_URL } from '@qq-farm/shared'
 
-export const DEFAULT_FARM_INTERVAL_MS = 2_000
-export const DEFAULT_FRIEND_INTERVAL_MS = 10_000
+export const DEFAULT_FARM_INTERVAL_MS = 60_000
+export const DEFAULT_FRIEND_INTERVAL_MS = 60_000
 
 export enum PlantPhase {
   UNKNOWN = 0,
@@ -113,10 +113,10 @@ export interface IntervalsConfig {
 }
 
 export const DEFAULT_INTERVALS: IntervalsConfig = {
-  farm: 2,
+  farm: 60,
   friend: 10,
-  farmMin: 2,
-  farmMax: 2,
+  farmMin: 60,
+  farmMax: 60,
   friendMin: 10,
   friendMax: 10
 }

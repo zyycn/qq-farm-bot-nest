@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package gamepb.careerpb;
+
+message CareerInfoGetRequest {
+    int64 uid = 1;  // 用户UID（账号唯一标识）
+}
+
+message CareerProgress {
+    int64 career_id = 1;  // 生涯/职业ID
+    int64 score = 2;      // 当前得分/进度值
+}
+
+message CareerInfoGetReply {
+    repeated CareerProgress careers = 1;  // 各生涯进度
+    int64 total_score = 2;                // 总分/综合进度
+    string display_name = 4;              // 展示名
+    string avatar_url = 5;                // 头像 URL
+    int64 level = 9;                      // 生涯等级
+    int64 extra_value = 10;               // 扩展数值（语义以服务端为准）
+    int64 updated_at = 11;                // 更新时间（时间戳，单位由服务端约定）
+}

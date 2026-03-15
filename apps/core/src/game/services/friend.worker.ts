@@ -1,11 +1,10 @@
 import type { StoreService } from '../../store/store.service'
 import type { GameConfigService } from '../game-config.service'
 import type { IGameTransport } from '../interfaces/game-transport.interface'
-import type { FarmWorker } from './farm.worker'
 import type { StatsTracker } from './stats.worker'
-import type { WarehouseWorker } from './warehouse.worker'
 import { Logger } from '@nestjs/common'
 import { Scheduler } from '@qq-farm/shared'
+import { getCurrentPhase } from '../client-driven/helpers/land.helpers'
 import { OP_TYPE_NAMES, PHASE_NAMES, PlantPhase } from '../constants'
 import { getServerTimeSec, RE_TIME_HH_MM, sleep, toNum, toTimeSec } from '../utils'
 
@@ -105,13 +104,11 @@ export class FriendWorker {
     private gameConfig: GameConfigService,
     private store: StoreService,
     private stats: StatsTracker,
-    private farm: FarmWorker,
-    private warehouse: WarehouseWorker,
+    private sellAllFruits: () => Promise<number | void>,
     private platform: string
   ) {
     this.logger = new Logger(`Friend:${accountId}`)
     this.scheduler = new Scheduler(`friend-${accountId}`, this.logger)
-    this.farm.onOperationLimitsUpdate = (limits: any) => this.updateOperationLimits(limits)
   }
 
   private log(msg: string, event?: string) {
@@ -336,7 +333,7 @@ export class FriendWorker {
       const plant = land.plant
       if (!plant?.phases?.length)
         continue
-      const phase = this.farm.getCurrentPhase(plant.phases)
+      const phase = getCurrentPhase(plant.phases)
       if (!phase)
         continue
       const phaseVal = phase.phase
@@ -579,7 +576,7 @@ export class FriendWorker {
           }
         }
 
-        const phase = this.farm.getCurrentPhase(plant.phases)
+        const phase = getCurrentPhase(plant.phases)
         if (!phase) {
           return {
             id,
@@ -671,7 +668,7 @@ export class FriendWorker {
         const count = await this.runBatchWithFallback(target, ids => this.stealHarvest(gid, ids), ids => this.stealHarvest(gid, ids))
         if (count > 0) {
           this.stats.recordOperation('steal', count)
-          await this.warehouse.sellAllFruits()
+          await this.sellAllFruits()
         }
         return { ok: true, opType: 'steal', count, message: `偷取完成 ${count} 块` }
       },
@@ -957,7 +954,7 @@ export class FriendWorker {
       }
 
       if (totalActions.steal > 0) {
-        await this.warehouse.sellAllFruits()
+        await this.sellAllFruits()
       }
 
       const summary: string[] = []

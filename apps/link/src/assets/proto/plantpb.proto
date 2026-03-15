@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package gamepb.plantpb;
 
+import "corepb.proto";
+
 // ============ 生长阶段枚举 ============
 enum PlantPhase {
     PHASE_UNKNOWN = 0;
@@ -16,42 +18,42 @@ enum PlantPhase {
 
 // ============ 土地信息 ============
 message LandInfo {
-    int64 id = 1;
-    bool unlocked = 2;
-    int64 level = 3;
-    int64 max_level = 4;
-    bool could_unlock = 5;
-    bool could_upgrade = 6;
-    LandUnlockCondition unlock_condition = 7;
-    LandUpgradeCondition upgrade_condition = 8;
-    Buff buff = 9;
-    PlantInfo plant = 10;
-    bool is_shared = 11;
-    bool can_share = 12;
-    int64 master_land_id = 13;
-    repeated int64 slave_land_ids = 14;
-    int64 land_size = 15;
-    int64 lands_level = 16;
+    int64 id = 1;                             // 土地ID（地块唯一标识）
+    bool unlocked = 2;                        // 是否已解锁
+    int64 level = 3;                          // 当前地块等级
+    int64 max_level = 4;                      // 地块最大等级
+    bool could_unlock = 5;                    // 是否满足解锁条件（可解锁提示）
+    bool could_upgrade = 6;                   // 是否满足升级条件（可升级提示）
+    LandUnlockCondition unlock_condition = 7; // 解锁条件（展示给客户端）
+    LandUpgradeCondition upgrade_condition = 8; // 升级条件（展示给客户端）
+    Buff buff = 9;                            // 地块增益（产量/时间/经验等）
+    PlantInfo plant = 10;                     // 当前种植的植物（空=未种植）
+    bool is_shared = 11;                      // 是否处于共享/联动状态（与副产/共享地相关）
+    bool can_share = 12;                      // 是否可进行共享（功能开关/条件满足）
+    int64 master_land_id = 13;                // 主地块ID（共享地体系：主从关系）
+    repeated int64 slave_land_ids = 14;       // 从地块ID列表（共享地体系：主从关系）
+    int64 land_size = 15;                     // 地块面积/规格（影响可种植/产量等，单位由服务端约定）
+    int64 lands_level = 16;                   // 全局地块等级/地块组等级（用于条件/展示）
 
     // 土地buff
     message Buff {
-        int64 plant_yield_bonus = 1;
-        int64 planting_time_reduction = 2;
-        int64 plant_exp_bonus = 3;
+        int64 plant_yield_bonus = 1;          // 产量加成（通常为百分比/万分比，按服务端约定）
+        int64 planting_time_reduction = 2;    // 生长时间减免（通常为百分比/秒数，按服务端约定）
+        int64 plant_exp_bonus = 3;            // 种植经验加成（通常为百分比/万分比，按服务端约定）
     }
 }
 
 // 土地解锁条件 (简化)
 message LandUnlockCondition {
-    int64 need_level = 1;
-    int64 need_gold = 2;
+    int64 need_level = 1;   // 需要的等级
+    int64 need_gold = 2;    // 需要的金币
     // ... 其他条件字段
 }
 
 // 土地升级条件 (简化)
 message LandUpgradeCondition {
-    int64 need_level = 1;
-    int64 need_gold = 2;
+    int64 need_level = 1;   // 需要的等级
+    int64 need_gold = 2;    // 需要的金币
     // ... 其他条件字段
 }
 
@@ -59,11 +61,9 @@ message LandUpgradeCondition {
 message PlantInfo {
     int64 id = 1;                              // 植物/种子ID
     string name = 2;                           // 名称
-    // field 3 reserved
     repeated PlantPhaseInfo phases = 4;        // 生长阶段列表
     int64 season = 5;                          // 季节
     int64 dry_num = 6;                         // 缺水次数 (>0需要浇水)
-    // fields 7,8 reserved
     int64 stole_num = 9;                       // 被偷次数
     int64 fruit_id = 10;                       // 果实ID
     int64 fruit_num = 11;                      // 果实数量
@@ -81,22 +81,21 @@ message PlantInfo {
 
 // ============ 生长阶段详情 ============
 message PlantPhaseInfo {
-    int32 phase = 1;               // PlantPhase 枚举值
-    int64 begin_time = 2;          // 阶段开始时间
-    int64 phase_id = 3;            // 阶段ID
-    // fields 4,5 reserved
-    int64 dry_time = 6;            // 变干时间 (>0 需要浇水)
-    int64 weeds_time = 7;          // 长草时间 (>0 有杂草)
-    int64 insect_time = 8;         // 生虫时间 (>0 有虫害)
-    map<int64, int64> ferts_used = 9;  // 已用肥料
-    repeated MutantInfo mutants = 10;  // 变异信息
+    int32 phase = 1;               // 生长阶段（PlantPhase 枚举值）
+    int64 begin_time = 2;          // 阶段开始时间（时间戳，单位由服务端约定）
+    int64 phase_id = 3;            // 阶段配置ID（用于客户端展示/计算）
+    int64 dry_time = 6;            // 干旱开始时间（>0 代表需要浇水）
+    int64 weeds_time = 7;          // 长草时间（>0 代表有杂草）
+    int64 insect_time = 8;         // 生虫时间（>0 代表有虫害）
+    map<int64, int64> ferts_used = 9;  // 已使用肥料：肥料ID -> 次数/数量（按服务端约定）
+    repeated MutantInfo mutants = 10;  // 变异信息列表
 }
 
 // 变异信息
 message MutantInfo {
-    int64 mutant_time = 1;
-    int64 mutant_config_id = 2;
-    int64 weather_id = 3;
+    int64 mutant_time = 1;         // 发生变异的时间
+    int64 mutant_config_id = 2;    // 变异配置ID
+    int64 weather_id = 3;          // 关联天气ID（用于变异条件/展示）
 }
 
 // ============ 操作限制 ============
@@ -126,8 +125,8 @@ message AllLandsRequest {
 }
 
 message AllLandsReply {
-    repeated LandInfo lands = 1;
-    repeated OperationLimit operation_limits = 2;
+    repeated LandInfo lands = 1;                 // 地块列表
+    repeated OperationLimit operation_limits = 2; // 操作限制信息
 }
 
 // --- 收获 ---
@@ -138,43 +137,52 @@ message HarvestRequest {
 }
 
 message HarvestReply {
-    repeated LandInfo land = 1;
-    // repeated Item items = 2;     // corepb.Item
-    // repeated Item lost_items = 3;
-    repeated OperationLimit operation_limits = 4;
+    repeated LandInfo land = 1;                  // 更新后的地块信息
+    repeated corepb.Item items = 2;              // 收获获得的物品
+    repeated corepb.Item lost_items = 6;         // 损失/被偷导致的减少物品（用于展示）
+    repeated HarvestExtra extras = 7;            // 扩展收获信息（按 key 分组的奖励/掉落）
+    repeated OperationLimit operation_limits = 4; // 操作限制信息（更新后）
+}
+
+message HarvestExtra {
+    int64 key = 1;                 // 扩展信息键（语义以服务端为准）
+    repeated corepb.Item items = 2; // 对应的物品列表
 }
 
 // --- 浇水 ---
 message WaterLandRequest {
-    repeated int64 land_ids = 1;
-    int64 host_gid = 2;
+    repeated int64 land_ids = 1;  // 要浇水的地块ID列表
+    int64 host_gid = 2;           // 农场主GID（浇好友时携带）
 }
 
 message WaterLandReply {
-    repeated LandInfo land = 1;
-    repeated OperationLimit operation_limits = 2;
+    repeated LandInfo land = 1;                  // 更新后的地块信息
+    repeated OperationLimit operation_limits = 2; // 操作限制信息
+    bytes extra = 3;                              // 扩展返回（服务端透传）
 }
 
 // --- 除草 ---
 message WeedOutRequest {
-    repeated int64 land_ids = 1;
-    int64 host_gid = 2;
+    repeated int64 land_ids = 1;  // 要除草的地块ID列表
+    int64 host_gid = 2;           // 农场主GID（帮好友时携带）
 }
 
 message WeedOutReply {
-    repeated LandInfo land = 1;
-    repeated OperationLimit operation_limits = 2;
+    repeated LandInfo land = 1;                  // 更新后的地块信息
+    repeated OperationLimit operation_limits = 2; // 操作限制信息
+    bytes extra = 3;                              // 扩展返回（服务端透传）
 }
 
 // --- 除虫 ---
 message InsecticideRequest {
-    repeated int64 land_ids = 1;
-    int64 host_gid = 2;
+    repeated int64 land_ids = 1;  // 要除虫的地块ID列表
+    int64 host_gid = 2;           // 农场主GID（帮好友时携带）
 }
 
 message InsecticideReply {
-    repeated LandInfo land = 1;
-    repeated OperationLimit operation_limits = 2;
+    repeated LandInfo land = 1;                  // 更新后的地块信息
+    repeated OperationLimit operation_limits = 2; // 操作限制信息
+    bytes extra = 3;                              // 扩展返回（服务端透传）
 }
 
 // --- 播种 ---
@@ -190,82 +198,87 @@ message PlantRequest {
 }
 
 message PlantReply {
-    repeated LandInfo land = 1;
-    repeated OperationLimit operation_limits = 2;
+    repeated LandInfo land = 1;                  // 更新后的地块信息
+    repeated OperationLimit operation_limits = 2; // 操作限制信息
+    bytes extra = 3;                              // 扩展返回（服务端透传）
 }
 
 // --- 移除植物 ---
 message RemovePlantRequest {
-    repeated int64 land_ids = 1;
+    repeated int64 land_ids = 1;  // 要移除植物的地块ID列表
 }
 
 message RemovePlantReply {
-    repeated LandInfo land = 1;
-    repeated OperationLimit operation_limits = 2;
+    repeated LandInfo land = 1;                  // 更新后的地块信息
+    repeated OperationLimit operation_limits = 2; // 操作限制信息
+    bytes extra = 3;                              // 扩展返回（服务端透传）
 }
 
 // --- 施肥 ---
 message FertilizeRequest {
-    repeated int64 land_ids = 1;
-    int64 fertilizer_id = 2;
+    repeated int64 land_ids = 1;  // 要施肥的地块ID列表
+    int64 fertilizer_id = 2;      // 肥料ID
 }
 
 message FertilizeReply {
-    repeated LandInfo land = 1;
-    repeated OperationLimit operation_limits = 2;
-    int64 fertilizer = 3;  // 剩余肥料时间
+    repeated LandInfo land = 1;                  // 更新后的地块信息
+    repeated OperationLimit operation_limits = 2; // 操作限制信息
+    corepb.Item fertilizer = 3;                  // 消耗/变更的肥料信息
+    bytes extra = 4;                              // 扩展返回（服务端透传）
 }
 
 // --- 放虫 ---
 message PutInsectsRequest {
-    int64 host_gid = 1;
-    repeated int64 land_ids = 2;
+    int64 host_gid = 1;           // 农场主GID（放虫的目标农场）
+    repeated int64 land_ids = 2;  // 目标地块ID列表
 }
 
 message PutInsectsReply {
-    repeated LandInfo land = 1;
-    repeated OperationLimit operation_limits = 2;
+    repeated LandInfo land = 1;                  // 更新后的地块信息
+    repeated OperationLimit operation_limits = 2; // 操作限制信息
+    bytes extra = 3;                              // 扩展返回（服务端透传）
 }
 
 // --- 放草 ---
 message PutWeedsRequest {
-    int64 host_gid = 1;
-    repeated int64 land_ids = 2;
+    int64 host_gid = 1;           // 农场主GID（放草的目标农场）
+    repeated int64 land_ids = 2;  // 目标地块ID列表
 }
 
 message PutWeedsReply {
-    repeated LandInfo land = 1;
-    repeated OperationLimit operation_limits = 2;
+    repeated LandInfo land = 1;                  // 更新后的地块信息
+    repeated OperationLimit operation_limits = 2; // 操作限制信息
+    bytes extra = 3;                              // 扩展返回（服务端透传）
 }
 
 // --- 升级土地 ---
 message UpgradeLandRequest {
-    int64 land_id = 1;
+    int64 land_id = 1;  // 要升级的地块ID
 }
 
 message UpgradeLandReply {
-    LandInfo land = 1;
+    LandInfo land = 1;  // 更新后的地块信息
 }
 
 // --- 解锁土地 ---
 message UnlockLandRequest {
-    int64 land_id = 1;
-    bool do_shared = 2;
+    int64 land_id = 1;    // 要解锁的地块ID
+    bool do_shared = 2;   // 是否同时启用共享/联动（语义以服务端为准）
 }
 
 message UnlockLandReply {
-    LandInfo land = 1;
+    LandInfo land = 1;  // 更新后的地块信息
 }
 
 // --- 检查能否操作 ---
 message CheckCanOperateRequest {
-    int64 host_gid = 1;
-    int64 operation_id = 2;
+    int64 host_gid = 1;       // 农场主GID（对目标农场做校验）
+    int64 operation_id = 2;   // 操作类型ID（见 OperationLimit 注释）
 }
 
 message CheckCanOperateReply {
-    bool can_operate = 1;
-    int64 can_steal_num = 2;
+    bool can_operate = 1;     // 是否允许操作
+    int64 can_steal_num = 2;  // 可偷数量（仅偷菜类操作有意义）
 }
 
 // ============ 服务器推送通知 ============

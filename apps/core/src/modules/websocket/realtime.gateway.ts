@@ -62,7 +62,8 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
       onLandsUpdate: (accountId, data) => this.pushService.emitToEvent(accountId, 'lands.update', data),
       onBagUpdate: (accountId, data) => this.pushService.emitToEvent(accountId, 'bag.update', data),
       onDailyGiftsUpdate: (accountId, data) => this.pushService.emitToEvent(accountId, 'dailyGifts.update', data),
-      onFriendsUpdate: (accountId, data) => this.pushService.emitToEvent(accountId, 'friends.update', data)
+      onFriendsUpdate: (accountId, data) => this.pushService.emitToEvent(accountId, 'friends.update', data),
+      onAlmanacUpdate: (accountId, data) => this.pushService.emitToEvent(accountId, 'almanac.update', data)
       // strategy/panel 改为纯 req/res，不再推送事件
     })
     this.logger.log('WebSocket server (Socket.IO) started')

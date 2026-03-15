@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package gamepb.avatarframepb;
+
+// 获取已拥有/已装备的头像框列表
+message AvatarFramesOwnedRequest {}
+
+message AvatarFrameOwned {
+    int64 frame_id = 1;  // 头像框ID
+    bool owned = 2;      // 是否已拥有
+    bool unlocked = 3;   // 是否已解锁（拥有与解锁可能不同步，取决于活动逻辑）
+    bool equipped = 4;   // 是否已装备
+}
+
+message AvatarFramesOwnedReply {
+    repeated AvatarFrameOwned frames = 1;  // 头像框拥有/装备状态列表
+}

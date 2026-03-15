@@ -5,7 +5,7 @@ syntax = "proto3";
 
 package gatepb;
 
-// Meta.Type 枚举
+// Meta.message_type 的枚举值
 enum MessageType {
     None = 0;
     Request = 1;
@@ -15,30 +15,31 @@ enum MessageType {
 
 // 消息元信息
 message Meta {
-    string service_name = 1;
-    string method_name = 2;
-    int32 message_type = 3;   // MessageType enum
-    int64 client_seq = 4;
-    int64 server_seq = 5;
-    int64 error_code = 6;
-    string error_message = 7;
-    map<string, bytes> metadata = 8;
+    string service_name = 1;          // 服务名（例如：gamepb.itempb.ItemService）
+    string method_name = 2;           // 方法名（例如：Use）
+    int32 message_type = 3;           // 消息类型（1=Request，2=Response，3=Notify）
+    int64 client_seq = 4;             // 客户端请求序号（用于请求/响应配对）
+    int64 server_seq = 5;             // 服务端序号（用于服务端侧回包标识/顺序）
+    int64 error_code = 6;             // 错误码（通常仅 Response 有意义）
+    string error_message = 7;         // 错误信息（通常仅 Response 有意义）
+    map<string, bytes> metadata = 8;  // 扩展元信息（保留字段，按需透传）
 }
 
 // 每个WS帧的结构
 message Message {
-    Meta meta = 1;
-    bytes body = 2;
+    Meta meta = 1;      // 路由与序号等元信息
+    bytes body = 2;     // 载荷：Request 为加密后的业务 proto；Response/Notify 多为明文业务 proto
+    string proof = 3;   // 请求证明串（仅 Request 出现）：base64 文本，解码后形如 iknowhoyouare<13位毫秒时间戳>
 }
 
 // 服务器推送事件
 message EventMessage {
-    string message_type = 1;
-    bytes body = 2;
+    string message_type = 1;  // 事件类型（业务 proto 的全限定名，例如：.gamepb.itempb.ItemNotify）
+    bytes body = 2;           // 事件载荷（对应 message_type 的 proto 二进制）
 }
 
 // 被踢下线通知
 message KickoutNotify {
-    int64 reason = 1;
-    string reason_message = 2;
+    int64 reason = 1;           // 被踢原因（枚举/数值原因码）
+    string reason_message = 2;  // 被踢原因描述
 }

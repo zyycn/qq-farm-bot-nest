@@ -2,22 +2,23 @@ syntax = "proto3";
 
 package corepb;
 
+import "google.protobuf.any.proto";
+
 // ============ 通用物品 ============
 message Item {
     int64 id = 1;           // 物品ID
     int64 count = 2;        // 数量
     int64 expire_time = 3;  // 过期时间
-    // field 4 reserved
-    // google.protobuf.Any detail = 5;  // 详情 (略)
+    google.protobuf.Any detail = 5;  // 详情扩展：type_url 指明类型，value 为对应消息的序列化数据
     int64 uid = 6;          // UID
     bool is_new = 7;        // 是否新获得
     repeated int64 mutant_types = 8; // 变异类型
-    // ItemShow show = 100;  // 展示信息 (略)
+    ItemShow show = 100;  // 客户端展示用信息（例如名称/icon/品质/角标等；具体字段随版本变化）
 }
 
 // 背包（物品列表）
 message ItemBag {
-    repeated Item items = 1;
+    repeated Item items = 1;  // 物品列表
 }
 
 // ============ 物品变化 ============
@@ -25,3 +26,6 @@ message ItemChg {
     Item item = 1;          // 物品信息
     int64 delta = 2;        // 变化量 (正数增加, 负数减少)
 }
+
+// 物品展示信息：用于客户端展示（名称、图标、品质、角标等），服务端可能按需下发或复用配置表。
+message ItemShow {}

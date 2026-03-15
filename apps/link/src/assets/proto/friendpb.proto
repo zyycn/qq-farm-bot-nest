@@ -4,12 +4,12 @@ package gamepb.friendpb;
 
 // ============ 好友农场摘要信息 ============
 message Plant {
-    int64 dry_time_sec = 1;      // 缺水倒计时秒
-    int64 weed_time_sec = 2;     // 长草倒计时秒
-    int64 insect_time_sec = 3;   // 生虫倒计时秒
-    int64 ripe_time_sec = 4;     // 成熟倒计时秒
-    int64 ripe_fruit_id = 5;     // 成熟果实ID
-    int64 steal_plant_num = 6;   // 可偷数量
+    int64 dry_time_sec = 1;      // 缺水倒计时（秒，<=0 表示暂无缺水/无需浇水）
+    int64 weed_time_sec = 2;     // 长草倒计时（秒，<=0 表示暂无杂草）
+    int64 insect_time_sec = 3;   // 生虫倒计时（秒，<=0 表示暂无虫害）
+    int64 ripe_time_sec = 4;     // 成熟倒计时（秒，<=0 表示当前已成熟/可收获）
+    int64 ripe_fruit_id = 5;     // 成熟果实ID（用于好友列表展示“将成熟/可偷/可收”的果实）
+    int64 steal_plant_num = 6;   // 可偷数量（好友列表里“手”图标对应的数字）
     int64 dry_num = 7;           // 缺水地块数
     int64 weed_num = 8;          // 有草地块数
     int64 insect_num = 9;        // 有虫地块数
@@ -17,118 +17,129 @@ message Plant {
 
 // ============ 标签 ============
 message Tags {
-    bool is_new = 1;
-    bool is_follow = 2;
+    bool is_new = 1;       // 是否新好友/新状态（用于红点/提示）
+    bool is_follow = 2;    // 是否关注/特别关注（用于好友列表筛选/排序/置顶等）
 }
 
 // ============ 好友信息 ============
 message GameFriend {
-    int64 gid = 1;
-    string open_id = 2;
-    string name = 3;
-    string avatar_url = 4;
-    string remark = 5;
-    int64 level = 6;
-    int64 gold = 7;
-    Tags tags = 8;
-    Plant plant = 9;
-    int32 authorized_status = 10;
-    // field 11 reserved
-    // Illustrated illustrated = 12;  // 略
-    // repeated AvatarFrame equip_avatar_frames = 13;  // 略
+    int64 gid = 1;               // 好友 GID
+    string open_id = 2;          // 好友 open_id
+    string name = 3;             // 昵称
+    string avatar_url = 4;       // 头像 URL
+    string remark = 5;           // 备注
+    int64 level = 6;             // 等级
+    int64 gold = 7;              // 金币
+    Tags tags = 8;               // 标签/状态位
+    Plant plant = 9;             // 好友农场摘要信息
+    int32 authorized_status = 10; // 授权状态（与好友推荐/分享相关）
+    Illustrated illustrated = 12;  // 好友图鉴/收藏摘要（用于好友页展示、红点或进度提示）
+    repeated AvatarFrame equip_avatar_frames = 13;  // 好友当前装备的头像框/外观列表（用于头像装饰展示）
 }
 
 // ============ 邀请信息 ============
 message Invitation {
-    int64 gid = 1;
-    string open_id = 2;
-    string name = 3;
-    string avatar_url = 4;
-    int64 level = 5;
-    int64 time_at = 6;
+    int64 gid = 1;          // 邀请/申请者 GID
+    string open_id = 2;     // open_id
+    string name = 3;        // 昵称
+    string avatar_url = 4;  // 头像 URL
+    int64 level = 5;        // 等级
+    int64 time_at = 6;      // 时间（时间戳，单位由服务端约定）
 }
 
 // ============ 请求/回复 ============
 
 // --- 获取所有好友 ---
+// 获取好友列表（包含好友与邀请/申请统计）
 message GetAllRequest {}
 
 message GetGameFriendsRequest {
     repeated int64 gids = 1 [packed = true];
 }
 
+message GetGameFriendsReply {
+    repeated GameFriend game_friends = 1;  // 好友信息列表
+}
+
 message GetAllReply {
-    repeated GameFriend game_friends = 1;
-    repeated Invitation invitations = 2;
-    int64 application_count = 3;
+    repeated GameFriend game_friends = 1;   // 好友列表
+    repeated Invitation invitations = 2;    // 邀请/待添加列表
+    int64 application_count = 3;            // 未处理申请数量
 }
 
 // --- 同步好友 (带 open_ids) ---
 message SyncAllRequest {
-    // field 1 reserved
-    repeated string open_ids = 2;
+    repeated string open_ids = 2;  // open_id 列表（用于同步“同玩好友/微信好友”等）
 }
 
 message SyncAllReply {
-    repeated GameFriend game_friends = 1;
-    repeated Invitation invitations = 2;
-    int64 application_count = 3;
+    repeated GameFriend game_friends = 1;   // 好友列表
+    repeated Invitation invitations = 2;    // 邀请/待添加列表
+    int64 application_count = 3;            // 未处理申请数量
 }
 
 // ============ 好友申请 (微信同玩) ============
 
 // 申请信息
 message Application {
-    int64 gid = 1;
-    int64 time_at = 2;
-    string open_id = 3;
-    string name = 4;
-    string avatar_url = 5;
-    int64 level = 6;
-    // repeated AvatarFrame equip_avatar_frames = 7;  // 略
+    int64 gid = 1;          // 申请者 GID
+    int64 time_at = 2;      // 申请时间（时间戳）
+    string open_id = 3;     // 申请者 open_id
+    string name = 4;        // 昵称
+    string avatar_url = 5;  // 头像 URL
+    int64 level = 6;        // 等级
+    repeated AvatarFrame equip_avatar_frames = 7;  // 申请者当前装备的头像框/外观列表（用于申请列表展示）
 }
 
 // --- 获取好友申请列表 ---
+// 获取好友申请列表
 message GetApplicationsRequest {}
 
 message GetApplicationsReply {
-    repeated Application applications = 1;
+    repeated Application applications = 1;  // 申请列表
     bool block_applications = 2;  // 是否屏蔽申请
 }
 
 // --- 同意好友申请 ---
 message AcceptFriendsRequest {
-    repeated int64 friend_gids = 1;
+    repeated int64 friend_gids = 1;  // 同意的好友 GID 列表
 }
 
 message AcceptFriendsReply {
-    repeated GameFriend friends = 1;
+    repeated GameFriend friends = 1;  // 新增的好友列表
 }
 
 // --- 拒绝好友申请 ---
 message RejectFriendsRequest {
-    repeated int64 friend_gids = 1;
+    repeated int64 friend_gids = 1;  // 拒绝的好友 GID 列表
 }
 
+// 拒绝好友申请结果（通常为空）
 message RejectFriendsReply {}
 
 // --- 设置屏蔽申请 ---
 message SetBlockApplicationsRequest {
-    bool block = 1;
+    bool block = 1;  // 是否屏蔽好友申请
 }
 
 message SetBlockApplicationsReply {
-    bool block = 1;
+    bool block = 1;  // 当前屏蔽状态
 }
 
 // ============ 服务器推送通知 ============
 
 // 收到好友申请通知
 message FriendApplicationReceivedNotify {
-    repeated Application applications = 1;
+    repeated Application applications = 1;  // 新收到的申请列表
 }
 
 // 好友添加成功通知 (对方同意后)
 message FriendAddedNotify {
-    repeated GameFriend friends = 1;
+    repeated GameFriend friends = 1;  // 新增好友列表
 }
+
+// 好友图鉴摘要（当前仓库仅保留字段占位，后续可按抓包补全字段结构）
+message Illustrated {}
+
+// 好友装扮信息（头像框等，当前仓库仅保留字段占位，后续可按抓包补全字段结构）
+message AvatarFrame {}

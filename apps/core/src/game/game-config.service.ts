@@ -13,7 +13,7 @@ export interface PlantInfo {
   id: number
   name: string
   seed_id: number
-  fruit: { id: number, name?: string }
+  fruit: { id: number, name?: string, count?: number }
   exp: number
   grow_phases: string
   land_level_need?: number

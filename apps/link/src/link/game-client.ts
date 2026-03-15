@@ -24,9 +24,11 @@ export class GameClient extends EventEmitter {
   private platform = 'qq'
   private lastHeartbeatResponse = Date.now()
   private heartbeatMissCount = 0
+  private lastBcrfTime = 0
+  private bcrfWindowStart = 0
   private _connected = false
   private _destroyed = false
-  private _reconnecting = false
+
   private _reconnectAttempts = 0
   private _loginFailed = false
   private static readonly MAX_RECONNECT_ATTEMPTS = 3
@@ -114,6 +116,12 @@ export class GameClient extends EventEmitter {
       return false
     }
     this.ws.send(encoded)
+
+    // 业务操作后触发 BCRF 去抖调度（排除心跳和 BCRF 自身）
+    if (methodName !== 'Heartbeat' && methodName !== 'BatchClientReportFlow' && methodName !== 'Login') {
+      this.scheduleBcrf()
+    }
+
     return true
   }
 
@@ -182,7 +190,7 @@ export class GameClient extends EventEmitter {
       if (cb) {
         this.pendingCallbacks.delete(clientSeqVal)
         if (errorCode !== 0)
-          cb(new Error(`${meta.service_name}.${meta.method_name} 错误: code=${errorCode} ${meta.error_message || ''}`))
+          cb(new Error(meta.error_message || `${meta.method_name} 错误(${errorCode})`))
         else
           cb(null, Buffer.from(msg.body), meta)
       }
@@ -206,12 +214,19 @@ export class GameClient extends EventEmitter {
       } catch {
         this.emit('kickout', { type, reason: '未知' })
       }
+
       return
     }
 
+    let notifyKind = ''
+    let decodedPayload: any = null
+
     if (type.includes('ItemNotify')) {
       try {
-        const notify: any = t.ItemNotify.decode(eventBody)
+        const decoded = t.ItemNotify.decode(eventBody)
+        const notify: any = t.ItemNotify.toObject(decoded, { longs: String, enums: String })
+        notifyKind = 'item'
+        decodedPayload = notify
         const items = notify.items || []
         for (const itemChg of items) {
           const item = itemChg.item
@@ -244,7 +259,10 @@ export class GameClient extends EventEmitter {
 
     if (type.includes('BasicNotify')) {
       try {
-        const notify: any = t.BasicNotify.decode(eventBody)
+        const decoded = t.BasicNotify.decode(eventBody)
+        const notify: any = t.BasicNotify.toObject(decoded, { longs: String, enums: String })
+        notifyKind = 'basic'
+        decodedPayload = notify
         if (notify.basic) {
           if (Object.hasOwn(notify.basic, 'level')) {
             const next = toNum(notify.basic.level)
@@ -266,8 +284,20 @@ export class GameClient extends EventEmitter {
       } catch {}
     }
 
-    // Forward all other notifications as raw data to the core process
-    this.emit('notify', { type, body: Buffer.from(eventBody).toString('base64') })
+    if (type.includes('TaskInfoNotify')) {
+      try {
+        const decoded = t.TaskInfoNotify.decode(eventBody)
+        const notify: any = t.TaskInfoNotify.toObject(decoded, { longs: String, enums: String })
+        this.emit('taskInfoNotify', notify?.task_info ?? notify)
+      } catch {}
+    }
+
+    this.emit('notify', {
+      type,
+      body: Buffer.from(eventBody).toString('base64'),
+      kind: notifyKind || undefined,
+      decoded: decodedPayload || undefined
+    })
   }
 
   private sendLogin(): Promise<void> {
@@ -324,8 +354,10 @@ export class GameClient extends EventEmitter {
           this.userState.openId = reply.basic.open_id || ''
           if (reply.time_now_millis)
             syncServerTime(toNum(reply.time_now_millis))
+          if (reply.time_now_millis)
+            this.emit('serverTime', { ms: toNum(reply.time_now_millis) })
           this._connected = true
-          this._reconnecting = false
+
           this._reconnectAttempts = 0
           this._loginFailed = false
           this.startHeartbeat()
@@ -341,11 +373,61 @@ export class GameClient extends EventEmitter {
     })
   }
 
+  /**
+   * 发送 BatchClientReportFlow（活跃信号）。
+   * 真实客户端在业务操作后 3-10s 触发，连续操作去抖，空闲时 40-120s 兜底。
+   */
+  private sendBcrf() {
+    const t = this.protoTypes
+    if (!t.BatchClientReportFlowRequest || !this._connected)
+      return
+    const bcrfBody = Buffer.from(
+      t.BatchClientReportFlowRequest.encode(
+        t.BatchClientReportFlowRequest.create({})
+      ).finish()
+    )
+    this.sendMsg('gamepb.userpb.UserService', 'BatchClientReportFlow', bcrfBody)
+    this.lastBcrfTime = Date.now()
+  }
+
+  /**
+   * 在业务操作后延迟发送 BCRF（去抖：连续操作只触发一次）。
+   * 模拟真实客户端在 UI 交互后 3-10s 上报行为流。
+   */
+  private scheduleBcrf() {
+    const now = Date.now()
+    const isNew = !this.scheduler.has('bcrf_debounce')
+    if (isNew)
+      this.bcrfWindowStart = now
+
+    const elapsed = now - this.bcrfWindowStart
+    const maxRemaining = Math.max(0, 12000 - elapsed) // 最大等待 12s
+    if (maxRemaining <= 0) {
+      this.scheduler.clear('bcrf_debounce')
+      this.bcrfWindowStart = 0
+      this.sendBcrf()
+      return
+    }
+
+    const randomDelay = 3000 + Math.floor(Math.random() * 7000) // 3-10s 随机延迟
+    const delay = Math.min(randomDelay, maxRemaining)
+
+    this.scheduler.clear('bcrf_debounce')
+    this.scheduler.setTimeoutTask('bcrf_debounce', delay, () => {
+      this.bcrfWindowStart = 0
+      this.sendBcrf()
+    })
+  }
+
   private startHeartbeat() {
     this.scheduler.clear('heartbeat_interval')
     this.lastHeartbeatResponse = Date.now()
     this.heartbeatMissCount = 0
+    this.lastBcrfTime = Date.now()
     const t = this.protoTypes
+
+    // 登录后 3-8s 发送第一次 BCRF（模拟真实客户端 SetDisplayInfo 后立即上报）
+    this.scheduler.setTimeoutTask('bcrf_first', 3000 + Math.floor(Math.random() * 5000), () => this.sendBcrf())
 
     this.scheduler.setIntervalTask('heartbeat_interval', HEARTBEAT_INTERVAL_MS, () => {
       if (!this.userState.gid)
@@ -375,10 +457,21 @@ export class GameClient extends EventEmitter {
         this.heartbeatMissCount = 0
         try {
           const reply: any = t.HeartbeatReply.decode(replyBody)
-          if (reply.server_time)
-            syncServerTime(toNum(reply.server_time))
+          if (reply.server_time) {
+            const ms = toNum(reply.server_time)
+            syncServerTime(ms)
+            this.emit('serverTime', { ms })
+          }
         } catch {}
       })
+
+      // 空闲兜底：如果距离上次 BCRF 超过 40-120s，在心跳中补发一次
+      // 真实客户端空闲时 BCRF 间隔 40-260s，这里取保守值
+      const bcrfElapsed = Date.now() - this.lastBcrfTime
+      const bcrfIdleThreshold = 40000 + Math.floor(Math.random() * 80000) // 40-120s
+      if (bcrfElapsed > bcrfIdleThreshold) {
+        this.sendBcrf()
+      }
     })
   }
 
@@ -419,7 +512,6 @@ export class GameClient extends EventEmitter {
           && this._reconnectAttempts < GameClient.MAX_RECONNECT_ATTEMPTS
 
         if (shouldReconnect) {
-          this._reconnecting = true
           this._reconnectAttempts++
           this.emit('reconnecting', {
             attempt: this._reconnectAttempts,
@@ -429,7 +521,6 @@ export class GameClient extends EventEmitter {
             this.reconnect().catch(() => {})
           })
         } else {
-          this._reconnecting = false
           this._loginFailed = false
           this.emit('close', closeCode)
         }

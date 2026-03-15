@@ -18,7 +18,7 @@ const { settings } = storeToRefs(strategyStore)
     <!-- 巡查间隔 -->
     <fieldset>
       <legend class="tracking-wide font-medium mb-2 op-50 uppercase text-xs">
-        农场 & 好友轮询
+        农场 & 好友(主动轮询)
       </legend>
       <div class="gap-x-3 gap-y-3 grid grid-cols-2 lg:grid-cols-4">
         <a-form layout="vertical">

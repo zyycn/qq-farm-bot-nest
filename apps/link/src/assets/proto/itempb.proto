@@ -27,22 +27,36 @@ message SellReply {
 // ============ 使用物品 ============
 
 message UseRequest {
-    int64 item_id = 1;
-    int64 count = 2;
-    repeated int64 land_ids = 3;
+    UseParam param = 1;  // 使用物品参数
+}
+
+message UseParam {
+    int64 item_id = 1;            // 物品ID
+    int64 count = 2;              // 使用数量
+    repeated int64 land_ids = 3;  // 关联地块ID列表（对“对地块生效”的道具使用）
+    int32 extra = 6;              // 扩展参数（不同道具语义不同；抓包中常见值=6）
 }
 
 message UseReply {
-    repeated corepb.Item items = 1;
+    repeated corepb.Item items = 1;  // 使用后获得/变化的物品列表
+    bytes extra = 2;                // 扩展返回（保留；部分道具返回附加信息）
 }
 
 // ============ 批量使用物品 ============
 
 message BatchUseRequest {
-    repeated corepb.Item items = 1;
+    repeated corepb.Item items = 1;  // 要批量使用的物品列表（id + count）
 }
 
 message BatchUseReply {
-    repeated corepb.Item used_items = 1;
-    repeated corepb.Item items = 2;
+    repeated corepb.Item used_items = 1;  // 实际消耗的物品
+    repeated corepb.Item items = 2;       // 使用后获得/变化的物品
+}
+
+message CannelNewRequest {
+    int64 item_id = 1;  // 物品ID（取消“新获得”标记）
+}
+
+message CannelNewReply {
+    int64 item_id = 1;  // 物品ID
 }

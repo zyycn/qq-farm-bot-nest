@@ -4,6 +4,7 @@ import { AccountModule } from '@/modules/account/account.module'
 import { AuthModule } from '@/modules/auth/auth.module'
 import { StoreModule } from '@/store/store.module'
 import { AccountHandler } from './handlers/account.handler'
+import { AlmanacHandler } from './handlers/almanac.handler'
 import { AnalyticsHandler } from './handlers/analytics.handler'
 import { FarmHandler } from './handlers/farm.handler'
 import { FriendHandler } from './handlers/friend.handler'
@@ -26,6 +27,7 @@ import { WsTopicsService } from './ws-topics.service'
     RealtimePushService,
     RealtimeGateway,
     AccountHandler,
+    AlmanacHandler,
     AnalyticsHandler,
     FarmHandler,
     FriendHandler,

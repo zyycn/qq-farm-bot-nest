@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package gamepb.marqueepb;
+
+// 获取跑马灯/公告条（当前仓库未展开具体字段）
+message GetMarqueeRequest {}
+
+// 跑马灯返回（当前仓库未展开具体字段）
+message GetMarqueeReply {}

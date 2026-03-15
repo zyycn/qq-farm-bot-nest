@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package gamepb.randomdroppb;
+
+// 获取随机掉落/抽奖类活动信息
+message GetActivityInfoRequest {}
+
+message RandomDropActivityInfo {
+    int64 activity_id = 1;  // 活动ID
+    int64 start_time = 2;   // 活动开始时间（时间戳，单位由服务端约定）
+    int64 end_time = 3;     // 活动结束时间（时间戳，单位由服务端约定）
+    int64 price = 4;        // 抽取/购买价格（币种由业务约定）
+    int64 limit = 5;        // 限制次数/数量（0=不限）
+    bool enabled = 6;       // 是否启用/可参与
+}
+
+message GetActivityInfoReply {
+    repeated RandomDropActivityInfo activities = 1;  // 活动列表
+}

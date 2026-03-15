@@ -167,13 +167,11 @@ useIntervalFn(updateCountdowns, 1000)
 
 useWs()
   .sub('logs')
-  .sub('bag')
   .sub('accounts')
   .on('accounts.profile', statusStore.applyStatusProfile)
   .on('accounts.session', statusStore.applyStatusSession)
   .on('accounts.operations', statusStore.applyStatusOperations)
   .on('accounts.schedule', statusStore.applyStatusSchedule)
-  .on('bag.update', bagStore.setBagFromRealtime)
   .on('logs.append', statusStore.pushRealtimeLog)
 
 useAccountRefresh(queryLogs)

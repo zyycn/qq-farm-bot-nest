@@ -120,7 +120,7 @@ export type StatusEventData = ConnectionEventData | ProfileEventData | SessionEv
 
 // ==================== 类型安全的 Link 事件 ====================
 
-export type LinkEventName = 'connected' | 'disconnected' | 'state_update' | 'kicked' | 'ws_error' | 'reconnecting' | 'login_failed' | 'notify'
+export type LinkEventName = 'connected' | 'disconnected' | 'state_update' | 'kicked' | 'ws_error' | 'reconnecting' | 'login_failed' | 'notify' | 'taskInfoNotify' | 'server_time'
 
 export interface LinkEventMap {
   connected: LinkUserState
@@ -130,7 +130,9 @@ export interface LinkEventMap {
   ws_error: { code: number, message: string }
   reconnecting: { attempt: number, maxAttempts: number }
   login_failed: { error: string }
-  notify: { type: string, body: string }
+  notify: { type: string, body: string, kind?: string, decoded?: any }
+  taskInfoNotify: any
+  server_time: { ms: number }
 }
 
 export type LinkEventPayload<E extends LinkEventName = LinkEventName> = LinkEventMap[E]

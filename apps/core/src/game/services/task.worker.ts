@@ -2,7 +2,6 @@ import type { StoreService } from '../../store/store.service'
 import type { GameConfigService } from '../game-config.service'
 import type { IGameTransport } from '../interfaces/game-transport.interface'
 import type { StatsTracker } from './stats.worker'
-import type { WarehouseWorker } from './warehouse.worker'
 import { Logger } from '@nestjs/common'
 import { Scheduler } from '@qq-farm/shared'
 import { getRewardSummary, getServerDateKey, sleep, toNum } from '../utils'
@@ -21,7 +20,7 @@ export class TaskWorker {
     private gameConfig: GameConfigService,
     private store: StoreService,
     private stats: StatsTracker,
-    private warehouse: WarehouseWorker
+    private getBagItems: () => any[] | Promise<any[]>
   ) {
     this.logger = new Logger(`Task:${accountId}`)
     this.scheduler = new Scheduler(`task-${accountId}`, this.logger)
@@ -57,6 +56,29 @@ export class TaskWorker {
   async claimAllIllustratedRewards(): Promise<any> {
     const { data } = await this.client.invoke('gamepb.illustratedpb.IllustratedService', 'ClaimAllRewardsV2', { only_claimable: true })
     return data ?? { items: [], bonus_items: [] }
+  }
+
+  async getIllustratedState(): Promise<any> {
+    const { data } = await this.client.invoke('gamepb.illustratedpb.IllustratedService', 'GetIllustratedListV2', {
+      // refresh=true currently returns only 101 normal entries and hides the
+      // 7 treasure entries, so use the stable full response here as well.
+      refresh: false,
+      full: true
+    })
+    return data ?? {}
+  }
+
+  private hasProtoField(payload: any, fieldName: string): boolean {
+    return !!payload && Object.hasOwn(payload, fieldName)
+  }
+
+  private isIllustratedRewardBoxClaimable(payload: any): boolean {
+    // Live MITM samples now confirm field8 is the only reliable "claimable now"
+    // bit. reward_flag can remain >0 after claim, so automation must not use it.
+    if (this.hasProtoField(payload, 'reward_box_claimable_raw'))
+      return !!payload?.reward_box_claimable_raw
+
+    return false
   }
 
   // ========== Task Analysis ==========
@@ -131,13 +153,17 @@ export class TaskWorker {
 
   private async checkAndClaimIllustratedRewards(): Promise<boolean> {
     try {
+      const illustrated = await this.getIllustratedState()
+      if (!this.isIllustratedRewardBoxClaimable(illustrated))
+        return false
+
       const beforeTicket = await this.getTicketBalance()
       await this.claimAllIllustratedRewards()
       const afterTicket = await this.getTicketBalance()
       const gain = Math.max(0, afterTicket - beforeTicket)
       if (gain < 200)
         return false
-      this.log(`图鉴领取成功: 点券${gain}`, 'illustrated_rewards')
+      this.log(`图鉴宝箱领取成功: 点券${gain}`, 'illustrated_rewards')
       this.taskClaimDoneDateKey = getServerDateKey()
       this.taskClaimLastAt = Date.now()
       this.stats.recordOperation('taskClaim', 1)
@@ -147,8 +173,7 @@ export class TaskWorker {
 
   private async getTicketBalance(): Promise<number> {
     try {
-      const rep = await this.warehouse.getBag()
-      const items = this.warehouse.getBagItems(rep)
+      const items = await this.getBagItems()
       for (const it of (items || [])) {
         if (toNum(it?.id) === 1002)
           return Math.max(0, toNum(it?.count))

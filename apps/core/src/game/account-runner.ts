@@ -5,16 +5,16 @@ import type { IGameTransport } from './interfaces/game-transport.interface'
 import type { LinkClient } from './link-client'
 import type { GameLogEntry, LinkEventMap, LinkEventName, LinkUserState, StatusEventData } from './types'
 import { Logger } from '@nestjs/common'
-import { Scheduler } from '@qq-farm/shared'
+import { Scheduler, syncServerTime } from '@qq-farm/shared'
+import { GameSession } from './client-driven/session/game-session'
 import { AnalyticsWorker } from './services/analytics.worker'
 import { DailyRewardsWorker } from './services/daily-rewards.worker'
-import { FarmWorker } from './services/farm.worker'
 import { FriendWorker } from './services/friend.worker'
+import { IllustratedWorker } from './services/illustrated.worker'
 import { InviteWorker } from './services/invite.worker'
 import { StatsTracker } from './services/stats.worker'
 import { TaskWorker } from './services/task.worker'
-import { WarehouseWorker } from './services/warehouse.worker'
-import { getDateKey, toNum } from './utils'
+import { getDateKey } from './utils'
 
 export interface AccountRunnerConfig {
   code: string
@@ -34,6 +34,7 @@ export interface AccountRunnerCallbacks {
   onBagUpdate?: (accountId: string, data: unknown) => void
   onDailyGiftsUpdate?: (accountId: string, data: unknown) => void
   onFriendsUpdate?: (accountId: string, data: unknown) => void
+  onAlmanacUpdate?: (accountId: string, data: unknown) => void
 }
 
 export class AccountRunner {
@@ -42,10 +43,10 @@ export class AccountRunner {
   private scheduler: Scheduler
   private stats: StatsTracker
   private analytics: AnalyticsWorker
-  private farm!: FarmWorker
+  private session!: GameSession
   private friend!: FriendWorker
+  private illustrated!: IllustratedWorker
   private task!: TaskWorker
-  private warehouse!: WarehouseWorker
   private dailyRewards!: DailyRewardsWorker
   private invite!: InviteWorker
 
@@ -61,10 +62,10 @@ export class AccountRunner {
   private static readonly DAILY_CHECK_INTERVAL_MS = 30_000
   private appliedConfigRevision = 0
 
-  private farmIntervalMin = 2000
-  private farmIntervalMax = 2000
-  private friendIntervalMin = 10_000
-  private friendIntervalMax = 10_000
+  private farmIntervalMin = 60_000
+  private farmIntervalMax = 60_000
+  private friendIntervalMin = 60_000
+  private friendIntervalMax = 120_000
 
   private userState = { gid: 0, name: '', level: 0, gold: 0, exp: 0, coupon: 0, avatarUrl: '', openId: '', platform: 'qq' as string }
 
@@ -104,13 +105,16 @@ export class AccountRunner {
     this.isRunning = true
 
     this.transport = this.linkClient.createTransport(this.accountId, () => this.userState)
-    this.warehouse = new WarehouseWorker(this.accountId, this.transport, this.gameConfig, this.store, this.stats)
-    this.warehouse.onLog = this.forwardLog
-    this.farm = new FarmWorker(this.accountId, this.transport, this.gameConfig, this.store, this.stats, this.analytics, this.warehouse)
-    this.farm.onLog = this.forwardLog
-    this.friend = new FriendWorker(this.accountId, this.transport, this.gameConfig, this.store, this.stats, this.farm, this.warehouse, config.platform)
+    this.session = new GameSession(this.accountId, this.transport, this.gameConfig, this.store, this.stats, this.analytics, {
+      onLog: this.forwardLog,
+      onLandsUpdate: data => this.callbacks.onLandsUpdate?.(this.accountId, data),
+      onBagUpdate: data => this.callbacks.onBagUpdate?.(this.accountId, data)
+    })
+    this.friend = new FriendWorker(this.accountId, this.transport, this.gameConfig, this.store, this.stats, () => this.session.sellAllFruits(), config.platform)
     this.friend.onLog = this.forwardLog
-    this.task = new TaskWorker(this.accountId, this.transport, this.gameConfig, this.store, this.stats, this.warehouse)
+    this.illustrated = new IllustratedWorker(this.accountId, this.transport, this.gameConfig)
+    this.illustrated.onLog = this.forwardLog
+    this.task = new TaskWorker(this.accountId, this.transport, this.gameConfig, this.store, this.stats, () => this.session.getRawBagItems())
     this.task.onLog = this.forwardLog
     this.dailyRewards = new DailyRewardsWorker(this.accountId, this.transport, this.gameConfig, this.store)
     this.dailyRewards.onLog = this.forwardLog
@@ -145,22 +149,10 @@ export class AccountRunner {
         this.name = this.userState.name || this.name
         this.log(`登录成功: ${this.userState.name || ''} (Lv${this.userState.level ?? ''})`, 'login')
 
-        try {
-          const rep = await this.warehouse.getBag()
-          if (!this.isRunning)
-            return
-          const items = this.warehouse.getBagItems(rep)
-          let coupon = 0
-          for (const it of (items || [])) {
-            if (toNum(it?.id) === 1002) {
-              coupon = toNum(it.count)
-              break
-            }
-          }
-          this.userState.coupon = Math.max(0, coupon)
-        } catch (e) {
-          this.logger.warn(`获取背包信息失败: ${(e as Error)?.message}`)
-        }
+        await this.session.bootstrap()
+        if (!this.isRunning)
+          return
+        this.userState.coupon = Math.max(0, this.session.getCouponBalance())
 
         this.stats.initStats(Number(this.userState.gold || 0), Number(this.userState.exp || 0), Number(this.userState.coupon || 0))
 
@@ -169,18 +161,16 @@ export class AccountRunner {
           return
         const auto = this.store.getAutomation(this.accountId)
         if (auto.fertilizer_gift)
-          await this.warehouse.autoOpenFertilizerGiftPacks().catch(e => this.logger.warn(`自动开启化肥礼包失败: ${e?.message}`))
+          await this.session.autoOpenFertilizerGiftPacks().catch(e => this.logger.warn(`自动开启化肥礼包失败: ${e?.message}`))
         if (!this.isRunning)
           return
 
-        this.farm.startFarmLoop({ externalScheduler: true })
         this.friend.startFriendLoop({ externalScheduler: true })
         this.task.init()
         this.startUnifiedScheduler()
         this.startDailyRoutineTimer()
 
         this.syncStatusAtomic()
-        this.pushLandsAndBag().catch(() => {})
       }
     } catch (e: any) {
       this.warn(`连接失败: ${e?.message}`, 'connect')
@@ -194,7 +184,7 @@ export class AccountRunner {
     this.loginReady = false
 
     this.stopUnifiedScheduler()
-    this.farm?.destroy()
+    this.session?.destroy()
     this.friend?.destroy()
     this.task?.destroy()
     this.stopDailyRoutineTimer()
@@ -229,25 +219,13 @@ export class AccountRunner {
     try {
       const auto = this.store.getAutomation(this.accountId)
       if (auto.farm)
-        await this.farm.checkFarm()
-      if (auto.task)
-        await this.task.checkAndClaimTasks()
-      if (auto.email)
-        await this.dailyRewards.checkAndClaimEmails()
-      if (auto.fertilizer_gift)
-        await this.warehouse.autoOpenFertilizerGiftPacks()
-      if (auto.fertilizer_buy) {
-        const cfg = this.store.getAccountConfig(this.accountId).fertilizerBuy
-        await this.dailyRewards.autoBuyFertilizer(cfg)
-      }
-      await this.warehouse.sellAllFruits()
+        await this.session.runScheduledAutomationPass()
     } catch (e: any) {
       this.warn(`农场调度执行失败: ${e?.message}`, 'schedule_error')
     } finally {
       this.nextFarmRunAt = Date.now() + this.randomInterval(this.farmIntervalMin, this.farmIntervalMax)
       this.farmTaskRunning = false
       this.syncStatusAfterTick()
-      this.pushLandsAndBag().catch(() => {})
     }
   }
 
@@ -269,23 +247,21 @@ export class AccountRunner {
     }
   }
 
-  /** best-effort: 推送农田和背包数据到前端，失败不影响主流程 */
-  private async pushLandsAndBag() {
-    try {
-      const [lands, bag] = await Promise.all([this.getLands(), this.getBag()])
-      if (lands != null)
-        this.callbacks.onLandsUpdate?.(this.accountId, lands)
-      if (bag != null)
-        this.callbacks.onBagUpdate?.(this.accountId, bag)
-    } catch {}
-  }
-
   /** best-effort: 推送好友数据到前端，失败不影响主流程 */
   private async pushFriends() {
     try {
       const friends = await this.getFriends()
       if (friends != null)
         this.callbacks.onFriendsUpdate?.(this.accountId, friends)
+    } catch {}
+  }
+
+  /** best-effort: 鎺ㄩ€佸浘閴存暟鎹埌鍓嶇锛屽け璐ヤ笉褰卞搷涓绘祦绋? */
+  private async pushAlmanac(refresh = false) {
+    try {
+      const overview = await this.getAlmanac(refresh)
+      if (overview != null)
+        this.callbacks.onAlmanacUpdate?.(this.accountId, overview)
     } catch {}
   }
 
@@ -335,6 +311,12 @@ export class AccountRunner {
     try {
       if (auto.email)
         await this.dailyRewards.checkAndClaimEmails(force)
+      if (auto.fertilizer_gift)
+        await this.session.autoOpenFertilizerGiftPacks()
+      if (auto.fertilizer_buy) {
+        const cfg = this.store.getAccountConfig(this.accountId).fertilizerBuy
+        await this.dailyRewards.autoBuyFertilizer(cfg)
+      }
       if (auto.share_reward)
         await this.dailyRewards.performDailyShare(force)
       if (auto.month_card)
@@ -375,12 +357,12 @@ export class AccountRunner {
   // ========== Config ==========
 
   applyIntervals(intervals: IntervalsConfig) {
-    const farmMin = Math.max(1, intervals.farmMin || intervals.farm || 2)
-    const farmMax = Math.max(farmMin, intervals.farmMax || farmMin)
+    const farmMin = Math.max(1, intervals.farmMin ?? intervals.farm ?? 60)
+    const farmMax = Math.max(farmMin, intervals.farmMax ?? farmMin)
     this.farmIntervalMin = farmMin * 1000
     this.farmIntervalMax = farmMax * 1000
-    const friendMin = Math.max(1, intervals.friendMin || intervals.friend || 10)
-    const friendMax = Math.max(friendMin, intervals.friendMax || friendMin)
+    const friendMin = Math.max(1, intervals.friendMin ?? intervals.friend ?? 10)
+    const friendMax = Math.max(friendMin, intervals.friendMax ?? 10)
     this.friendIntervalMin = friendMin * 1000
     this.friendIntervalMax = friendMax * 1000
   }
@@ -394,7 +376,7 @@ export class AccountRunner {
       this.applyIntervals(snapshot.intervals)
 
     if (this.loginReady) {
-      this.farm.refreshFarmLoop(200)
+      this.session.onConfigChanged()
       this.friend.refreshFriendLoop(200)
       this.resetSchedule()
       this.scheduleNext()
@@ -410,7 +392,7 @@ export class AccountRunner {
         if (fert === 'both' || fert === 'organic') {
           this.scheduler.setTimeoutTask('fertilizer_immediate', 600, async () => {
             if (this.loginReady)
-              await this.farm.runFertilizerByConfig([]).catch(() => {})
+              await this.session.runFarmOperation('all').catch(() => {})
           })
         }
       }
@@ -460,6 +442,22 @@ export class AccountRunner {
             this.log(`账号升级至 Lv${merged.level}`, 'level_up')
           }
           this.deferStatusFlush()
+        }
+      },
+      notify: (data) => {
+        const type = String(data?.type || '')
+        if (type.startsWith('gamepb.illustratedpb.'))
+          this.scheduler.setTimeoutTask('almanac_notify_refresh', 300, () => this.pushAlmanac(true))
+        this.session?.handleNotify(data)
+      },
+      taskInfoNotify: (data) => {
+        this.transport.emit('taskInfoNotify', data)
+      },
+      server_time: (data) => {
+        const ms = Number((data as any)?.ms || 0)
+        if (ms > 0) {
+          syncServerTime(ms)
+          this.session?.handleServerTime(ms)
         }
       }
     }
@@ -601,23 +599,24 @@ export class AccountRunner {
 
   // ========== API Calls (from controllers) ==========
 
-  async getLands() { return this.farm.getLandsDetail() }
-  async getSeeds() { return this.farm.getAvailableSeeds() }
-  async getBagSeeds() { return this.warehouse.getBagSeeds() }
-  async doFarmOp(opType: string) {
-    const result = await this.farm.runFarmOperation(opType)
-    this.pushLandsAndBag().catch(() => {})
-    return result
-  }
+  async getLands() { return this.session.getLandsDetail() }
+  async getSeeds() { return this.session.getAvailableSeeds() }
+  async getBagSeeds() { return this.session.getBagSeeds() }
+  async doFarmOp(opType: string) { return await this.session.runFarmOperation(opType) }
 
   async doSingleLandOp(payload: { action: string, landId: number, seedId: number }) {
-    const result = await this.farm.runSingleLandOperation(payload)
-    this.pushLandsAndBag().catch(() => {})
-    return result
+    return await this.session.runSingleLandOperation(payload)
   }
 
   async getFriends() { return this.friend.getFriendsList() }
   async getFriendLands(gid: number) { return this.friend.getFriendLandsDetail(gid) }
+  async getAlmanac(refresh = false) { return this.illustrated.getOverview(refresh) }
+  async claimAlmanacRewards() {
+    const result = await this.illustrated.claimRewards()
+    this.pushAlmanac(true).catch(() => {})
+    return result
+  }
+
   async doFriendOp(gid: number, opType: string) {
     const result = await this.friend.doFriendOperation(gid, opType)
     this.pushFriends().catch(() => {})
@@ -628,25 +627,16 @@ export class AccountRunner {
     return this.friend.getInteractRecords()
   }
 
-  async getBag() { return this.warehouse.getBagDetail() }
+  async getBag() { return this.session.getBagDetail() }
 
   async sellItem(itemId: number, count: number) {
-    const result = await this.warehouse.sellItemByIdAndCount(itemId, count)
+    const result = await this.session.sellItem(itemId, count)
     this.stats.recordOperation('sell', count)
-    this.pushLandsAndBag().catch(() => {})
     return result
   }
 
   async buySeed(goodsId: number, count: number, price: number) {
-    const result = await this.farm.buyGoods(goodsId, count, price)
-    const items = result?.get_items || []
-    if (items.length > 0) {
-      const seedId = Number(items[0].id)
-      const name = this.gameConfig.getPlantNameBySeedId(seedId) || `商品${goodsId}`
-      this.log(`手动购买 ${name} x${count}，花费 ${price * count} 金币`, 'buy_manual')
-    }
-    this.pushLandsAndBag().catch(() => {})
-    return result
+    return await this.session.buySeed(goodsId, count, price)
   }
 
   getAnalytics(sortBy: string) { return this.analytics.getPlantRankings(sortBy) }

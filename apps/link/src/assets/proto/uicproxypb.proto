@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package gamepb.uicproxypb;
+
+message BatchModerateTextRequest {
+    bytes payload = 1;  // 批量文本审核请求载荷（服务端内部格式，客户端透传）
+}
+
+message ModerateTextResult {
+    string value = 4;   // 审核后的文本/结果值（字段号与上游协议对齐）
+}
+
+message BatchModerateTextReply {
+    repeated ModerateTextResult results = 1;  // 审核结果列表
+}

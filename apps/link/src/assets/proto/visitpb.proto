@@ -28,8 +28,8 @@ message EnterRequest {
 message EnterReply {
     gamepb.userpb.BasicInfo basic = 1;              // 好友基本信息
     repeated gamepb.plantpb.LandInfo lands = 2;     // 好友的所有土地
-    // field 3: brief_dog_info (不需要)
-    // field 4: nudge_info (不需要)
+    bytes brief_dog_info = 3;                      // 宠物/看门狗简要信息（服务端透传，客户端二次解析）
+    bytes nudge_info = 4;                          // 催熟/互动相关信息（服务端透传，客户端二次解析）
 }
 
 // ============ 离开好友农场 ============

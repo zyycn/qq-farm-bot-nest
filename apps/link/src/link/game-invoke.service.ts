@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer'
+import fs from 'node:fs'
 import path from 'node:path'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import * as protobuf from 'protobufjs'
@@ -22,21 +23,26 @@ const INVOKE_TYPE_MAP: Record<string, Record<string, [string, string]>> = {
   },
   'gamepb.interactpb.InteractService': {
     InteractRecords: ['InteractRecordsRequest', 'InteractRecordsReply'],
-    GetInteractRecords: ['InteractRecordsRequest', 'InteractRecordsReply']
+    GetInteractRecords: ['InteractRecordsRequest', 'InteractRecordsReply'],
+    GetInteractInfo: ['GetInteractInfoRequest', 'GetInteractInfoReply']
   },
   'gamepb.interactpb.VisitorService': {
     InteractRecords: ['InteractRecordsRequest', 'InteractRecordsReply'],
     GetInteractRecords: ['InteractRecordsRequest', 'InteractRecordsReply']
   },
   'gamepb.shoppb.ShopService': {
+    ShopProfiles: ['ShopProfilesRequest', 'ShopProfilesReply'],
     ShopInfo: ['ShopInfoRequest', 'ShopInfoReply'],
     BuyGoods: ['BuyGoodsRequest', 'BuyGoodsReply']
   },
   'gamepb.friendpb.FriendService': {
     SyncAll: ['SyncAllRequest', 'SyncAllReply'],
     GetAll: ['GetAllRequest', 'GetAllReply'],
+    GetGameFriends: ['GetGameFriendsRequest', 'GetGameFriendsReply'],
     GetApplications: ['GetApplicationsRequest', 'GetApplicationsReply'],
-    AcceptFriends: ['AcceptFriendsRequest', 'AcceptFriendsReply']
+    AcceptFriends: ['AcceptFriendsRequest', 'AcceptFriendsReply'],
+    RejectFriends: ['RejectFriendsRequest', 'RejectFriendsReply'],
+    SetBlockApplications: ['SetBlockApplicationsRequest', 'SetBlockApplicationsReply']
   },
   'gamepb.visitpb.VisitService': {
     Enter: ['EnterRequest', 'EnterReply'],
@@ -45,19 +51,29 @@ const INVOKE_TYPE_MAP: Record<string, Record<string, [string, string]>> = {
   'gamepb.taskpb.TaskService': {
     TaskInfo: ['TaskInfoRequest', 'TaskInfoReply'],
     ClaimTaskReward: ['ClaimTaskRewardRequest', 'ClaimTaskRewardReply'],
-    ClaimDailyReward: ['ClaimDailyRewardRequest', 'ClaimDailyRewardReply']
+    BatchClaimTaskReward: ['BatchClaimTaskRewardRequest', 'BatchClaimTaskRewardReply'],
+    ClaimDailyReward: ['ClaimDailyRewardRequest', 'ClaimDailyRewardReply'],
+    ClientReportProgress: ['ClientReportProgressRequest', 'ClientReportProgressReply']
   },
   'gamepb.itempb.ItemService': {
     Bag: ['BagRequest', 'BagReply'],
     Sell: ['SellRequest', 'SellReply'],
     Use: ['UseRequest', 'UseReply'],
-    BatchUse: ['BatchUseRequest', 'BatchUseReply']
+    BatchUse: ['BatchUseRequest', 'BatchUseReply'],
+    CannelNew: ['CannelNewRequest', 'CannelNewReply']
   },
   'gamepb.userpb.UserService': {
-    ReportArkClick: ['ReportArkClickRequest', 'ReportArkClickReply']
+    Login: ['LoginRequest', 'LoginReply'],
+    Heartbeat: ['HeartbeatRequest', 'HeartbeatReply'],
+    BatchClientReportFlow: ['BatchClientReportFlowRequest', 'BatchClientReportFlowReply'],
+    ReportArkClick: ['ReportArkClickRequest', 'ReportArkClickReply'],
+    SetDisplayInfo: ['SetDisplayInfoRequest', 'SetDisplayInfoReply'],
+    GetUserSettings: ['GetUserSettingsRequest', 'GetUserSettingsReply'],
+    SetQQFriendRecommendAuthorized: ['SetQQFriendRecommendAuthorizedRequest', 'SetQQFriendRecommendAuthorizedReply']
   },
   'gamepb.emailpb.EmailService': {
     GetEmailList: ['GetEmailListRequest', 'GetEmailListReply'],
+    ReadEmail: ['ReadEmailRequest', 'ReadEmailReply'],
     BatchClaimEmail: ['BatchClaimEmailRequest', 'BatchClaimEmailReply'],
     ClaimEmail: ['ClaimEmailRequest', 'ClaimEmailReply']
   },
@@ -78,10 +94,46 @@ const INVOKE_TYPE_MAP: Record<string, Record<string, [string, string]>> = {
   'gamepb.sharepb.ShareService': {
     CheckCanShare: ['CheckCanShareRequest', 'CheckCanShareReply'],
     ReportShare: ['ReportShareRequest', 'ReportShareReply'],
+    GetInviteInfo: ['GetInviteInfoRequest', 'GetInviteInfoReply'],
     ClaimShareReward: ['ClaimShareRewardRequest', 'ClaimShareRewardReply']
   },
+  'gamepb.paypb.PayService': {
+    GetRechargeInfo: ['GetRechargeInfoRequest', 'GetRechargeInfoReply']
+  },
+  'gamepb.rechargebonuspb.RechargeBonusService': {
+    GetConfig: ['GetConfigRequest', 'GetConfigReply']
+  },
+  'gamepb.dogpb.DogService': {
+    GetDogInfo: ['GetDogInfoRequest', 'GetDogInfoReply'],
+    GetProtectLogs: ['GetProtectLogsRequest', 'GetProtectLogsReply']
+  },
+  'gamepb.avatarframepb.AvatarFrameService': {
+    AvatarFramesOwned: ['AvatarFramesOwnedRequest', 'AvatarFramesOwnedReply']
+  },
+  'gamepb.bulletinboardpb.BulletinBoardService': {
+    GetBulletinList: ['GetBulletinListRequest', 'GetBulletinListReply'],
+    GetBulletinDetail: ['GetBulletinDetailRequest', 'GetBulletinDetailReply']
+  },
+  'gamepb.marqueepb.MarqueeService': {
+    GetMarquee: ['GetMarqueeRequest', 'GetMarqueeReply']
+  },
+  'gamepb.randomdroppb.RandomDropService': {
+    GetActivityInfo: ['GetActivityInfoRequest', 'GetActivityInfoReply']
+  },
+  'gamepb.uicproxypb.UicprotoxyService': {
+    BatchModerateText: ['BatchModerateTextRequest', 'BatchModerateTextReply']
+  },
+  'gamepb.guidepb.GuideService': {
+    SetWeakGuideNodeComplete: ['SetWeakGuideNodeCompleteRequest', 'SetWeakGuideNodeCompleteReply'],
+    ClaimWeakGuideReward: ['ClaimWeakGuideRewardRequest', 'ClaimWeakGuideRewardReply']
+  },
+  'gamepb.careerpb.CareerService': {
+    CareerInfoGet: ['CareerInfoGetRequest', 'CareerInfoGetReply']
+  },
   'gamepb.illustratedpb.IllustratedService': {
-    ClaimAllRewardsV2: ['ClaimAllRewardsV2Request', 'ClaimAllRewardsV2Reply']
+    GetIllustratedListV2: ['GetIllustratedListV2Request', 'GetIllustratedListV2Reply'],
+    ClaimAllRewardsV2: ['ClaimAllRewardsV2Request', 'ClaimAllRewardsV2Reply'],
+    ClearNewUnlockedFruitsV2: ['ClearNewUnlockedFruitsV2Request', 'ClearNewUnlockedFruitsV2Reply']
   }
 }
 
@@ -127,25 +179,10 @@ export class GameInvokeService implements OnModuleInit {
   private async loadFullProto(): Promise<void> {
     const protoDir = path.join(__dirname, '..', 'assets', 'proto')
     const root = new protobuf.Root()
-    const protoFiles = [
-      'game.proto',
-      'userpb.proto',
-      'plantpb.proto',
-      'corepb.proto',
-      'shoppb.proto',
-      'friendpb.proto',
-      'visitpb.proto',
-      'interactpb.proto',
-      'notifypb.proto',
-      'taskpb.proto',
-      'itempb.proto',
-      'emailpb.proto',
-      'mallpb.proto',
-      'redpacketpb.proto',
-      'qqvippb.proto',
-      'sharepb.proto',
-      'illustratedpb.proto'
-    ].map(f => path.join(protoDir, f))
+    const protoFiles = fs.readdirSync(protoDir)
+      .filter(name => name.endsWith('.proto'))
+      .sort((a, b) => a.localeCompare(b))
+      .map(name => path.join(protoDir, name))
 
     try {
       await root.load(protoFiles, { keepCase: true })

@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package gamepb.systemopenpb;
+
+message SystemUnlockItem {
+    int64 system_id = 1;  // 系统功能ID（对应“系统解锁”配置项）
+}
+
+message SystemUnlockNotify {
+    repeated SystemUnlockItem items = 1;  // 新解锁的系统功能列表
+}

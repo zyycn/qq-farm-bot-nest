@@ -6,5 +6,5 @@ import "corepb.proto";
 
 // ============ 物品变化通知 ============
 message ItemNotify {
-    repeated corepb.ItemChg items = 1;
+    repeated corepb.ItemChg items = 1;  // 物品变化列表（增减明细）
 }

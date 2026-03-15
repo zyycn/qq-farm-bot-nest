@@ -281,14 +281,14 @@ export class DailyRewardsWorker {
         return false
       }
 
-      const { data: report } = await this.client.invoke<any>('gamepb.sharepb.ShareService', 'ReportShare', { shared: true })
-      if (!(report as any)?.success) {
+      const { data: report } = await this.client.invoke<any>('gamepb.sharepb.ShareService', 'ReportShare', { share_channel: 1 })
+      if (!(report as any)?.result?.success) {
         this.warn('上报分享状态失败', 'daily_share')
         return false
       }
 
       const { data: rep } = await this.client.invoke<any>('gamepb.sharepb.ShareService', 'ClaimShareReward', { claimed: true })
-      if (!(rep as any)?.success) {
+      if (!(rep as any)?.state?.success) {
         this.warn('领取分享礼包失败', 'daily_share')
         return false
       }

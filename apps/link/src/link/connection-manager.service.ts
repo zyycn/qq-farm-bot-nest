@@ -84,8 +84,16 @@ export class ConnectionManagerService {
       this.emitEvent(client.accountId, 'notify', data)
     })
 
+    client.on('taskInfoNotify', (data: any) => {
+      this.emitEvent(client.accountId, 'taskInfoNotify', data)
+    })
+
     client.on('stateChanged', (userState: UserState) => {
       this.emitEvent(client.accountId, 'state_update', userState)
+    })
+
+    client.on('serverTime', (data: any) => {
+      this.emitEvent(client.accountId, 'server_time', data)
     })
 
     this.clients.set(accountId, client)

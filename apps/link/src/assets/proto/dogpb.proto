@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package gamepb.dogpb;
+
+// 获取宠物/看门狗信息与守护规则
+message GetDogInfoRequest {}
+
+message DogInfo {
+    int64 dog_id = 1;        // 狗/宠物ID
+    string dog_name = 2;     // 名称
+    int64 stat_value = 3;    // 属性值（战力/守护值等，语义以服务端为准）
+    int32 status = 4;        // 状态（是否启用/是否在岗等）
+    int64 bonus_percent = 5; // 加成比例（通常为百分比/万分比，按服务端约定）
+    int64 price = 8;         // 价格/购买成本（币种由业务约定）
+}
+
+message DogProtectRule {
+    int64 dog_id = 1;                 // 狗/宠物ID
+    int64 protect_duration_sec = 2;   // 守护时长（秒）
+    int64 required_count = 3;         // 触发所需数量/条件值（语义以服务端为准）
+}
+
+message GetDogInfoReply {
+    repeated DogInfo dogs = 1;                    // 宠物列表
+    bytes extra = 2;                              // 扩展信息（服务端透传）
+    int64 extra2 = 3;                             // 扩展数值（服务端透传）
+    int64 protect_duration_cap_sec = 4;           // 守护时长上限（秒）
+    repeated DogProtectRule protect_rules = 5;    // 守护规则列表
+}
+
+message GetProtectLogsRequest {
+    int32 offset = 1;  // 分页偏移
+    int32 count = 2;   // 拉取数量
+}
+
+// 守护日志返回（当前仓库未展开具体字段）
+message GetProtectLogsReply {}
