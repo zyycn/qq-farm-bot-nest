@@ -50,6 +50,7 @@ export class ProtoLoaderService implements OnModuleInit {
     // Notify (for session gains: gold/exp/coupon)
     types.BasicNotify = lookup('gamepb.userpb.BasicNotify')
     types.ItemNotify = lookup('gamepb.itempb.ItemNotify')
+    types.TaskInfoNotify = lookup('gamepb.taskpb.TaskInfoNotify')
 
     return types
   }

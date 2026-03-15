@@ -26,6 +26,8 @@ export class GameClient extends EventEmitter {
   private heartbeatMissCount = 0
   private lastBcrfTime = 0
   private bcrfWindowStart = 0
+  private sendMsgCount = 0
+  private sendMsgMethods: string[] = []
   private _connected = false
   private _destroyed = false
 
@@ -116,6 +118,8 @@ export class GameClient extends EventEmitter {
       return false
     }
     this.ws.send(encoded)
+    this.sendMsgCount++
+    this.sendMsgMethods.push(methodName)
 
     // 业务操作后触发 BCRF 去抖调度（排除心跳和 BCRF 自身）
     if (methodName !== 'Heartbeat' && methodName !== 'BatchClientReportFlow' && methodName !== 'Login') {
@@ -211,9 +215,12 @@ export class GameClient extends EventEmitter {
         const notify: any = t.KickoutNotify.decode(eventBody)
         const reason = notify.reason_message || '未知'
         this.emit('kickout', { type, reason })
+
+        console.warn(`[GameClient:${this.accountId}] KickoutNotify: ${JSON.stringify(notify)}`)
       } catch {
         this.emit('kickout', { type, reason: '未知' })
       }
+
       return
     }
 
@@ -247,6 +254,8 @@ export class GameClient extends EventEmitter {
           }
         }
         this.emit('stateChanged', { ...this.userState })
+
+        console.warn(`[GameClient:${this.accountId}] ItemNotify: ${JSON.stringify(notify)}`)
       } catch {}
     }
 
@@ -271,10 +280,21 @@ export class GameClient extends EventEmitter {
           }
           this.emit('stateChanged', { ...this.userState })
         }
+
+        console.warn(`[GameClient:${this.accountId}] BasicNotify: ${JSON.stringify(notify)}`)
       } catch {}
     }
 
-    // Forward all other notifications as raw data to the core process
+    if (type.includes('TaskInfoNotify')) {
+      try {
+        const notify: any = t.TaskInfoNotify.decode(eventBody)
+        this.emit('taskInfoNotify', notify?.task_info ?? notify)
+
+        console.warn(`[GameClient:${this.accountId}] TaskInfoNotify: ${JSON.stringify(notify)}`)
+      } catch {}
+    }
+
+    console.warn(`[GameClient:${this.accountId}] Notify: ${type} | ${Buffer.from(eventBody).toString('base64')}`)
     this.emit('notify', { type, body: Buffer.from(eventBody).toString('base64') })
   }
 
@@ -332,6 +352,8 @@ export class GameClient extends EventEmitter {
           this.userState.openId = reply.basic.open_id || ''
           if (reply.time_now_millis)
             syncServerTime(toNum(reply.time_now_millis))
+          if (reply.time_now_millis)
+            this.emit('serverTime', { ms: toNum(reply.time_now_millis) })
           this._connected = true
 
           this._reconnectAttempts = 0
@@ -397,10 +419,25 @@ export class GameClient extends EventEmitter {
 
   private startHeartbeat() {
     this.scheduler.clear('heartbeat_interval')
+    this.scheduler.clear('sendmsg_tick')
     this.lastHeartbeatResponse = Date.now()
     this.heartbeatMissCount = 0
     this.lastBcrfTime = Date.now()
     const t = this.protoTypes
+
+    this.scheduler.setIntervalTask('sendmsg_tick', 10000, () => {
+      const now = Date.now()
+      const hbAgo = Math.max(0, Math.floor((now - this.lastHeartbeatResponse) / 1000))
+      const bcrfAgo = Math.max(0, Math.floor((now - this.lastBcrfTime) / 1000))
+      const total = this.sendMsgCount
+      const freq: Record<string, number> = {}
+      for (const m of this.sendMsgMethods)
+        freq[m] = (freq[m] || 0) + 1
+      const detail = Object.entries(freq).map(([k, v]) => `${k}:${v}`).join(' ')
+      console.warn(`[GameClient:${this._accountId}] [tick] sendMsg total=${total} in 10s${detail ? ` | ${detail}` : ''} | hbAgo=${hbAgo}s bcrfAgo=${bcrfAgo}s`)
+      this.sendMsgCount = 0
+      this.sendMsgMethods = []
+    })
 
     // 登录后 3-8s 发送第一次 BCRF（模拟真实客户端 SetDisplayInfo 后立即上报）
     this.scheduler.setTimeoutTask('bcrf_first', 3000 + Math.floor(Math.random() * 5000), () => this.sendBcrf())
@@ -433,8 +470,11 @@ export class GameClient extends EventEmitter {
         this.heartbeatMissCount = 0
         try {
           const reply: any = t.HeartbeatReply.decode(replyBody)
-          if (reply.server_time)
-            syncServerTime(toNum(reply.server_time))
+          if (reply.server_time) {
+            const ms = toNum(reply.server_time)
+            syncServerTime(ms)
+            this.emit('serverTime', { ms })
+          }
         } catch {}
       })
 

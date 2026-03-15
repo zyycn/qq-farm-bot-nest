@@ -5,7 +5,7 @@ import type { IGameTransport } from './interfaces/game-transport.interface'
 import type { LinkClient } from './link-client'
 import type { GameLogEntry, LinkEventMap, LinkEventName, LinkUserState, StatusEventData } from './types'
 import { Logger } from '@nestjs/common'
-import { Scheduler } from '@qq-farm/shared'
+import { Scheduler, syncServerTime } from '@qq-farm/shared'
 import { AnalyticsWorker } from './services/analytics.worker'
 import { DailyRewardsWorker } from './services/daily-rewards.worker'
 import { FarmWorker } from './services/farm.worker'
@@ -60,14 +60,15 @@ export class AccountRunner {
   private nextFarmRunAt = 0
   private nextFriendRunAt = 0
   private lastDailyRunDate = ''
+  private lastPushLandsAndBagAt = 0
   private static readonly STATUS_FLUSH_DEBOUNCE_MS = 500
   private static readonly DAILY_CHECK_INTERVAL_MS = 30_000
   private appliedConfigRevision = 0
 
-  private farmIntervalMin = 2000
-  private farmIntervalMax = 2000
-  private friendIntervalMin = 10_000
-  private friendIntervalMax = 10_000
+  private farmIntervalMin = 60_000
+  private farmIntervalMax = 60_000
+  private friendIntervalMin = 60_000
+  private friendIntervalMax = 120_000
 
   private userState = { gid: 0, name: '', level: 0, gold: 0, exp: 0, coupon: 0, avatarUrl: '', openId: '', platform: 'qq' as string }
 
@@ -233,26 +234,16 @@ export class AccountRunner {
     this.farmTaskRunning = true
     try {
       const auto = this.store.getAutomation(this.accountId)
-      if (auto.farm)
-        await this.farm.checkFarm()
-      if (auto.task)
-        await this.task.checkAndClaimTasks()
-      if (auto.email)
-        await this.dailyRewards.checkAndClaimEmails()
-      if (auto.fertilizer_gift)
-        await this.warehouse.autoOpenFertilizerGiftPacks()
-      if (auto.fertilizer_buy) {
-        const cfg = this.store.getAccountConfig(this.accountId).fertilizerBuy
-        await this.dailyRewards.autoBuyFertilizer(cfg)
-      }
-      await this.warehouse.sellAllFruits()
+      const hadWork = auto.farm ? await this.farm.checkFarm() : false
+      if (hadWork)
+        await this.warehouse.sellAllFruits()
     } catch (e: any) {
       this.warn(`农场调度执行失败: ${e?.message}`, 'schedule_error')
     } finally {
       this.nextFarmRunAt = Date.now() + this.randomInterval(this.farmIntervalMin, this.farmIntervalMax)
       this.farmTaskRunning = false
       this.syncStatusAfterTick()
-      this.pushLandsAndBag().catch(() => {})
+      this.schedulePushLandsAndBag(600)
     }
   }
 
@@ -283,6 +274,14 @@ export class AccountRunner {
       if (bag != null)
         this.callbacks.onBagUpdate?.(this.accountId, bag)
     } catch {}
+  }
+
+  private schedulePushLandsAndBag(delayMs = 600) {
+    const now = Date.now()
+    if (now - this.lastPushLandsAndBagAt < 400)
+      return
+    this.lastPushLandsAndBagAt = now
+    this.scheduler.setTimeoutTask('push_lands_bag_debounce', Math.max(0, delayMs), () => this.pushLandsAndBag().catch(() => {}))
   }
 
   /** best-effort: 推送好友数据到前端，失败不影响主流程 */
@@ -349,6 +348,12 @@ export class AccountRunner {
     try {
       if (auto.email)
         await this.dailyRewards.checkAndClaimEmails(force)
+      if (auto.fertilizer_gift)
+        await this.warehouse.autoOpenFertilizerGiftPacks()
+      if (auto.fertilizer_buy) {
+        const cfg = this.store.getAccountConfig(this.accountId).fertilizerBuy
+        await this.dailyRewards.autoBuyFertilizer(cfg)
+      }
       if (auto.share_reward)
         await this.dailyRewards.performDailyShare(force)
       if (auto.month_card)
@@ -389,12 +394,20 @@ export class AccountRunner {
   // ========== Config ==========
 
   applyIntervals(intervals: IntervalsConfig) {
-    const farmMin = Math.max(1, intervals.farmMin || intervals.farm || 2)
-    const farmMax = Math.max(farmMin, intervals.farmMax || farmMin)
+    const legacyFarmDefault = Number(intervals.farm || 0) === 2
+      && Number(intervals.farmMin || 0) === 2
+      && Number(intervals.farmMax || 0) === 2
+    const legacyFriendDefault = Number(intervals.friend || 0) === 10
+      && Number(intervals.friendMin || 0) === 10
+      && Number(intervals.friendMax || 0) === 10
+
+    const farmMin = Math.max(1, legacyFarmDefault ? 60 : (intervals.farmMin || intervals.farm || 60))
+    const farmMax = Math.max(farmMin, legacyFarmDefault ? 60 : (intervals.farmMax || farmMin))
     this.farmIntervalMin = farmMin * 1000
     this.farmIntervalMax = farmMax * 1000
-    const friendMin = Math.max(1, intervals.friendMin || intervals.friend || 10)
-    const friendMax = Math.max(friendMin, intervals.friendMax || friendMin)
+    const friendMin = Math.max(1, legacyFriendDefault ? 60 : (intervals.friendMin || intervals.friend || 60))
+    const fallbackFriendMax = intervals.friend != null ? friendMin : 120
+    const friendMax = Math.max(friendMin, legacyFriendDefault ? 120 : (intervals.friendMax || fallbackFriendMax))
     this.friendIntervalMin = friendMin * 1000
     this.friendIntervalMax = friendMax * 1000
   }
@@ -478,9 +491,23 @@ export class AccountRunner {
       },
       notify: (data) => {
         const type = String(data?.type || '')
-        if (!type.startsWith('gamepb.illustratedpb.'))
-          return
-        this.scheduler.setTimeoutTask('almanac_notify_refresh', 300, () => this.pushAlmanac(true))
+        if (type.startsWith('gamepb.illustratedpb.'))
+          this.scheduler.setTimeoutTask('almanac_notify_refresh', 300, () => this.pushAlmanac(true))
+        if (type.includes('ItemNotify')) {
+          this.warehouse.invalidateBagCache()
+          this.schedulePushLandsAndBag(800)
+          const auto = this.store.getAutomation(this.accountId)
+          if (auto.farm)
+            this.scheduler.setTimeoutTask('sell_after_itemnotify', 1500, () => this.warehouse.sellAllFruits().catch(() => {}))
+        }
+      },
+      taskInfoNotify: (data) => {
+        this.transport.emit('taskInfoNotify', data)
+      },
+      server_time: (data) => {
+        const ms = Number((data as any)?.ms || 0)
+        if (ms > 0)
+          syncServerTime(ms)
       }
     }
   }
@@ -670,7 +697,7 @@ export class AccountRunner {
     if (items.length > 0) {
       const seedId = Number(items[0].id)
       const name = this.gameConfig.getPlantNameBySeedId(seedId) || `商品${goodsId}`
-      this.log(`手动购买 ${name} x${count}，花费 ${price * count} 金币`, 'buy_manual')
+      this.log(`手动购买 ${name} x${count}，花费 ${price * count} 金币`, 'seed_buy')
     }
     this.pushLandsAndBag().catch(() => {})
     return result

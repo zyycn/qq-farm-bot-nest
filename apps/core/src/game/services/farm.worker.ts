@@ -111,6 +111,11 @@ export class FarmWorker {
   private externalScheduler = false
   private lastPushTime = 0
   private scheduler: Scheduler
+  private landsCache: { data: any, ts: number } | null = null
+  private static readonly LANDS_CACHE_TTL = 30_000
+  private harvestAtSecByLandId = new Map<number, number>()
+  private pendingHarvestLandIds = new Set<number>()
+  private harvestTaskRunning = false
   onOperationLimitsUpdate: ((limits: any) => void) | null = null
   onLog: LogCallback | null = null
 
@@ -139,11 +144,41 @@ export class FarmWorker {
 
   // ========== API（通过 link invoke，由 link 负责 proto 编解码）==========
 
-  async getAllLands(): Promise<any> {
+  async getAllLands(forceRefresh = false): Promise<any> {
+    if (!forceRefresh && this.landsCache && Date.now() - this.landsCache.ts < FarmWorker.LANDS_CACHE_TTL)
+      return this.landsCache.data
     const { data: reply } = await this.client.invoke<any>('gamepb.plantpb.PlantService', 'AllLands', {})
     if (reply?.operation_limits && this.onOperationLimitsUpdate)
       this.onOperationLimitsUpdate(reply.operation_limits)
+    this.landsCache = { data: reply, ts: Date.now() }
+    this.applyLandUpdates(reply?.lands)
     return reply
+  }
+
+  private invalidateLandsCache() {
+    this.landsCache = null
+  }
+
+  private mergeLandsIntoCache(changedLands: any) {
+    const list = Array.isArray(changedLands) ? changedLands : []
+    if (!list.length)
+      return
+    const existing = this.landsCache?.data?.lands
+    if (!Array.isArray(existing) || !existing.length)
+      return
+    const byId = new Map<number, any>()
+    for (const land of existing) {
+      const id = toNum(land?.id)
+      if (id > 0)
+        byId.set(id, land)
+    }
+    for (const land of list) {
+      const id = toNum(land?.id)
+      if (id > 0)
+        byId.set(id, land)
+    }
+    this.landsCache!.data.lands = Array.from(byId.values())
+    this.landsCache!.ts = Date.now()
   }
 
   async harvest(landIds: any[]): Promise<any> {
@@ -152,6 +187,8 @@ export class FarmWorker {
       host_gid: this.client.userState.gid,
       is_all: true
     })
+    this.mergeLandsIntoCache(data?.land)
+    this.applyLandUpdates(data?.land)
     return data
   }
 
@@ -160,6 +197,8 @@ export class FarmWorker {
       land_ids: landIds,
       host_gid: hostGid
     })
+    this.mergeLandsIntoCache(data?.land)
+    this.applyLandUpdates(data?.land)
     return data
   }
 
@@ -168,18 +207,39 @@ export class FarmWorker {
   async insecticide(landIds: any[]) { return this.sendPlantRequest('Insecticide', landIds, this.client.userState.gid) }
 
   async fertilize(landIds: number[], fertilizerId = NORMAL_FERTILIZER_ID): Promise<number> {
-    let success = 0
-    for (const landId of landIds) {
+    const ids = landIds.map(toNum).filter(n => Number.isFinite(n) && n > 0)
+    if (!ids.length)
+      return 0
+
+    if (ids.length > 1) {
       try {
-        await this.client.invoke('gamepb.plantpb.PlantService', 'Fertilize', {
+        const { data } = await this.client.invoke<any>('gamepb.plantpb.PlantService', 'Fertilize', {
+          land_ids: ids,
+          fertilizer_id: fertilizerId
+        })
+        this.mergeLandsIntoCache(data?.land)
+        this.applyLandUpdates(data?.land)
+        return ids.length
+      } catch {}
+    }
+
+    let success = 0
+    let lastReply: any = null
+    for (const landId of ids) {
+      try {
+        const { data } = await this.client.invoke<any>('gamepb.plantpb.PlantService', 'Fertilize', {
           land_ids: [landId],
           fertilizer_id: fertilizerId
         })
         success++
+        lastReply = data
       } catch { break }
-      if (landIds.length > 1)
+      if (ids.length > 1)
         await sleep(50)
     }
+    if (success > 0)
+      this.mergeLandsIntoCache(lastReply?.land)
+    this.applyLandUpdates(lastReply?.land)
     return success
   }
 
@@ -189,32 +249,43 @@ export class FarmWorker {
       return 0
     let success = 0
     let idx = 0
+    let lastReply: any = null
     while (true) {
       try {
-        await this.client.invoke('gamepb.plantpb.PlantService', 'Fertilize', {
+        const { data } = await this.client.invoke<any>('gamepb.plantpb.PlantService', 'Fertilize', {
           land_ids: [ids[idx]],
           fertilizer_id: ORGANIC_FERTILIZER_ID
         })
         success++
+        lastReply = data
       } catch { break }
       idx = (idx + 1) % ids.length
       await sleep(100)
     }
+    if (success > 0)
+      this.mergeLandsIntoCache(lastReply?.land)
+    this.applyLandUpdates(lastReply?.land)
     return success
   }
 
   async removePlant(landIds: number[]): Promise<any> {
     const { data } = await this.client.invoke<any>('gamepb.plantpb.PlantService', 'RemovePlant', { land_ids: landIds })
+    this.mergeLandsIntoCache(data?.land)
+    this.applyLandUpdates(data?.land)
     return data
   }
 
   async upgradeLand(landId: number): Promise<any> {
     const { data } = await this.client.invoke<any>('gamepb.plantpb.PlantService', 'UpgradeLand', { land_id: landId })
+    this.mergeLandsIntoCache(data?.land ? [data.land] : null)
+    this.applyLandUpdates(data?.land ? [data.land] : null)
     return data
   }
 
   async unlockLand(landId: number, doShared = false): Promise<any> {
     const { data } = await this.client.invoke<any>('gamepb.plantpb.PlantService', 'UnlockLand', { land_id: landId, do_shared: doShared })
+    this.mergeLandsIntoCache(data?.land ? [data.land] : null)
+    this.applyLandUpdates(data?.land ? [data.land] : null)
     return data
   }
 
@@ -231,29 +302,154 @@ export class FarmWorker {
   async plantSeeds(seedId: number, landIds: number[], options?: { maxPlantCount?: number }): Promise<{ planted: number, plantedLandIds: number[], occupiedLandIds: number[] }> {
     const ids = (Array.isArray(landIds) ? landIds : []).map(id => toNum(id)).filter(Boolean)
     const maxCount = Math.max(0, toNum(options?.maxPlantCount) || Number.POSITIVE_INFINITY)
+    const toPlantIds = ids.slice(0, maxCount > 0 && Number.isFinite(maxCount) ? maxCount : ids.length)
+    if (!toPlantIds.length)
+      return { planted: 0, plantedLandIds: [], occupiedLandIds: [] }
+
     let success = 0
     const plantedLandIds: number[] = []
     const occupiedLandIds = new Set<number>()
-    for (const rawId of ids) {
+    const changed: any[] = []
+    for (const rawId of toPlantIds) {
       const landId = toNum(rawId)
       if (!landId)
         continue
-      if (success >= maxCount)
-        break
       try {
-        await this.client.invoke('gamepb.plantpb.PlantService', 'Plant', {
+        const { data } = await this.client.invoke<any>('gamepb.plantpb.PlantService', 'Plant', {
           items: [{ seed_id: seedId, land_ids: [landId] }]
         })
         success++
         plantedLandIds.push(landId)
         occupiedLandIds.add(landId)
+        if (data?.land?.length)
+          changed.push(...data.land)
       } catch (e: any) {
         this.warn(`土地#${landId} 种植失败: ${e?.message}`, 'plant_seed')
       }
-      if (ids.length > 1)
+      if (toPlantIds.length > 1)
         await sleep(50)
     }
+    if (success > 0)
+      this.mergeLandsIntoCache(changed)
+    this.applyLandUpdates(changed)
     return { planted: success, plantedLandIds, occupiedLandIds: [...occupiedLandIds] }
+  }
+
+  private applyLandUpdates(lands: any) {
+    const list = Array.isArray(lands) ? lands : []
+    if (!list.length)
+      return
+    for (const land of list)
+      this.refreshHarvestScheduleForLand(land)
+  }
+
+  private refreshHarvestScheduleForLand(land: any) {
+    const landId = toNum(land?.id)
+    if (landId <= 0)
+      return
+    const masterId = toNum(land?.master_land_id)
+    if (masterId > 0 && masterId !== landId)
+      return
+
+    const taskKey = `harvest_at_${landId}`
+    const autoFarm = this.store.isAutomationOn('farm', this.accountId)
+    if (!autoFarm) {
+      this.scheduler.clear(taskKey)
+      this.harvestAtSecByLandId.delete(landId)
+      return
+    }
+
+    const plant = land?.plant
+    const phases = Array.isArray(plant?.phases) ? plant.phases : []
+    if (!plant || !phases.length) {
+      this.scheduler.clear(taskKey)
+      this.harvestAtSecByLandId.delete(landId)
+      return
+    }
+
+    let matureAtSec = 0
+    for (const ph of phases) {
+      if (toNum(ph?.phase) !== PlantPhase.MATURE)
+        continue
+      const sec = toTimeSec(ph?.begin_time)
+      if (sec > 0 && (matureAtSec === 0 || sec < matureAtSec))
+        matureAtSec = sec
+    }
+    if (!matureAtSec) {
+      this.scheduler.clear(taskKey)
+      this.harvestAtSecByLandId.delete(landId)
+      return
+    }
+
+    const prev = this.harvestAtSecByLandId.get(landId)
+    if (prev === matureAtSec && this.scheduler.has(taskKey))
+      return
+    this.harvestAtSecByLandId.set(landId, matureAtSec)
+
+    const nowSec = getServerTimeSec()
+    const delayMs = Math.max(0, (matureAtSec - nowSec) * 1000) + 200
+    this.scheduler.setTimeoutTask(taskKey, delayMs, () => {
+      this.enqueueHarvest(landId)
+    })
+
+    const current = this.getCurrentPhase(phases)
+    if (toNum(current?.phase) === PlantPhase.MATURE && nowSec >= matureAtSec) {
+      this.enqueueHarvest(landId)
+    }
+  }
+
+  private enqueueHarvest(landId: number) {
+    if (this.harvestTaskRunning || !this.client.userState.gid)
+      return
+    if (!this.store.isAutomationOn('farm', this.accountId))
+      return
+    this.pendingHarvestLandIds.add(landId)
+    const delay = this.isChecking ? 1000 : 200
+    this.scheduler.setTimeoutTask('harvest_flush', delay, () => this.flushPendingHarvest())
+  }
+
+  private async flushPendingHarvest() {
+    if (this.harvestTaskRunning || !this.client.userState.gid)
+      return
+    if (!this.store.isAutomationOn('farm', this.accountId))
+      return
+    const ids = [...this.pendingHarvestLandIds].filter(n => n > 0)
+    if (!ids.length)
+      return
+    if (this.isChecking) {
+      this.scheduler.setTimeoutTask('harvest_flush', 600, () => this.flushPendingHarvest())
+      return
+    }
+    this.pendingHarvestLandIds.clear()
+    this.harvestTaskRunning = true
+    try {
+      this.log(`[收:${ids.length}] → 收获${ids.length}`, 'farm_cycle')
+      await this.harvest(ids)
+      this.stats.recordOperation('harvest', ids.length)
+      const harvested = [...ids]
+      this.scheduler.setTimeoutTask('harvest_followup_replant', 500, () => this.runPostHarvestReplant(harvested))
+    } catch {} finally {
+      this.harvestTaskRunning = false
+    }
+  }
+
+  private async runPostHarvestReplant(harvestedLandIds: number[]) {
+    if (!this.client.userState.gid || this.harvestTaskRunning || this.isChecking)
+      return
+    if (!this.store.isAutomationOn('farm', this.accountId))
+      return
+    try {
+      const ids = (Array.isArray(harvestedLandIds) ? harvestedLandIds : []).filter(n => n > 0)
+      if (ids.length > 0)
+        await this.autoPlantEmptyLands(ids, [])
+      const cfg = this.store.getAccountConfig(this.accountId)
+      if (cfg.fertilizerMultiSeason) {
+        const afterLands = await this.getAllLands(true)
+        const multiSeasonGrowing = this.getMultiSeasonGrowingLandIds(afterLands?.lands || [])
+        if (multiSeasonGrowing.length > 0)
+          await this.runFertilizerByConfig(multiSeasonGrowing, { reason: 'multi_season' })
+      }
+    } catch {}
   }
 
   // ========== Phase Analysis ==========
@@ -342,14 +538,15 @@ export class FarmWorker {
     let fertilizedOrganic = 0
 
     let candidateIds: number[] = plantedLands.filter(Boolean)
+    let latestLands: any[] = []
+    let idToLevel = new Map<number, number>()
     try {
       const latest = await this.getAllLands()
-      const lands = latest?.lands || []
-      const idToLevel = new Map<number, number>()
-      for (const land of lands)
+      latestLands = latest?.lands || []
+      for (const land of latestLands)
         idToLevel.set(toNum(land.id), toNum(land.level))
       if (candidateIds.length === 0)
-        candidateIds = lands.filter((l: any) => l?.unlocked && l?.plant?.phases?.length).map((l: any) => toNum(l.id))
+        candidateIds = latestLands.filter((l: any) => l?.unlocked && l?.plant?.phases?.length).map((l: any) => toNum(l.id))
       candidateIds = candidateIds.filter(id => allowedTypes.has(getLandTypeByLevel(idToLevel.get(id) ?? 0)))
     } catch {}
 
@@ -364,12 +561,13 @@ export class FarmWorker {
     if (fertilizerConfig === 'organic' || fertilizerConfig === 'both') {
       let organicTargets: number[] = []
       try {
-        const latest = await this.getAllLands()
-        const lands = latest?.lands || []
+        const lands = latestLands.length ? latestLands : (await this.getAllLands())?.lands || []
+        if (!latestLands.length) {
+          idToLevel = new Map<number, number>()
+          for (const land of lands)
+            idToLevel.set(toNum(land.id), toNum(land.level))
+        }
         organicTargets = this.getOrganicTargets(lands)
-        const idToLevel = new Map<number, number>()
-        for (const land of lands)
-          idToLevel.set(toNum(land.id), toNum(land.level))
         organicTargets = organicTargets.filter(id => allowedTypes.has(getLandTypeByLevel(idToLevel.get(id) ?? 0)))
       } catch {}
       fertilizedOrganic = await this.fertilizeOrganicLoop(organicTargets)
@@ -501,21 +699,30 @@ export class FarmWorker {
 
     const shouldAutoUpgrade = opType === 'all' && this.store.isAutomationOn('land_upgrade', this.accountId)
     if (shouldAutoUpgrade || opType === 'upgrade') {
+      let unlocked = 0
       for (const landId of status.unlockable) {
         try {
           await this.unlockLand(landId)
           actions.push(`解锁1`)
+          unlocked++
         } catch {}
         await sleep(200)
       }
+      if (unlocked > 0)
+        this.log(`自动解锁土地 x${unlocked}`, 'unlock_land')
+
+      let upgraded = 0
       for (const landId of status.upgradable) {
         try {
           await this.upgradeLand(landId)
           actions.push(`升级1`)
           this.stats.recordOperation('upgrade', 1)
+          upgraded++
         } catch {}
         await sleep(200)
       }
+      if (upgraded > 0)
+        this.log(`自动升级土地 x${upgraded}`, 'upgrade_land')
     }
 
     if (actions.length)
@@ -620,7 +827,7 @@ export class FarmWorker {
       const buyReply = await this.buyGoods(bestSeed.goodsId, needCount, bestSeed.price)
       const seedName = this.gameConfig.getPlantNameBySeedId(bestSeed.seedId)
       const totalCost = bestSeed.price * needCount
-      this.log(`购买 ${seedName} x${needCount}，花费 ${totalCost} 金币`, 'buy_seed')
+      this.log(`购买 ${seedName} x${needCount}，花费 ${totalCost} 金币`, 'seed_buy')
 
       if (buyReply.get_items?.[0])
         actualSeedId = toNum(buyReply.get_items[0].id) || actualSeedId

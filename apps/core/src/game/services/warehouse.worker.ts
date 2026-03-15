@@ -18,6 +18,8 @@ export class WarehouseWorker {
   private logger: Logger
   private fertilizerGiftDoneDateKey = ''
   private fertilizerGiftLastOpenAt = 0
+  private bagCache: { data: any, ts: number } | null = null
+  private static readonly BAG_CACHE_TTL = 30_000
   onLog: ((entry: { msg: string, tag?: string, meta?: Record<string, string>, isWarn?: boolean }) => void) | null = null
 
   constructor(
@@ -42,9 +44,17 @@ export class WarehouseWorker {
 
   // ========== API ==========
 
-  async getBag(): Promise<any> {
+  async getBag(forceRefresh = false): Promise<any> {
+    if (!forceRefresh && this.bagCache && Date.now() - this.bagCache.ts < WarehouseWorker.BAG_CACHE_TTL)
+      return this.bagCache.data
     const { data } = await this.client.invoke('gamepb.itempb.ItemService', 'Bag', {})
-    return data ?? {}
+    const next = data ?? {}
+    this.bagCache = { data: next, ts: Date.now() }
+    return next
+  }
+
+  invalidateBagCache() {
+    this.bagCache = null
   }
 
   getBagItems(bagReply: any): any[] {
@@ -62,6 +72,7 @@ export class WarehouseWorker {
       return p
     })
     const { data } = await this.client.invoke('gamepb.itempb.ItemService', 'Sell', { items: payload })
+    this.invalidateBagCache()
     return data ?? {}
   }
 
@@ -104,12 +115,14 @@ export class WarehouseWorker {
       const { data } = await this.client.invoke('gamepb.itempb.ItemService', 'Use', {
         param: { item_id: itemId, count, land_ids: landIds }
       })
+      this.invalidateBagCache()
       return data ?? {}
     } catch (e: any) {
       const msg = String(e?.message || '')
       if (!msg.includes('code=1000020') && !msg.includes('请求参数错误'))
         throw e
       const { data } = await this.client.invoke('gamepb.itempb.ItemService', 'Use', { param: { item_id: itemId, count } })
+      this.invalidateBagCache()
       return data ?? {}
     }
   }
@@ -117,6 +130,7 @@ export class WarehouseWorker {
   async batchUseItems(items: { itemId: number, count: number, uid?: number }[]): Promise<any> {
     const payload = items.map(it => ({ id: it.itemId, count: it.count || 1, uid: it.uid || 0 }))
     const { data } = await this.client.invoke('gamepb.itempb.ItemService', 'BatchUse', { items: payload })
+    this.invalidateBagCache()
     return data ?? {}
   }
 

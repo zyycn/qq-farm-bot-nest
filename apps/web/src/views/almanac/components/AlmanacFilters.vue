@@ -21,26 +21,26 @@ function buttonClass(active: boolean): string {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3 border-b border-b-solid pb-4 a-border-b-border-sec">
+  <div class="pb-4 border-b border-b-solid flex flex-col gap-3 a-border-b-border-sec">
     <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
       <div class="flex flex-wrap gap-2">
         <button
           v-for="option in CATEGORY_OPTIONS"
           :key="option.key"
           type="button"
-          class="flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-200"
+          class="font-medium px-3 py-2 flex gap-2 cursor-pointer transition-colors duration-200 items-center text-sm rounded-xl"
           :class="buttonClass(category === option.key)"
           @click="category = option.key"
         >
           <span :class="option.icon" class="shrink-0 text-sm" />
           <span>{{ option.label }}</span>
-          <span class="text-xs a-color-text-tertiary">{{ categoryCounts[option.key] ?? 0 }}</span>
+          <span class="a-color-text-tertiary text-xs">{{ categoryCounts[option.key] ?? 0 }}</span>
         </button>
       </div>
 
       <a-input v-model:value="searchQuery" placeholder="搜索作物、来源标签..." allow-clear class="w-full lg:w-72">
         <template #prefix>
-          <span class="i-streamline-emojis-magnifying-glass-tilted-left text-sm a-color-text-tertiary" />
+          <span class="i-streamline-emojis-magnifying-glass-tilted-left a-color-text-tertiary text-sm" />
         </template>
       </a-input>
     </div>
@@ -51,17 +51,17 @@ function buttonClass(active: boolean): string {
           v-for="option in STATUS_OPTIONS"
           :key="option.key"
           type="button"
-          class="flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-200"
+          class="font-medium px-3 py-2 flex gap-2 cursor-pointer transition-colors duration-200 items-center text-sm rounded-xl"
           :class="buttonClass(status === option.key)"
           @click="status = option.key"
         >
           <span :class="option.icon" class="shrink-0 text-sm" />
           <span>{{ option.label }}</span>
-          <span class="text-xs a-color-text-tertiary">{{ statusCounts[option.key] ?? 0 }}</span>
+          <span class="a-color-text-tertiary text-xs">{{ statusCounts[option.key] ?? 0 }}</span>
         </button>
       </div>
 
-      <div class="text-sm a-color-text-tertiary">
+      <div class="a-color-text-tertiary text-sm">
         当前显示 {{ filteredCount }} / {{ totalCount }} 项
       </div>
     </div>

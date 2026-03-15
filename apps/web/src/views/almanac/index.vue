@@ -1,15 +1,15 @@
 <script setup lang="ts">
+import type { AlmanacCategoryFilter, AlmanacStatusFilter } from './constants'
+import type { AlmanacItem, AlmanacOverview, AlmanacSummary } from '@/api/modules/almanac'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { almanacApi } from '@/api'
-import type { AlmanacItem, AlmanacOverview, AlmanacSummary } from '@/api/modules/almanac'
 import EmptyState from '@/components/EmptyState.vue'
 import { useAccountRefresh } from '@/composables/useAccountRefresh'
 import { useImageFallback } from '@/composables/useImageFallback'
 import { useWs } from '@/composables/useWs'
 import { useAccountStore } from '@/stores'
 import message from '@/utils/message'
-import type { AlmanacCategoryFilter, AlmanacStatusFilter } from './constants'
 import AlmanacDetailModal from './components/AlmanacDetailModal.vue'
 import AlmanacFilters from './components/AlmanacFilters.vue'
 import AlmanacItemCard from './components/AlmanacItemCard.vue'
@@ -200,8 +200,8 @@ useWs()
 </script>
 
 <template>
-  <div class="flex h-full flex-col gap-3">
-    <div class="flex items-center gap-2 font-bold a-color-text">
+  <div class="flex flex-col gap-3 h-full">
+    <div class="font-bold flex gap-2 items-center a-color-text">
       <div class="i-streamline-emojis-open-book text-lg" />
       <span class="text-lg">我的图鉴</span>
     </div>
@@ -224,7 +224,7 @@ useWs()
         class="flex-1 overflow-hidden"
         :classes="{ body: '!p-0 !h-full !flex !flex-col' }"
       >
-        <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4">
+        <div class="p-4 flex flex-1 flex-col gap-4 min-h-0 overflow-hidden">
           <AlmanacFilters
             v-model:category="categoryFilter"
             v-model:status="statusFilter"
@@ -235,7 +235,7 @@ useWs()
             :status-counts="statusCounts"
           />
 
-          <div class="min-h-0 flex-1 overflow-y-auto">
+          <div class="flex-1 min-h-0 overflow-y-auto">
             <div v-if="loading && !items.length" class="flex h-full items-center justify-center">
               <a-spin />
             </div>
@@ -245,7 +245,7 @@ useWs()
             <div v-else-if="!filteredItems.length" class="flex h-full items-center justify-center">
               <EmptyState icon="i-streamline-emojis-magnifying-glass-tilted-left text-3xl" description="没有符合当前筛选条件的图鉴条目" />
             </div>
-            <div v-else class="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-3">
+            <div v-else class="gap-3 grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))]">
               <AlmanacItemCard
                 v-for="item in filteredItems"
                 :key="getItemKey(item)"
