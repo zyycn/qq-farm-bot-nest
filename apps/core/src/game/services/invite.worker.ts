@@ -66,8 +66,8 @@ export class InviteWorker {
     const { data } = await this.client.invoke('gamepb.userpb.UserService', 'ReportArkClick', {
       sharer_id: Number(sharerId),
       sharer_open_id: sharerOpenId,
-      share_cfg_id: Number(shareSource) || 0,
-      scene_id: '1256'
+      share_cfg_id: String(shareSource || '0'),
+      scene_id: 1256
     })
     return data
   }

@@ -13,31 +13,29 @@ const emit = defineEmits<{
   claim: []
 }>()
 
-const rewardPreview = computed(() => props.summary.rewardBoxPreview ?? props.summary.rewardHint)
+const rewardPreview = computed(() => props.summary.rewardBoxPreview)
 
 const rewardHintText = computed(() => {
   if (!rewardPreview.value)
-    return 'No reward preview returned yet.'
-  return `Preview: ${rewardPreview.value.name} x${rewardPreview.value.count}`
+    return '暂无奖励预览'
+  return `${rewardPreview.value.name} x${rewardPreview.value.count}`
 })
 
 const rewardStatusText = computed(() => {
   if (props.summary.rewardBoxClaimableRaw)
-    return 'field8 matched: chest is claimable right now and the red dot should be visible.'
+    return '图鉴宝箱可领取，点击右侧按钮领取奖励'
   if (props.summary.rewardBoxVisible)
-    return 'field9 is still visible: this is a visible-only chest state, not claimable yet.'
-  return 'No live chest red dot. reward_flag is kept as a diagnostic field only.'
+    return '图鉴宝箱展示中，经验达标后可领取'
+  return '继续点亮图鉴以解锁宝箱奖励'
 })
 
 const rewardBoxStateText = computed(() => {
   if (props.summary.rewardBoxClaimableRaw)
-    return 'claimable'
+    return '可领取'
   if (props.summary.rewardBoxVisible)
-    return 'visible only'
-  return 'inactive'
+    return '未达成'
+  return '暂无'
 })
-
-const rewardProtocolText = computed(() => `field8=${props.summary.rewardBoxClaimableRaw ? 1 : 0} / field9=${props.summary.rewardBoxVisible ? 1 : 0} / reward_flag=${props.summary.rewardFlag}`)
 
 const claimDisabled = computed(() => props.loading || props.claiming || !props.summary.rewardBoxClaimable)
 const progressCurrent = computed(() => Math.max(0, props.summary.exp))
@@ -103,7 +101,7 @@ const progressNeeded = computed(() => Math.max(progressCurrent.value, props.summ
               </div>
               <div class="px-3 py-2 a-bg-layout rounded-2xl">
                 <div class="a-color-text-tertiary text-xs">
-                  新宝标记
+                  新解锁
                 </div>
                 <div class="font-semibold mt-1 a-color-text">
                   {{ summary.newCount }}
@@ -129,7 +127,7 @@ const progressNeeded = computed(() => Math.max(progressCurrent.value, props.summ
                   宝箱概览
                 </div>
                 <div class="mt-1 a-color-text-tertiary text-xs">
-                  field4 是奖励预览，field8 / field9 是 live 协议状态位
+                  当前等级宝箱奖励预览
                 </div>
               </div>
               <div class="flex h-12 w-12 items-center justify-center relative from-[#ffe9a8] to-[#ffc973] bg-gradient-to-br text-xl rounded-2xl shadow-sm">
@@ -143,13 +141,10 @@ const progressNeeded = computed(() => Math.max(progressCurrent.value, props.summ
 
             <div class="mt-4 p-3 a-bg-layout rounded-2xl">
               <div class="a-color-text-tertiary text-xs">
-                宝箱提示
+                宝箱奖励
               </div>
               <div class="leading-6 font-medium mt-2 a-color-text">
                 {{ rewardHintText }}
-              </div>
-              <div class="mt-2 a-color-text-tertiary text-xs">
-                {{ rewardProtocolText }}
               </div>
             </div>
 

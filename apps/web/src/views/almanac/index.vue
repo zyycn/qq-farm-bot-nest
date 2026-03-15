@@ -27,7 +27,6 @@ const DEFAULT_SUMMARY: AlmanacSummary = {
   rewardBoxClaimable: false,
   rewardBoxClaimableRaw: false,
   rewardBoxPreview: null,
-  rewardHint: null,
   litCount: 0,
   newCount: 0,
   totalCount: 0,

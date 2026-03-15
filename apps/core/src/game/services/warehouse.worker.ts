@@ -102,16 +102,14 @@ export class WarehouseWorker {
   async useItem(itemId: number, count = 1, landIds: number[] = []): Promise<any> {
     try {
       const { data } = await this.client.invoke('gamepb.itempb.ItemService', 'Use', {
-        item_id: itemId,
-        count,
-        land_ids: landIds
+        param: { item_id: itemId, count, land_ids: landIds }
       })
       return data ?? {}
     } catch (e: any) {
       const msg = String(e?.message || '')
       if (!msg.includes('code=1000020') && !msg.includes('请求参数错误'))
         throw e
-      const { data } = await this.client.invoke('gamepb.itempb.ItemService', 'Use', { item_id: itemId, count })
+      const { data } = await this.client.invoke('gamepb.itempb.ItemService', 'Use', { param: { item_id: itemId, count } })
       return data ?? {}
     }
   }

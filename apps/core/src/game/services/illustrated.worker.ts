@@ -59,7 +59,6 @@ export interface AlmanacSummary {
   rewardBoxClaimable: boolean
   rewardBoxClaimableRaw: boolean
   rewardBoxPreview: NormalizedRewardItem | null
-  rewardHint: NormalizedRewardItem | null
   litCount: number
   newCount: number
   totalCount: number
@@ -185,7 +184,6 @@ export class IllustratedWorker {
         rewardBoxClaimable,
         rewardBoxClaimableRaw,
         rewardBoxPreview,
-        rewardHint: rewardBoxPreview,
         litCount,
         newCount,
         totalCount: normalizedItems.length,

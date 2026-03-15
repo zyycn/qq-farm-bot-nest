@@ -21,7 +21,6 @@ export interface AlmanacSummary {
   rewardBoxClaimable: boolean
   rewardBoxClaimableRaw: boolean
   rewardBoxPreview: AlmanacRewardItem | null
-  rewardHint: AlmanacRewardItem | null
   litCount: number
   newCount: number
   totalCount: number
