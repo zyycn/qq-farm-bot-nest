@@ -23,7 +23,8 @@ export default antfu(
       'e18e/ban-dependencies': ['error', {
         allowed: ['axios']
       }],
-      'e18e/prefer-spread-syntax': 'off'
+      'e18e/prefer-spread-syntax': 'off',
+      'e18e/prefer-array-to-sorted': 'off'
     }
   }
 )

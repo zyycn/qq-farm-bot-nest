@@ -114,11 +114,11 @@ export interface IntervalsConfig {
 
 export const DEFAULT_INTERVALS: IntervalsConfig = {
   farm: 60,
-  friend: 60,
+  friend: 10,
   farmMin: 60,
   farmMax: 60,
-  friendMin: 60,
-  friendMax: 120
+  friendMin: 10,
+  friendMax: 10
 }
 
 export interface FriendQuietHoursConfig {

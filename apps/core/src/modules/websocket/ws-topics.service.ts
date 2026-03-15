@@ -86,11 +86,13 @@ export class WsTopicsService {
           if (!this.manager.getRunner(accountId))
             return undefined
           const s = this.manager.getStatus(accountId)
-          if (!s)
+          if (!s?.nextChecks)
             return undefined
+          const nowMs = Date.now()
+          const { nextFarmRunAt, nextFriendRunAt } = s.nextChecks
           return {
-            nextFarmRunAt: s.nextChecks?.nextFarmRunAt,
-            nextFriendRunAt: s.nextChecks?.nextFriendRunAt,
+            farmRemainSec: Math.max(0, Math.ceil(((nextFarmRunAt ?? 0) - nowMs) / 1000)),
+            friendRemainSec: Math.max(0, Math.ceil(((nextFriendRunAt ?? 0) - nowMs) / 1000)),
             configRevision: s.configRevision
           }
         }

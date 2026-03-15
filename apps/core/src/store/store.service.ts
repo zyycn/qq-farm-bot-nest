@@ -5,7 +5,7 @@ import { CLIENT_VERSION, DEFAULT_OS, DEFAULT_REMOTE_LOGIN_KEY, GAME_SERVER_URL }
 import { and, eq } from 'drizzle-orm'
 import { DRIZZLE_TOKEN } from '../database/drizzle.provider'
 import * as schema from '../database/schema'
-import { ALL_FERTILIZER_LAND_TYPES, ALLOWED_AUTOMATION_KEYS, ALLOWED_FERTILIZER_MODES, ALLOWED_PLANTING_STRATEGIES, DEFAULT_ACCOUNT_CONFIG, DEFAULT_AUTOMATION, DEFAULT_FRIEND_QUIET_HOURS, DEFAULT_OFFLINE_REMINDER, DEFAULT_RUNTIME_CLIENT, PUSHOO_CHANNELS } from '../game/constants'
+import { ALL_FERTILIZER_LAND_TYPES, ALLOWED_AUTOMATION_KEYS, ALLOWED_FERTILIZER_MODES, ALLOWED_PLANTING_STRATEGIES, DEFAULT_ACCOUNT_CONFIG, DEFAULT_AUTOMATION, DEFAULT_FRIEND_QUIET_HOURS, DEFAULT_INTERVALS, DEFAULT_OFFLINE_REMINDER, DEFAULT_RUNTIME_CLIENT, PUSHOO_CHANNELS } from '../game/constants'
 import { normalizeTimeString } from '../game/utils'
 
 const ALLOWED_LAND_TYPES_SET = new Set(ALL_FERTILIZER_LAND_TYPES)
@@ -187,8 +187,8 @@ export class StoreService {
   normalizeIntervals(intervals?: Partial<IntervalsConfig>): IntervalsConfig {
     const src = (intervals && typeof intervals === 'object') ? intervals : {} as Partial<IntervalsConfig>
     const toSec = (v: any, d: number) => Math.max(1, Number.parseInt(String(v), 10) || d)
-    const farm = toSec(src.farm, 2)
-    const friend = toSec(src.friend, 10)
+    const farm = toSec(src.farm, DEFAULT_INTERVALS.farm)
+    const friend = toSec(src.friend, DEFAULT_INTERVALS.friend)
     let farmMin = toSec(src.farmMin, farm)
     let farmMax = toSec(src.farmMax, farm)
     if (farmMin > farmMax)

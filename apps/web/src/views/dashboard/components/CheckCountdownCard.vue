@@ -9,7 +9,7 @@ defineProps<{
   <a-card variant="borderless" :classes="{ body: '!p-4' }">
     <div class="mb-3 flex gap-2 items-center a-color-text">
       <div class="i-twemoji-alarm-clock" />
-      巡查倒计时
+      <span>主动巡查</span>
     </div>
     <div class="flex flex-col gap-2.5">
       <div class="px-3 py-2.5 flex items-center justify-between a-bg-layout rounded-lg">

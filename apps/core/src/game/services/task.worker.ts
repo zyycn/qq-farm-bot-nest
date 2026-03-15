@@ -2,7 +2,6 @@ import type { StoreService } from '../../store/store.service'
 import type { GameConfigService } from '../game-config.service'
 import type { IGameTransport } from '../interfaces/game-transport.interface'
 import type { StatsTracker } from './stats.worker'
-import type { WarehouseWorker } from './warehouse.worker'
 import { Logger } from '@nestjs/common'
 import { Scheduler } from '@qq-farm/shared'
 import { getRewardSummary, getServerDateKey, sleep, toNum } from '../utils'
@@ -21,7 +20,7 @@ export class TaskWorker {
     private gameConfig: GameConfigService,
     private store: StoreService,
     private stats: StatsTracker,
-    private warehouse: WarehouseWorker
+    private getBagItems: () => any[] | Promise<any[]>
   ) {
     this.logger = new Logger(`Task:${accountId}`)
     this.scheduler = new Scheduler(`task-${accountId}`, this.logger)
@@ -174,8 +173,7 @@ export class TaskWorker {
 
   private async getTicketBalance(): Promise<number> {
     try {
-      const rep = await this.warehouse.getBag()
-      const items = this.warehouse.getBagItems(rep)
+      const items = await this.getBagItems()
       for (const it of (items || [])) {
         if (toNum(it?.id) === 1002)
           return Math.max(0, toNum(it?.count))

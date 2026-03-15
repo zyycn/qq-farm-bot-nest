@@ -21,10 +21,10 @@ export const DEFAULT_OFFLINE_REMINDER = {
 }
 
 export const DEFAULT_INTERVALS = {
-  farm: 2,
+  farm: 60,
   friend: 10,
-  farmMin: 2,
-  farmMax: 2,
+  farmMin: 60,
+  farmMax: 60,
   friendMin: 10,
   friendMax: 10
 }

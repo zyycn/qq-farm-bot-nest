@@ -130,7 +130,7 @@ export interface LinkEventMap {
   ws_error: { code: number, message: string }
   reconnecting: { attempt: number, maxAttempts: number }
   login_failed: { error: string }
-  notify: { type: string, body: string }
+  notify: { type: string, body: string, kind?: string, decoded?: any }
   taskInfoNotify: any
   server_time: { ms: number }
 }

@@ -20,7 +20,8 @@ export default antfu(
       'style/comma-dangle': ['error', 'never'],
       'style/brace-style': ['error', '1tbs', { allowSingleLine: true }],
 
-      'e18e/prefer-spread-syntax': 'off'
+      'e18e/prefer-spread-syntax': 'off',
+      'e18e/prefer-array-to-sorted': 'off'
     }
   }
 )
