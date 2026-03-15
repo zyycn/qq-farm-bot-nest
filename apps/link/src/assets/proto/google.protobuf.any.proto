@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package google.protobuf;
+
+// Any：通用“携带任意类型”的封装结构。
+// 这里只提供最小定义，满足 protobufjs 在本仓库 proto 加载时解析 google.protobuf.Any。
+message Any {
+  string type_url = 1;  // 类型 URL（例如 type.googleapis.com/pkg.Message）
+  bytes value = 2;      // 对应消息的序列化二进制
+}

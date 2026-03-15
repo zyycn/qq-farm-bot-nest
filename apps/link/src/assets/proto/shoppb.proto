@@ -43,16 +43,16 @@ message Cond {
 message ShopProfilesRequest {}
 
 message ShopProfilesReply {
-    repeated ShopProfile shop_profiles = 1;
+    repeated ShopProfile shop_profiles = 1;  // 商店列表
 }
 
 // --- 获取商店商品 ---
 message ShopInfoRequest {
-    int64 shop_id = 1;
+    int64 shop_id = 1;  // 商店ID
 }
 
 message ShopInfoReply {
-    repeated GoodsInfo goods_list = 1;
+    repeated GoodsInfo goods_list = 1;  // 商品列表
 }
 
 // --- 购买商品 ---
@@ -70,5 +70,5 @@ message BuyGoodsReply {
 
 // --- 商品解锁推送 ---
 message GoodsUnlockNotify {
-    repeated GoodsInfo goods_list = 1;
+    repeated GoodsInfo goods_list = 1;  // 新解锁/更新的商品列表
 }

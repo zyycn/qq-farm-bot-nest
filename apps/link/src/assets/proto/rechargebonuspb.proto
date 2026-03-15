@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package gamepb.rechargebonuspb;
 
+// 获取充值奖励/首充等配置（当前仓库未展开具体字段）
 message GetConfigRequest {}
 
+// 配置返回（当前仓库未展开具体字段）
 message GetConfigReply {}

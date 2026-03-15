@@ -24,9 +24,10 @@ export class GameClient extends EventEmitter {
   private platform = 'qq'
   private lastHeartbeatResponse = Date.now()
   private heartbeatMissCount = 0
+  private lastBcrfTime = 0
   private _connected = false
   private _destroyed = false
-  private _reconnecting = false
+
   private _reconnectAttempts = 0
   private _loginFailed = false
   private static readonly MAX_RECONNECT_ATTEMPTS = 3
@@ -114,6 +115,12 @@ export class GameClient extends EventEmitter {
       return false
     }
     this.ws.send(encoded)
+
+    // 业务操作后触发 BCRF 去抖调度（排除心跳和 BCRF 自身）
+    if (methodName !== 'Heartbeat' && methodName !== 'BatchClientReportFlow' && methodName !== 'Login') {
+      this.scheduleBcrf()
+    }
+
     return true
   }
 
@@ -325,7 +332,7 @@ export class GameClient extends EventEmitter {
           if (reply.time_now_millis)
             syncServerTime(toNum(reply.time_now_millis))
           this._connected = true
-          this._reconnecting = false
+
           this._reconnectAttempts = 0
           this._loginFailed = false
           this.startHeartbeat()
@@ -341,11 +348,42 @@ export class GameClient extends EventEmitter {
     })
   }
 
+  /**
+   * 发送 BatchClientReportFlow（活跃信号）。
+   * 真实客户端在业务操作后 3-10s 触发，连续操作去抖，空闲时 40-120s 兜底。
+   */
+  private sendBcrf() {
+    const t = this.protoTypes
+    if (!t.BatchClientReportFlowRequest || !this._connected)
+      return
+    const bcrfBody = Buffer.from(
+      t.BatchClientReportFlowRequest.encode(
+        t.BatchClientReportFlowRequest.create({})
+      ).finish()
+    )
+    this.sendMsg('gamepb.userpb.UserService', 'BatchClientReportFlow', bcrfBody)
+    this.lastBcrfTime = Date.now()
+  }
+
+  /**
+   * 在业务操作后延迟发送 BCRF（去抖：连续操作只触发一次）。
+   * 模拟真实客户端在 UI 交互后 3-10s 上报行为流。
+   */
+  private scheduleBcrf() {
+    this.scheduler.clear('bcrf_debounce')
+    const delay = 3000 + Math.floor(Math.random() * 7000) // 3-10s 随机延迟
+    this.scheduler.setTimeoutTask('bcrf_debounce', delay, () => this.sendBcrf())
+  }
+
   private startHeartbeat() {
     this.scheduler.clear('heartbeat_interval')
     this.lastHeartbeatResponse = Date.now()
     this.heartbeatMissCount = 0
+    this.lastBcrfTime = Date.now()
     const t = this.protoTypes
+
+    // 登录后 3-8s 发送第一次 BCRF（模拟真实客户端 SetDisplayInfo 后立即上报）
+    this.scheduler.setTimeoutTask('bcrf_first', 3000 + Math.floor(Math.random() * 5000), () => this.sendBcrf())
 
     this.scheduler.setIntervalTask('heartbeat_interval', HEARTBEAT_INTERVAL_MS, () => {
       if (!this.userState.gid)
@@ -379,6 +417,14 @@ export class GameClient extends EventEmitter {
             syncServerTime(toNum(reply.server_time))
         } catch {}
       })
+
+      // 空闲兜底：如果距离上次 BCRF 超过 40-120s，在心跳中补发一次
+      // 真实客户端空闲时 BCRF 间隔 40-260s，这里取保守值
+      const bcrfElapsed = Date.now() - this.lastBcrfTime
+      const bcrfIdleThreshold = 40000 + Math.floor(Math.random() * 80000) // 40-120s
+      if (bcrfElapsed > bcrfIdleThreshold) {
+        this.sendBcrf()
+      }
     })
   }
 
@@ -419,7 +465,6 @@ export class GameClient extends EventEmitter {
           && this._reconnectAttempts < GameClient.MAX_RECONNECT_ATTEMPTS
 
         if (shouldReconnect) {
-          this._reconnecting = true
           this._reconnectAttempts++
           this.emit('reconnecting', {
             attempt: this._reconnectAttempts,
@@ -429,7 +474,6 @@ export class GameClient extends EventEmitter {
             this.reconnect().catch(() => {})
           })
         } else {
-          this._reconnecting = false
           this._loginFailed = false
           this.emit('close', closeCode)
         }

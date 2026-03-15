@@ -23,25 +23,21 @@ const rewardHintText = computed(() => {
 
 const rewardStatusText = computed(() => {
   if (props.summary.rewardBoxClaimableRaw)
-    return 'field8 matched: chest is claimable right now.'
-  if (props.summary.rewardBoxClaimable)
-    return 'reward_flag matched: almanac chest red dot is active.'
+    return 'field8 matched: chest is claimable right now and the red dot should be visible.'
   if (props.summary.rewardBoxVisible)
-    return 'field9 is still visible: this looks like a visible-only chest state.'
-  return 'Lighting entries adds almanac exp. Level-up samples trigger the chest red dot.'
+    return 'field9 is still visible: this is a visible-only chest state, not claimable yet.'
+  return 'No live chest red dot. reward_flag is kept as a diagnostic field only.'
 })
 
 const rewardBoxStateText = computed(() => {
   if (props.summary.rewardBoxClaimableRaw)
-    return 'raw claimable'
-  if (props.summary.rewardBoxClaimable)
-    return 'red-dot claimable'
+    return 'claimable'
   if (props.summary.rewardBoxVisible)
     return 'visible only'
   return 'inactive'
 })
 
-const rewardProtocolText = computed(() => `field8=${props.summary.rewardBoxClaimableRaw ? 1 : 0} / field9=${props.summary.rewardBoxVisible ? 1 : 0}`)
+const rewardProtocolText = computed(() => `field8=${props.summary.rewardBoxClaimableRaw ? 1 : 0} / field9=${props.summary.rewardBoxVisible ? 1 : 0} / reward_flag=${props.summary.rewardFlag}`)
 
 const claimDisabled = computed(() => props.loading || props.claiming || !props.summary.rewardBoxClaimable)
 const progressCurrent = computed(() => Math.max(0, props.summary.exp))
@@ -136,11 +132,11 @@ const progressNeeded = computed(() => Math.max(progressCurrent.value, props.summ
                   field4 是奖励预览，field8 / field9 是 live 协议状态位
                 </div>
               </div>
-              <div class="relative flex h-12 w-12 items-center justify-center from-[#ffe9a8] to-[#ffc973] bg-gradient-to-br text-xl rounded-2xl shadow-sm">
+              <div class="flex h-12 w-12 items-center justify-center relative from-[#ffe9a8] to-[#ffc973] bg-gradient-to-br text-xl rounded-2xl shadow-sm">
                 <span class="i-streamline-emojis-sparkles" />
                 <span
                   v-if="summary.rewardBoxRedDot"
-                  class="absolute right-0.5 top-0.5 h-2.5 w-2.5 rounded-full bg-[#ff5a5f] ring-2 ring-white/90"
+                  class="rounded-full bg-[#ff5a5f] h-2.5 w-2.5 ring-2 ring-white/90 right-0.5 top-0.5 absolute"
                 />
               </div>
             </div>

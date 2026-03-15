@@ -2,36 +2,39 @@ syntax = "proto3";
 
 package gamepb.interactpb;
 
+// ============ 互动记录 ============
 message InteractRecord {
-    int64 server_time = 1;
-    int32 action_type = 2;
-    int64 visitor_gid = 3;
-    string nick = 4;
-    string avatar_url = 5;
-    int32 crop_id = 6;
-    int32 crop_count = 7;
-    int32 times = 8;
-    int32 from_type = 9;
-    int32 level = 10;
+    int64 server_time = 1;   // 记录时间（服务端时间戳，单位由服务端约定）
+    int32 action_type = 2;   // 行为类型（浇水/除草/除虫/偷菜等，枚举由服务端约定）
+    int64 visitor_gid = 3;   // 访客/操作者 GID
+    string nick = 4;         // 访客昵称
+    string avatar_url = 5;   // 访客头像 URL
+    int32 crop_id = 6;       // 相关作物/果实ID（偷取/收获等场景）
+    int32 crop_count = 7;    // 相关数量（偷取/获得等）
+    int32 times = 8;         // 次数/第几次（与行为类型相关）
+    int32 from_type = 9;     // 来源类型（好友/陌生人/系统等，枚举由服务端约定）
+    int32 level = 10;        // 访客等级
 
     message Extra {
-        int32 land_id = 1;
-        int32 flag1 = 2;
-        int32 flag2 = 3;
+        int32 land_id = 1;  // 关联地块ID
+        int32 flag1 = 2;    // 扩展标记（语义以服务端为准）
+        int32 flag2 = 3;    // 扩展标记（语义以服务端为准）
     }
 
-    Extra extra = 11;
+    Extra extra = 11;        // 扩展信息
 }
 
+// 获取互动记录列表（访问/偷菜/帮忙等行为记录）
 message InteractRecordsRequest {}
 
 message InteractRecordsReply {
-    repeated InteractRecord records = 1;
+    repeated InteractRecord records = 1;  // 互动记录列表
 }
 
+// 获取互动奖励/状态信息（例如是否有可领取奖励、重置时间）
 message GetInteractInfoRequest {}
 
 message GetInteractInfoReply {
-    bool has_reward = 1;
-    int64 next_reset_at = 2;
+    bool has_reward = 1;      // 是否有可领取奖励（例如互动奖励）
+    int64 next_reset_at = 2;  // 下次重置时间（时间戳，单位由服务端约定）
 }

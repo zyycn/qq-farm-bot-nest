@@ -164,9 +164,11 @@ export class IllustratedWorker {
     const rewardFlag = Math.max(0, toNum(reply?.reward_flag))
     const rewardBoxVisible = !!(reply?.reward_box_visible ?? reply?.reward_box_enabled)
     const rewardBoxEnabled = rewardBoxVisible
-    const rewardBoxRedDot = rewardFlag > 0
     const rewardBoxClaimableRaw = !!reply?.reward_box_claimable_raw
-    const rewardBoxClaimable = rewardBoxClaimableRaw || rewardBoxRedDot
+    // field8 is the only confirmed live "claimable now" bit; reward_flag
+    // is kept as a diagnostic field only.
+    const rewardBoxClaimable = rewardBoxClaimableRaw
+    const rewardBoxRedDot = rewardBoxClaimableRaw
     const rewardBoxPreview = this.normalizeRewardItem(reply?.reward_box_preview ?? reply?.reward_hint)
     const nextLevelExp = rawNextLevelExp > 0 ? rawNextLevelExp : exp
 

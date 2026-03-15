@@ -6,34 +6,34 @@ import "corepb.proto";
 
 // 商场服务
 service MallService {
-  rpc GetMallListBySlotType(GetMallListBySlotTypeRequest) returns (GetMallListBySlotTypeResponse);
-  rpc Purchase(PurchaseRequest) returns (PurchaseResponse);
-  rpc GetMonthCardInfos(GetMonthCardInfosRequest) returns (GetMonthCardInfosReply);
-  rpc ClaimMonthCardReward(ClaimMonthCardRewardRequest) returns (ClaimMonthCardRewardReply);
+  rpc GetMallListBySlotType(GetMallListBySlotTypeRequest) returns (GetMallListBySlotTypeResponse); // 获取某个商城页签的商品列表
+  rpc Purchase(PurchaseRequest) returns (PurchaseResponse); // 购买商城商品
+  rpc GetMonthCardInfos(GetMonthCardInfosRequest) returns (GetMonthCardInfosReply); // 获取月卡信息列表
+  rpc ClaimMonthCardReward(ClaimMonthCardRewardRequest) returns (ClaimMonthCardRewardReply); // 领取月卡奖励
 }
 
 // 获取商场列表请求
 message GetMallListBySlotTypeRequest {
-  int32 slot_type = 1;  // 商场类型
+  int32 slot_type = 1;  // 商城页签类型（例如：礼包商城/月卡商城/充值商城；具体枚举由服务端约定）
 }
 
 // 获取商场列表响应
 message GetMallListBySlotTypeResponse {
-  repeated bytes goods_list = 1;  // 商品列表（每个是序列化的MallGoods）
-  int64 timestamp = 2;  // 时间戳
+  repeated bytes goods_list = 1;  // 商品列表：每个元素是序列化后的 MallGoods（上游把 message 包在 bytes 里，客户端需二次解码）
+  int64 timestamp = 2;            // 数据时间戳（用于缓存/刷新）
 }
 
 // 商品信息
 message MallGoods {
-  int32 goods_id = 1;        // 商品ID
-  string name = 2;           // 商品名称
-  int32 type = 3;            // 商品类型
-  bytes item_ids = 4;        // 物品ID列表（序列化数据）
-  bytes price = 5;           // 价格（序列化数据）
-  bool is_free = 6;          // 是否免费
-  bytes limit = 7;           // 限购信息（序列化数据）
-  bool is_limited = 8;       // 是否限购
-  string discount = 10;      // 折扣信息
+  int32 goods_id = 1;        // 商品ID（购买时使用）
+  string name = 2;           // 商品名称（UI 展示）
+  int32 type = 3;            // 商品类型/分组（用于 UI 排列/角标，枚举由服务端约定）
+  bytes item_ids = 4;        // 商品包含的物品ID列表（序列化数据；用于生成商品卡片内容）
+  bytes price = 5;           // 价格信息（序列化数据；可表达不同币种/原价/现价等）
+  bool is_free = 6;          // 是否免费（例如“每日福利 免费领取”）
+  bytes limit = 7;           // 限购/库存信息（序列化数据；例如“每日限购 0/1”“永久限购 500/500”）
+  bool is_limited = 8;       // 是否限购（true 表示需要读取 limit 来展示剩余次数/库存）
+  string discount = 10;      // 折扣文案（例如“9.1折”“9.4折”）
 }
 
 // 购买请求
@@ -51,25 +51,27 @@ message PurchaseResponse {
 }
 
 // 月卡信息
+// 获取月卡信息列表（例如“是否可领取”与奖励展示）
 message GetMonthCardInfosRequest {}
 
 message MonthCardInfo {
-  int32 goods_id = 1;
-  corepb.Item reward = 2;
-  bool can_claim = 3;
+  int32 goods_id = 1;      // 月卡商品ID
+  corepb.Item reward = 2;  // 每日/当前可领取奖励
+  bool can_claim = 3;      // 是否可领取
 }
 
 message GetMonthCardInfosReply {
-  repeated MonthCardInfo infos = 1;
+  repeated MonthCardInfo infos = 1;  // 月卡信息列表
 }
 
 // 领取月卡奖励
 message ClaimMonthCardRewardRequest {
-  int32 goods_id = 1;
+  int32 goods_id = 1;  // 月卡商品ID
 }
 
 message ClaimMonthCardRewardReply {
-  repeated corepb.Item items = 1;
+  repeated corepb.Item items = 1;  // 领取到的奖励物品
 }
 
+// 预留通知占位（当前仓库未展开具体字段）
 message NeedNotify {}

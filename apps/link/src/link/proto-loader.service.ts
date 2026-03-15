@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import path from 'node:path'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import * as protobuf from 'protobufjs'
@@ -22,7 +23,10 @@ export class ProtoLoaderService implements OnModuleInit {
     const protoDir = path.join(assetsDir, 'proto')
     const root = new protobuf.Root()
 
-    const protoFiles = ['game.proto', 'userpb.proto', 'corepb.proto', 'notifypb.proto'].map(f => path.join(protoDir, f))
+    const protoFiles = fs.readdirSync(protoDir)
+      .filter(name => name.endsWith('.proto'))
+      .sort((a, b) => a.localeCompare(b))
+      .map(name => path.join(protoDir, name))
     await root.load(protoFiles, { keepCase: true })
 
     const lookup = (name: string) => root.lookupType(name)
@@ -39,6 +43,9 @@ export class ProtoLoaderService implements OnModuleInit {
     types.LoginReply = lookup('gamepb.userpb.LoginReply')
     types.HeartbeatRequest = lookup('gamepb.userpb.HeartbeatRequest')
     types.HeartbeatReply = lookup('gamepb.userpb.HeartbeatReply')
+
+    // Activity keep-alive (server treats BatchClientReportFlow as user-active signal)
+    types.BatchClientReportFlowRequest = lookup('gamepb.userpb.BatchClientReportFlowRequest')
 
     // Notify (for session gains: gold/exp/coupon)
     types.BasicNotify = lookup('gamepb.userpb.BasicNotify')

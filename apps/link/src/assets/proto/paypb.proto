@@ -2,15 +2,17 @@ syntax = "proto3";
 
 package gamepb.paypb;
 
-message GetRechargeInfoRequest {}
+message GetRechargeInfoRequest {
+    string scene = 1;  // 查询场景标识（用于区分入口/活动位）
+}
 
-message RechargeInfo {}
+message RechargeInfo {}  // 充值信息（当前仓库未展开具体字段）
 
 message GetRechargeInfoReply {
-    RechargeInfo info = 1;
+    RechargeInfo info = 1;  // 充值信息
 }
 
 message RechargeInfoNotify {
-    RechargeInfo info = 1;
-    string source = 2;
+    RechargeInfo info = 1;    // 充值信息更新
+    string source = 2;        // 来源/触发方标识（用于定位推送来源）
 }

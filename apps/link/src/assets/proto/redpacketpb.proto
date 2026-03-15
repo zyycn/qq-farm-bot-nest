@@ -5,26 +5,27 @@ package gamepb.redpacketpb;
 import "corepb.proto";
 
 service RedPacketService {
-  rpc GetTodayClaimStatus(GetTodayClaimStatusRequest) returns (GetTodayClaimStatusReply);
-  rpc ClaimRedPacket(ClaimRedPacketRequest) returns (ClaimRedPacketReply);
+  rpc GetTodayClaimStatus(GetTodayClaimStatusRequest) returns (GetTodayClaimStatusReply); // 获取今日红包可领取状态
+  rpc ClaimRedPacket(ClaimRedPacketRequest) returns (ClaimRedPacketReply); // 领取指定红包档位奖励
 }
 
+// 获取今日各红包档位是否可领取
 message GetTodayClaimStatusRequest {}
 
 message RedPacketInfo {
-  int32 id = 1;
-  bool can_claim = 3;
+  int32 id = 1;         // 红包档位/配置ID
+  bool can_claim = 3;   // 今日是否可领取
 }
 
 message GetTodayClaimStatusReply {
-  repeated RedPacketInfo infos = 1;
+  repeated RedPacketInfo infos = 1;  // 今日各红包档位状态
 }
 
 message ClaimRedPacketRequest {
-  int32 id = 1;
+  int32 id = 1;  // 红包档位/配置ID
 }
 
 message ClaimRedPacketReply {
-  int32 status = 1;
-  corepb.Item item = 2;
+  int32 status = 1;   // 领取结果状态（0/1 或更细枚举）
+  corepb.Item item = 2; // 获得的物品奖励
 }

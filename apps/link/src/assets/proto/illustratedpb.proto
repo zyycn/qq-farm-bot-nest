@@ -5,65 +5,65 @@ package gamepb.illustratedpb;
 import "corepb.proto";
 
 message GetIllustratedListV2Request {
-    bool refresh = 1;
-    bool full = 2;
+    bool refresh = 1;  // 是否强制刷新（请求服务端重新拉取/计算）
+    bool full = 2;     // 是否返回完整列表（否则可能返回增量/简化数据）
 }
 
 message IllustratedRewardInfo {
-    int32 reward_id = 1;
-    int32 count = 2;
+    int32 reward_id = 1;  // 奖励ID（配置表中的奖励项）
+    int32 count = 2;      // 数量/次数
 }
 
 message IllustratedItem {
-    int64 fruit_id = 1;
-    int32 rarity = 2;
-    bool lit = 3;
-    int32 lit_reward = 4;
-    int32 quality = 5;
-    IllustratedRewardInfo reward_info = 6;
-    bool is_new = 7;
+    int64 fruit_id = 1;                 // 果实/图鉴条目ID
+    int32 rarity = 2;                   // 稀有度
+    bool lit = 3;                       // 是否已点亮/已解锁
+    int32 lit_reward = 4;               // 点亮奖励（图鉴卡片上常见 “+10” 这类点亮收益，具体含义以服务端为准）
+    int32 quality = 5;                  // 品级（UI 常见“11品/12品/13品...”）
+    IllustratedRewardInfo reward_info = 6; // 奖励信息
+    bool is_new = 7;                    // 是否新解锁（用于红点/NEW 标记）
 }
 
 message GetIllustratedListV2Reply {
-    repeated IllustratedItem items = 1;
-    int32 exp = 2;
-    int32 level = 3;
-    // Live captures show field 4 is the current chest preview item.
-    corepb.Item reward_box_preview = 4;
-    repeated int32 proto_ver = 5;
-    int32 reward_flag = 6;
-    int32 next_level_exp = 7;
-    // Live captures show field 8 is a raw chest-state bit that often appears
-    // before a successful claim and may disappear immediately after claim.
-    bool reward_box_claimable_raw = 8;
-    // Field 9 is still present in newer live captures, but behaves more like a
-    // persistent chest visibility/enabled flag than an immediate claim gate.
-    bool reward_box_visible = 9;
+    repeated IllustratedItem items = 1;     // 图鉴条目列表
+    int32 exp = 2;                          // 当前图鉴经验
+    int32 level = 3;                        // 当前图鉴等级
+    corepb.Item reward_box_preview = 4;     // 宝箱预览（当前档位/可获得物品的展示）
+    repeated int32 proto_ver = 5;           // 协议/数据版本（用于兼容）
+    int32 reward_flag = 6;                  // 宝箱/奖励红点标记（图鉴奖励相关）
+    int32 next_level_exp = 7;               // 下一等级所需经验
+    bool reward_box_claimable_raw = 8;      // 宝箱可领“即时态”标记（抓包显示：领取前常出现，领取后可能立即消失）
+    bool reward_box_visible = 9;            // 宝箱可见/启用标记（抓包显示：更像长期状态，而非即时可领门槛）
 }
 
 message ClaimAllRewardsV2Request {
-    bool only_claimable = 1;
+    bool only_claimable = 1;  // 是否仅领取当前可领取的奖励
 }
 
 message ClaimAllRewardsV2Reply {
-    repeated corepb.Item items = 1;
-    repeated corepb.Item bonus_items = 4;
+    repeated corepb.Item items = 1;        // 领取到的奖励
+    bytes extra = 2;                       // 扩展信息（服务端透传）
+    int64 extra2 = 3;                      // 扩展数值（服务端透传）
+    repeated corepb.Item bonus_items = 4;  // 额外奖励（例如暴击/加成产出）
 }
 
 message ClearNewUnlockedFruitsV2Request {
-    repeated int64 fruit_ids = 1;
+    repeated int64 fruit_ids = 1;  // 要清除 NEW 标记的 fruit_id 列表
 }
 
 message ClearNewUnlockedFruitsV2Reply {
-    repeated int64 cleared_fruit_ids = 1;
+    repeated int64 cleared_fruit_ids = 1;  // 实际已清除的 fruit_id 列表
 }
 
 message IllustratedRewardRedDotNotifyV2 {
-    bool reward_flag = 1;
+    bool reward_flag = 1;  // 是否有奖励红点（true=提示可领取/有变更）
 }
 
 message IllustratedChangeNotifyV2 {
-    int32 change_type = 4;
-    int32 exp_before = 5;
-    int32 exp_after = 6;
+    bytes payload = 1;      // 变更载荷（服务端透传，可能包含增量条目/上下文）
+    int32 arg1 = 2;         // 扩展参数（语义以服务端为准）
+    int32 arg2 = 3;         // 扩展参数（语义以服务端为准）
+    int32 change_type = 4;  // 变更类型（解锁/经验变化/宝箱状态变化等，枚举由服务端约定）
+    int32 exp_before = 5;   // 变化前经验
+    int32 exp_after = 6;    // 变化后经验
 }

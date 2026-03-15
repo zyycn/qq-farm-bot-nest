@@ -5,28 +5,28 @@ package gamepb.guidepb;
 import "corepb.proto";
 
 message SetWeakGuideNodeCompleteRequest {
-    int64 node_id = 1;
+    int64 node_id = 1;  // 新手引导/弱引导节点ID
 }
 
 message WeakGuideNodeState {
-    int64 node_id = 1;
-    bool completed = 2;
+    int64 node_id = 1;    // 节点ID
+    bool completed = 2;   // 是否已完成
 }
 
 message SetWeakGuideNodeCompleteReply {
-    repeated WeakGuideNodeState nodes = 1;
+    repeated WeakGuideNodeState nodes = 1;  // 节点状态列表（更新后）
 }
 
 message ClaimWeakGuideRewardRequest {
-    int64 node_id = 1;
+    int64 node_id = 1;  // 领取奖励的节点ID
 }
 
 message WeakGuideReward {
-    int64 node_id = 1;
-    int64 reward_stage = 2;
-    corepb.Item reward = 3;
+    int64 node_id = 1;         // 节点ID
+    int64 reward_stage = 2;    // 奖励阶段/档位
+    corepb.Item reward = 3;    // 奖励物品
 }
 
 message ClaimWeakGuideRewardReply {
-    repeated WeakGuideReward rewards = 1;
+    repeated WeakGuideReward rewards = 1;  // 已发放的奖励列表
 }

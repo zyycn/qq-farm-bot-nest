@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer'
+import fs from 'node:fs'
 import path from 'node:path'
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import * as protobuf from 'protobufjs'
@@ -30,6 +31,7 @@ const INVOKE_TYPE_MAP: Record<string, Record<string, [string, string]>> = {
     GetInteractRecords: ['InteractRecordsRequest', 'InteractRecordsReply']
   },
   'gamepb.shoppb.ShopService': {
+    ShopProfiles: ['ShopProfilesRequest', 'ShopProfilesReply'],
     ShopInfo: ['ShopInfoRequest', 'ShopInfoReply'],
     BuyGoods: ['BuyGoodsRequest', 'BuyGoodsReply']
   },
@@ -38,7 +40,9 @@ const INVOKE_TYPE_MAP: Record<string, Record<string, [string, string]>> = {
     GetAll: ['GetAllRequest', 'GetAllReply'],
     GetGameFriends: ['GetGameFriendsRequest', 'GetGameFriendsReply'],
     GetApplications: ['GetApplicationsRequest', 'GetApplicationsReply'],
-    AcceptFriends: ['AcceptFriendsRequest', 'AcceptFriendsReply']
+    AcceptFriends: ['AcceptFriendsRequest', 'AcceptFriendsReply'],
+    RejectFriends: ['RejectFriendsRequest', 'RejectFriendsReply'],
+    SetBlockApplications: ['SetBlockApplicationsRequest', 'SetBlockApplicationsReply']
   },
   'gamepb.visitpb.VisitService': {
     Enter: ['EnterRequest', 'EnterReply'],
@@ -48,7 +52,8 @@ const INVOKE_TYPE_MAP: Record<string, Record<string, [string, string]>> = {
     TaskInfo: ['TaskInfoRequest', 'TaskInfoReply'],
     ClaimTaskReward: ['ClaimTaskRewardRequest', 'ClaimTaskRewardReply'],
     BatchClaimTaskReward: ['BatchClaimTaskRewardRequest', 'BatchClaimTaskRewardReply'],
-    ClaimDailyReward: ['ClaimDailyRewardRequest', 'ClaimDailyRewardReply']
+    ClaimDailyReward: ['ClaimDailyRewardRequest', 'ClaimDailyRewardReply'],
+    ClientReportProgress: ['ClientReportProgressRequest', 'ClientReportProgressReply']
   },
   'gamepb.itempb.ItemService': {
     Bag: ['BagRequest', 'BagReply'],
@@ -58,6 +63,7 @@ const INVOKE_TYPE_MAP: Record<string, Record<string, [string, string]>> = {
     CannelNew: ['CannelNewRequest', 'CannelNewReply']
   },
   'gamepb.userpb.UserService': {
+    Login: ['LoginRequest', 'LoginReply'],
     Heartbeat: ['HeartbeatRequest', 'HeartbeatReply'],
     BatchClientReportFlow: ['BatchClientReportFlowRequest', 'BatchClientReportFlowReply'],
     ReportArkClick: ['ReportArkClickRequest', 'ReportArkClickReply'],
@@ -67,6 +73,7 @@ const INVOKE_TYPE_MAP: Record<string, Record<string, [string, string]>> = {
   },
   'gamepb.emailpb.EmailService': {
     GetEmailList: ['GetEmailListRequest', 'GetEmailListReply'],
+    ReadEmail: ['ReadEmailRequest', 'ReadEmailReply'],
     BatchClaimEmail: ['BatchClaimEmailRequest', 'BatchClaimEmailReply'],
     ClaimEmail: ['ClaimEmailRequest', 'ClaimEmailReply']
   },
@@ -172,36 +179,10 @@ export class GameInvokeService implements OnModuleInit {
   private async loadFullProto(): Promise<void> {
     const protoDir = path.join(__dirname, '..', 'assets', 'proto')
     const root = new protobuf.Root()
-    const protoFiles = [
-      'game.proto',
-      'userpb.proto',
-      'plantpb.proto',
-      'corepb.proto',
-      'shoppb.proto',
-      'friendpb.proto',
-      'visitpb.proto',
-      'interactpb.proto',
-      'notifypb.proto',
-      'taskpb.proto',
-      'itempb.proto',
-      'emailpb.proto',
-      'mallpb.proto',
-      'redpacketpb.proto',
-      'qqvippb.proto',
-      'sharepb.proto',
-      'illustratedpb.proto',
-      'paypb.proto',
-      'rechargebonuspb.proto',
-      'dogpb.proto',
-      'avatarframepb.proto',
-      'bulletinboardpb.proto',
-      'marqueepb.proto',
-      'randomdroppb.proto',
-      'uicproxypb.proto',
-      'guidepb.proto',
-      'careerpb.proto',
-      'systemopenpb.proto'
-    ].map(f => path.join(protoDir, f))
+    const protoFiles = fs.readdirSync(protoDir)
+      .filter(name => name.endsWith('.proto'))
+      .sort((a, b) => a.localeCompare(b))
+      .map(name => path.join(protoDir, name))
 
     try {
       await root.load(protoFiles, { keepCase: true })

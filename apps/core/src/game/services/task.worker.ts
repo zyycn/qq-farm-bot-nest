@@ -74,18 +74,12 @@ export class TaskWorker {
   }
 
   private isIllustratedRewardBoxClaimable(payload: any): boolean {
-    const rewardFlag = Math.max(0, toNum(payload?.reward_flag))
-
+    // Live MITM samples now confirm field8 is the only reliable "claimable now"
+    // bit. reward_flag can remain >0 after claim, so automation must not use it.
     if (this.hasProtoField(payload, 'reward_box_claimable_raw'))
       return !!payload?.reward_box_claimable_raw
 
-    // In newer live captures field9 behaves more like a visibility bit than a
-    // claim gate. When field8 is absent and field9 remains, treat it as a
-    // conservative "not claimable" state for automation.
-    if (this.hasProtoField(payload, 'reward_box_visible'))
-      return false
-
-    return rewardFlag > 0
+    return false
   }
 
   // ========== Task Analysis ==========
