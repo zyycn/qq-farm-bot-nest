@@ -104,6 +104,12 @@ message HeartbeatReply {
 
 // ============ 上报分享点击 ============
 // 用于已登录状态下处理分享链接（触发好友申请）
+message BatchClientReportFlowRequest {}
+
+message BatchClientReportFlowReply {
+    int32 status = 1;
+}
+
 message ReportArkClickRequest {
     int64 sharer_id = 1;
     string sharer_open_id = 2;
@@ -118,6 +124,32 @@ message ReportArkClickReply {
 // ============ 服务器推送通知 ============
 
 // 基本信息变化通知 (升级/金币变化等)
+message SetDisplayInfoRequest {
+    string name = 1;
+    string avatar_url = 2;
+}
+
+message SetDisplayInfoReply {
+    string name = 1;
+    string avatar_url = 2;
+}
+
+message UserSettings {}
+
+message GetUserSettingsRequest {}
+
+message GetUserSettingsReply {
+    UserSettings settings = 1;
+}
+
+message SetQQFriendRecommendAuthorizedRequest {
+    bool authorized = 1;
+}
+
+message SetQQFriendRecommendAuthorizedReply {
+    bool authorized = 1;
+}
+
 message BasicNotify {
     BasicInfo basic = 1;
 }

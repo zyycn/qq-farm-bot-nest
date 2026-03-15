@@ -6,7 +6,8 @@
     "start": "node dist/main",
     "dev": "nest start --watch",
     "build": "nest build",
-    "lint": "eslint . --fix"
+    "lint": "eslint . --fix",
+    "analyze:mitm": "node tools/mitm-inspector.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.16",

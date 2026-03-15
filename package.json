@@ -8,6 +8,7 @@
     "build:web": "turbo run build -F=web",
     "build:core": "turbo run build -F=core",
     "build:link": "turbo run build -F=link",
+    "analyze:mitm": "pnpm --filter link analyze:mitm",
     "dev": "turbo run dev",
     "dev:web": "turbo run dev -F=web",
     "dev:core": "turbo run dev -F=core",

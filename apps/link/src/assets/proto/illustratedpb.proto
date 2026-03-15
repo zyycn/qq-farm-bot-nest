@@ -16,22 +16,29 @@ message IllustratedRewardInfo {
 
 message IllustratedItem {
     int64 fruit_id = 1;
-    int32 unlock_state = 2;
-    int32 plant_state = 3;
-    int32 harvest_count = 4;
-    int32 category = 5;
+    int32 rarity = 2;
+    bool lit = 3;
+    int32 lit_reward = 4;
+    int32 quality = 5;
     IllustratedRewardInfo reward_info = 6;
-    bool has_reward = 7;
+    bool is_new = 7;
 }
 
 message GetIllustratedListV2Reply {
     repeated IllustratedItem items = 1;
     int32 exp = 2;
     int32 level = 3;
-    corepb.Item reward_hint = 4;
+    // Live captures show field 4 is the current chest preview item.
+    corepb.Item reward_box_preview = 4;
     repeated int32 proto_ver = 5;
+    int32 reward_flag = 6;
     int32 next_level_exp = 7;
-    bool reward_box_enabled = 9;
+    // Live captures show field 8 is a raw chest-state bit that often appears
+    // before a successful claim and may disappear immediately after claim.
+    bool reward_box_claimable_raw = 8;
+    // Field 9 is still present in newer live captures, but behaves more like a
+    // persistent chest visibility/enabled flag than an immediate claim gate.
+    bool reward_box_visible = 9;
 }
 
 message ClaimAllRewardsV2Request {
@@ -43,4 +50,20 @@ message ClaimAllRewardsV2Reply {
     repeated corepb.Item bonus_items = 4;
 }
 
-message IllustratedRewardRedDotNotifyV2 {}
+message ClearNewUnlockedFruitsV2Request {
+    repeated int64 fruit_ids = 1;
+}
+
+message ClearNewUnlockedFruitsV2Reply {
+    repeated int64 cleared_fruit_ids = 1;
+}
+
+message IllustratedRewardRedDotNotifyV2 {
+    bool reward_flag = 1;
+}
+
+message IllustratedChangeNotifyV2 {
+    int32 change_type = 4;
+    int32 exp_before = 5;
+    int32 exp_after = 6;
+}

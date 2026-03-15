@@ -28,3 +28,10 @@ message InteractRecordsRequest {}
 message InteractRecordsReply {
     repeated InteractRecord records = 1;
 }
+
+message GetInteractInfoRequest {}
+
+message GetInteractInfoReply {
+    bool has_reward = 1;
+    int64 next_reset_at = 2;
+}

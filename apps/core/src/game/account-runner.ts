@@ -10,6 +10,7 @@ import { AnalyticsWorker } from './services/analytics.worker'
 import { DailyRewardsWorker } from './services/daily-rewards.worker'
 import { FarmWorker } from './services/farm.worker'
 import { FriendWorker } from './services/friend.worker'
+import { IllustratedWorker } from './services/illustrated.worker'
 import { InviteWorker } from './services/invite.worker'
 import { StatsTracker } from './services/stats.worker'
 import { TaskWorker } from './services/task.worker'
@@ -34,6 +35,7 @@ export interface AccountRunnerCallbacks {
   onBagUpdate?: (accountId: string, data: unknown) => void
   onDailyGiftsUpdate?: (accountId: string, data: unknown) => void
   onFriendsUpdate?: (accountId: string, data: unknown) => void
+  onAlmanacUpdate?: (accountId: string, data: unknown) => void
 }
 
 export class AccountRunner {
@@ -44,6 +46,7 @@ export class AccountRunner {
   private analytics: AnalyticsWorker
   private farm!: FarmWorker
   private friend!: FriendWorker
+  private illustrated!: IllustratedWorker
   private task!: TaskWorker
   private warehouse!: WarehouseWorker
   private dailyRewards!: DailyRewardsWorker
@@ -110,6 +113,8 @@ export class AccountRunner {
     this.farm.onLog = this.forwardLog
     this.friend = new FriendWorker(this.accountId, this.transport, this.gameConfig, this.store, this.stats, this.farm, this.warehouse, config.platform)
     this.friend.onLog = this.forwardLog
+    this.illustrated = new IllustratedWorker(this.accountId, this.transport, this.gameConfig)
+    this.illustrated.onLog = this.forwardLog
     this.task = new TaskWorker(this.accountId, this.transport, this.gameConfig, this.store, this.stats, this.warehouse)
     this.task.onLog = this.forwardLog
     this.dailyRewards = new DailyRewardsWorker(this.accountId, this.transport, this.gameConfig, this.store)
@@ -289,6 +294,15 @@ export class AccountRunner {
     } catch {}
   }
 
+  /** best-effort: 鎺ㄩ€佸浘閴存暟鎹埌鍓嶇锛屽け璐ヤ笉褰卞搷涓绘祦绋? */
+  private async pushAlmanac(refresh = false) {
+    try {
+      const overview = await this.getAlmanac(refresh)
+      if (overview != null)
+        this.callbacks.onAlmanacUpdate?.(this.accountId, overview)
+    } catch {}
+  }
+
   private scheduleNext() {
     if (!this.unifiedRunning || !this.loginReady)
       return
@@ -461,6 +475,12 @@ export class AccountRunner {
           }
           this.deferStatusFlush()
         }
+      },
+      notify: (data) => {
+        const type = String(data?.type || '')
+        if (!type.startsWith('gamepb.illustratedpb.'))
+          return
+        this.scheduler.setTimeoutTask('almanac_notify_refresh', 300, () => this.pushAlmanac(true))
       }
     }
   }
@@ -618,6 +638,13 @@ export class AccountRunner {
 
   async getFriends() { return this.friend.getFriendsList() }
   async getFriendLands(gid: number) { return this.friend.getFriendLandsDetail(gid) }
+  async getAlmanac(refresh = false) { return this.illustrated.getOverview(refresh) }
+  async claimAlmanacRewards() {
+    const result = await this.illustrated.claimRewards()
+    this.pushAlmanac(true).catch(() => {})
+    return result
+  }
+
   async doFriendOp(gid: number, opType: string) {
     const result = await this.friend.doFriendOperation(gid, opType)
     this.pushFriends().catch(() => {})

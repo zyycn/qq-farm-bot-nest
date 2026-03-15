@@ -71,3 +71,5 @@ message ClaimMonthCardRewardRequest {
 message ClaimMonthCardRewardReply {
   repeated corepb.Item items = 1;
 }
+
+message NeedNotify {}

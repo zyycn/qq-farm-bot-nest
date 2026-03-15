@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package gamepb.rechargebonuspb;
+
+message GetConfigRequest {}
+
+message GetConfigReply {}

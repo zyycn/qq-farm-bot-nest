@@ -59,6 +59,35 @@ export class TaskWorker {
     return data ?? { items: [], bonus_items: [] }
   }
 
+  async getIllustratedState(): Promise<any> {
+    const { data } = await this.client.invoke('gamepb.illustratedpb.IllustratedService', 'GetIllustratedListV2', {
+      // refresh=true currently returns only 101 normal entries and hides the
+      // 7 treasure entries, so use the stable full response here as well.
+      refresh: false,
+      full: true
+    })
+    return data ?? {}
+  }
+
+  private hasProtoField(payload: any, fieldName: string): boolean {
+    return !!payload && Object.hasOwn(payload, fieldName)
+  }
+
+  private isIllustratedRewardBoxClaimable(payload: any): boolean {
+    const rewardFlag = Math.max(0, toNum(payload?.reward_flag))
+
+    if (this.hasProtoField(payload, 'reward_box_claimable_raw'))
+      return !!payload?.reward_box_claimable_raw
+
+    // In newer live captures field9 behaves more like a visibility bit than a
+    // claim gate. When field8 is absent and field9 remains, treat it as a
+    // conservative "not claimable" state for automation.
+    if (this.hasProtoField(payload, 'reward_box_visible'))
+      return false
+
+    return rewardFlag > 0
+  }
+
   // ========== Task Analysis ==========
 
   private formatTask(t: any, category = 'main') {
@@ -131,13 +160,17 @@ export class TaskWorker {
 
   private async checkAndClaimIllustratedRewards(): Promise<boolean> {
     try {
+      const illustrated = await this.getIllustratedState()
+      if (!this.isIllustratedRewardBoxClaimable(illustrated))
+        return false
+
       const beforeTicket = await this.getTicketBalance()
       await this.claimAllIllustratedRewards()
       const afterTicket = await this.getTicketBalance()
       const gain = Math.max(0, afterTicket - beforeTicket)
       if (gain < 200)
         return false
-      this.log(`图鉴领取成功: 点券${gain}`, 'illustrated_rewards')
+      this.log(`图鉴宝箱领取成功: 点券${gain}`, 'illustrated_rewards')
       this.taskClaimDoneDateKey = getServerDateKey()
       this.taskClaimLastAt = Date.now()
       this.stats.recordOperation('taskClaim', 1)

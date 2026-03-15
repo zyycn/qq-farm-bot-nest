@@ -1,4 +1,5 @@
 export * as accountApi from './modules/account'
+export * as almanacApi from './modules/almanac'
 export * as analyticsApi from './modules/analytics'
 export * as authApi from './modules/auth'
 export * as bagApi from './modules/bag'

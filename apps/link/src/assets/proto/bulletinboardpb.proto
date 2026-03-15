@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package gamepb.bulletinboardpb;
+
+message BulletinItem {
+    int64 bulletin_id = 1;
+    string title = 2;
+    int32 status = 3;
+    int32 category = 5;
+}
+
+message GetBulletinListRequest {}
+
+message GetBulletinListReply {
+    repeated BulletinItem bulletins = 1;
+}
+
+message GetBulletinDetailRequest {
+    int64 bulletin_id = 1;
+}
+
+message GetBulletinDetailReply {
+    string title = 1;
+    string content = 2;
+    string start_time = 3;
+    string end_time = 4;
+}
+
+message BulletinListChangedNTF {
+    repeated BulletinItem bulletins = 1;
+}

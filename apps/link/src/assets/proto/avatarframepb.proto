@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package gamepb.avatarframepb;
+
+message AvatarFramesOwnedRequest {}
+
+message AvatarFrameOwned {
+    int64 frame_id = 1;
+    bool owned = 2;
+    bool unlocked = 3;
+    bool equipped = 4;
+}
+
+message AvatarFramesOwnedReply {
+    repeated AvatarFrameOwned frames = 1;
+}

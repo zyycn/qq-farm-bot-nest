@@ -31,6 +31,12 @@ const routes: RouteRecordRaw[] = [
         meta: { label: '数据分析', icon: 'i-streamline-emojis-bar-chart' }
       },
       {
+        path: 'almanac',
+        name: 'almanac',
+        component: () => import('@/views/almanac/index.vue'),
+        meta: { label: '我的图鉴', icon: 'i-streamline-emojis-open-book' }
+      },
+      {
         path: 'warehouse',
         name: 'warehouse',
         component: () => import('@/views/warehouse/index.vue'),

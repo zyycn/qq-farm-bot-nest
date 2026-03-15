@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package gamepb.dogpb;
+
+message GetDogInfoRequest {}
+
+message DogInfo {
+    int64 dog_id = 1;
+    string dog_name = 2;
+    int64 stat_value = 3;
+    int32 status = 4;
+    int64 bonus_percent = 5;
+    int64 price = 8;
+}
+
+message DogProtectRule {
+    int64 dog_id = 1;
+    int64 protect_duration_sec = 2;
+    int64 required_count = 3;
+}
+
+message GetDogInfoReply {
+    repeated DogInfo dogs = 1;
+    int64 protect_duration_cap_sec = 4;
+    repeated DogProtectRule protect_rules = 5;
+}
+
+message GetProtectLogsRequest {}
+
+message GetProtectLogsReply {}

@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package gamepb.systemopenpb;
+
+message SystemUnlockItem {
+    int64 system_id = 1;
+}
+
+message SystemUnlockNotify {
+    repeated SystemUnlockItem items = 1;
+}

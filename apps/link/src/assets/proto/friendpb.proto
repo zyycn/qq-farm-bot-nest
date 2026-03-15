@@ -57,6 +57,10 @@ message GetGameFriendsRequest {
     repeated int64 gids = 1 [packed = true];
 }
 
+message GetGameFriendsReply {
+    repeated GameFriend game_friends = 1;
+}
+
 message GetAllReply {
     repeated GameFriend game_friends = 1;
     repeated Invitation invitations = 2;

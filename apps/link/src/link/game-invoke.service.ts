@@ -22,7 +22,8 @@ const INVOKE_TYPE_MAP: Record<string, Record<string, [string, string]>> = {
   },
   'gamepb.interactpb.InteractService': {
     InteractRecords: ['InteractRecordsRequest', 'InteractRecordsReply'],
-    GetInteractRecords: ['InteractRecordsRequest', 'InteractRecordsReply']
+    GetInteractRecords: ['InteractRecordsRequest', 'InteractRecordsReply'],
+    GetInteractInfo: ['GetInteractInfoRequest', 'GetInteractInfoReply']
   },
   'gamepb.interactpb.VisitorService': {
     InteractRecords: ['InteractRecordsRequest', 'InteractRecordsReply'],
@@ -35,6 +36,7 @@ const INVOKE_TYPE_MAP: Record<string, Record<string, [string, string]>> = {
   'gamepb.friendpb.FriendService': {
     SyncAll: ['SyncAllRequest', 'SyncAllReply'],
     GetAll: ['GetAllRequest', 'GetAllReply'],
+    GetGameFriends: ['GetGameFriendsRequest', 'GetGameFriendsReply'],
     GetApplications: ['GetApplicationsRequest', 'GetApplicationsReply'],
     AcceptFriends: ['AcceptFriendsRequest', 'AcceptFriendsReply']
   },
@@ -45,16 +47,23 @@ const INVOKE_TYPE_MAP: Record<string, Record<string, [string, string]>> = {
   'gamepb.taskpb.TaskService': {
     TaskInfo: ['TaskInfoRequest', 'TaskInfoReply'],
     ClaimTaskReward: ['ClaimTaskRewardRequest', 'ClaimTaskRewardReply'],
+    BatchClaimTaskReward: ['BatchClaimTaskRewardRequest', 'BatchClaimTaskRewardReply'],
     ClaimDailyReward: ['ClaimDailyRewardRequest', 'ClaimDailyRewardReply']
   },
   'gamepb.itempb.ItemService': {
     Bag: ['BagRequest', 'BagReply'],
     Sell: ['SellRequest', 'SellReply'],
     Use: ['UseRequest', 'UseReply'],
-    BatchUse: ['BatchUseRequest', 'BatchUseReply']
+    BatchUse: ['BatchUseRequest', 'BatchUseReply'],
+    CannelNew: ['CannelNewRequest', 'CannelNewReply']
   },
   'gamepb.userpb.UserService': {
-    ReportArkClick: ['ReportArkClickRequest', 'ReportArkClickReply']
+    Heartbeat: ['HeartbeatRequest', 'HeartbeatReply'],
+    BatchClientReportFlow: ['BatchClientReportFlowRequest', 'BatchClientReportFlowReply'],
+    ReportArkClick: ['ReportArkClickRequest', 'ReportArkClickReply'],
+    SetDisplayInfo: ['SetDisplayInfoRequest', 'SetDisplayInfoReply'],
+    GetUserSettings: ['GetUserSettingsRequest', 'GetUserSettingsReply'],
+    SetQQFriendRecommendAuthorized: ['SetQQFriendRecommendAuthorizedRequest', 'SetQQFriendRecommendAuthorizedReply']
   },
   'gamepb.emailpb.EmailService': {
     GetEmailList: ['GetEmailListRequest', 'GetEmailListReply'],
@@ -78,10 +87,46 @@ const INVOKE_TYPE_MAP: Record<string, Record<string, [string, string]>> = {
   'gamepb.sharepb.ShareService': {
     CheckCanShare: ['CheckCanShareRequest', 'CheckCanShareReply'],
     ReportShare: ['ReportShareRequest', 'ReportShareReply'],
+    GetInviteInfo: ['GetInviteInfoRequest', 'GetInviteInfoReply'],
     ClaimShareReward: ['ClaimShareRewardRequest', 'ClaimShareRewardReply']
   },
+  'gamepb.paypb.PayService': {
+    GetRechargeInfo: ['GetRechargeInfoRequest', 'GetRechargeInfoReply']
+  },
+  'gamepb.rechargebonuspb.RechargeBonusService': {
+    GetConfig: ['GetConfigRequest', 'GetConfigReply']
+  },
+  'gamepb.dogpb.DogService': {
+    GetDogInfo: ['GetDogInfoRequest', 'GetDogInfoReply'],
+    GetProtectLogs: ['GetProtectLogsRequest', 'GetProtectLogsReply']
+  },
+  'gamepb.avatarframepb.AvatarFrameService': {
+    AvatarFramesOwned: ['AvatarFramesOwnedRequest', 'AvatarFramesOwnedReply']
+  },
+  'gamepb.bulletinboardpb.BulletinBoardService': {
+    GetBulletinList: ['GetBulletinListRequest', 'GetBulletinListReply'],
+    GetBulletinDetail: ['GetBulletinDetailRequest', 'GetBulletinDetailReply']
+  },
+  'gamepb.marqueepb.MarqueeService': {
+    GetMarquee: ['GetMarqueeRequest', 'GetMarqueeReply']
+  },
+  'gamepb.randomdroppb.RandomDropService': {
+    GetActivityInfo: ['GetActivityInfoRequest', 'GetActivityInfoReply']
+  },
+  'gamepb.uicproxypb.UicprotoxyService': {
+    BatchModerateText: ['BatchModerateTextRequest', 'BatchModerateTextReply']
+  },
+  'gamepb.guidepb.GuideService': {
+    SetWeakGuideNodeComplete: ['SetWeakGuideNodeCompleteRequest', 'SetWeakGuideNodeCompleteReply'],
+    ClaimWeakGuideReward: ['ClaimWeakGuideRewardRequest', 'ClaimWeakGuideRewardReply']
+  },
+  'gamepb.careerpb.CareerService': {
+    CareerInfoGet: ['CareerInfoGetRequest', 'CareerInfoGetReply']
+  },
   'gamepb.illustratedpb.IllustratedService': {
-    ClaimAllRewardsV2: ['ClaimAllRewardsV2Request', 'ClaimAllRewardsV2Reply']
+    GetIllustratedListV2: ['GetIllustratedListV2Request', 'GetIllustratedListV2Reply'],
+    ClaimAllRewardsV2: ['ClaimAllRewardsV2Request', 'ClaimAllRewardsV2Reply'],
+    ClearNewUnlockedFruitsV2: ['ClearNewUnlockedFruitsV2Request', 'ClearNewUnlockedFruitsV2Reply']
   }
 }
 
@@ -144,7 +189,18 @@ export class GameInvokeService implements OnModuleInit {
       'redpacketpb.proto',
       'qqvippb.proto',
       'sharepb.proto',
-      'illustratedpb.proto'
+      'illustratedpb.proto',
+      'paypb.proto',
+      'rechargebonuspb.proto',
+      'dogpb.proto',
+      'avatarframepb.proto',
+      'bulletinboardpb.proto',
+      'marqueepb.proto',
+      'randomdroppb.proto',
+      'uicproxypb.proto',
+      'guidepb.proto',
+      'careerpb.proto',
+      'systemopenpb.proto'
     ].map(f => path.join(protoDir, f))
 
     try {

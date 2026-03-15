@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package gamepb.randomdroppb;
+
+message GetActivityInfoRequest {}
+
+message RandomDropActivityInfo {
+    int64 activity_id = 1;
+    int64 start_time = 2;
+    int64 end_time = 3;
+    int64 price = 4;
+    int64 limit = 5;
+    bool enabled = 6;
+}
+
+message GetActivityInfoReply {
+    repeated RandomDropActivityInfo activities = 1;
+}

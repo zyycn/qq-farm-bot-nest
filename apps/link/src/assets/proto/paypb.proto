@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package gamepb.paypb;
+
+message GetRechargeInfoRequest {}
+
+message RechargeInfo {}
+
+message GetRechargeInfoReply {
+    RechargeInfo info = 1;
+}
+
+message RechargeInfoNotify {
+    RechargeInfo info = 1;
+    string source = 2;
+}

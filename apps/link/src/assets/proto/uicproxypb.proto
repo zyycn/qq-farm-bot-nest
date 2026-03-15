@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package gamepb.uicproxypb;
+
+message BatchModerateTextRequest {}
+
+message ModerateTextResult {
+    string value = 4;
+}
+
+message BatchModerateTextReply {
+    repeated ModerateTextResult results = 1;
+}

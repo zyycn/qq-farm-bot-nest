@@ -31,6 +31,7 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
   private onBagUpdateCallback: ((accountId: string, data: unknown) => void) | null = null
   private onDailyGiftsUpdateCallback: ((accountId: string, data: unknown) => void) | null = null
   private onFriendsUpdateCallback: ((accountId: string, data: unknown) => void) | null = null
+  private onAlmanacUpdateCallback: ((accountId: string, data: unknown) => void) | null = null
   private onStrategyUpdateCallback: ((accountId: string, data: unknown) => void) | null = null
   private onPanelUpdateCallback: ((data: unknown) => void) | null = null
   private linkClient!: LinkClient
@@ -53,6 +54,7 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
     onBagUpdate?: (accountId: string, data: unknown) => void
     onDailyGiftsUpdate?: (accountId: string, data: unknown) => void
     onFriendsUpdate?: (accountId: string, data: unknown) => void
+    onAlmanacUpdate?: (accountId: string, data: unknown) => void
     onStrategyUpdate?: (accountId: string, data: unknown) => void
     onPanelUpdate?: (data: unknown) => void
   }) {
@@ -63,6 +65,7 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
     this.onBagUpdateCallback = callbacks.onBagUpdate ?? null
     this.onDailyGiftsUpdateCallback = callbacks.onDailyGiftsUpdate ?? null
     this.onFriendsUpdateCallback = callbacks.onFriendsUpdate ?? null
+    this.onAlmanacUpdateCallback = callbacks.onAlmanacUpdate ?? null
     this.onStrategyUpdateCallback = callbacks.onStrategyUpdate ?? null
     this.onPanelUpdateCallback = callbacks.onPanelUpdate ?? null
     this.gameLog.setCallbacks({
@@ -274,7 +277,8 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
       onLandsUpdate: (aid, data) => this.onLandsUpdateCallback?.(aid, data),
       onBagUpdate: (aid, data) => this.onBagUpdateCallback?.(aid, data),
       onDailyGiftsUpdate: (aid, data) => this.onDailyGiftsUpdateCallback?.(aid, data),
-      onFriendsUpdate: (aid, data) => this.onFriendsUpdateCallback?.(aid, data)
+      onFriendsUpdate: (aid, data) => this.onFriendsUpdateCallback?.(aid, data),
+      onAlmanacUpdate: (aid, data) => this.onAlmanacUpdateCallback?.(aid, data)
     }
 
     const runner = new AccountRunner(id, this.linkClient, this.gameConfig, this.store, callbacks)
@@ -594,6 +598,16 @@ export class AccountManagerService implements OnModuleInit, OnModuleDestroy {
   getAnalytics(sortBy: string): Record<string, unknown>[] {
     const worker = new AnalyticsWorker(this.gameConfig)
     return worker.getPlantRankings(sortBy)
+  }
+
+  getAlmanac(accountId: string, options?: { refresh?: boolean }) {
+    const runner = this.getRunnerOrThrow(accountId)
+    return runner.getAlmanac(!!options?.refresh)
+  }
+
+  claimAlmanacRewards(accountId: string) {
+    const runner = this.getRunnerOrThrow(accountId)
+    return runner.claimAlmanacRewards()
   }
 
   getStatus(accountId: string) {

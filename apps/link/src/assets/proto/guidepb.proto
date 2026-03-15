@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package gamepb.guidepb;
+
+import "corepb.proto";
+
+message SetWeakGuideNodeCompleteRequest {
+    int64 node_id = 1;
+}
+
+message WeakGuideNodeState {
+    int64 node_id = 1;
+    bool completed = 2;
+}
+
+message SetWeakGuideNodeCompleteReply {
+    repeated WeakGuideNodeState nodes = 1;
+}
+
+message ClaimWeakGuideRewardRequest {
+    int64 node_id = 1;
+}
+
+message WeakGuideReward {
+    int64 node_id = 1;
+    int64 reward_stage = 2;
+    corepb.Item reward = 3;
+}
+
+message ClaimWeakGuideRewardReply {
+    repeated WeakGuideReward rewards = 1;
+}

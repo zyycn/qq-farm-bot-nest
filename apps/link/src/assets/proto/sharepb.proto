@@ -23,6 +23,25 @@ message ReportShareReply {
 }
 
 // --- 领取分享奖励 ---
+message GetInviteInfoRequest {}
+
+message InviteRewardInfo {
+    int64 stage = 1;
+    int64 need_invite_count = 2;
+    corepb.Item reward = 3;
+}
+
+message InviteInfoState {}
+
+message InviteInfo {
+    InviteInfoState state = 1;
+    repeated InviteRewardInfo rewards = 4;
+}
+
+message GetInviteInfoReply {
+    InviteInfo info = 1;
+}
+
 message ClaimShareRewardRequest {
     bool claimed = 1;  // 请求领取
 }
