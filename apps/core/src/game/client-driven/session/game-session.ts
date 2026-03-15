@@ -116,6 +116,18 @@ export class GameSession {
       if (changes.length && this.bagState.applyDelta(changes))
         this.afterBagChanged()
     }
+
+    if (kind === 'lands' && Array.isArray(decoded?.lands)) {
+      if (this.landsState.applyDelta(decoded.lands)) {
+        this.afterLandsChanged()
+        const auto = this.store.getAutomation(this.accountId)
+        if (auto.farm_manage && (auto.farm_water || auto.farm_weed || auto.farm_bug)) {
+          this.scheduler.setTimeoutTask('clear_after_lands_notify', 500, () => {
+            void this.runFarmOperation('clear')
+          })
+        }
+      }
+    }
   }
 
   async runScheduledAutomationPass(): Promise<boolean> {

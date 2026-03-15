@@ -284,6 +284,15 @@ export class GameClient extends EventEmitter {
       } catch {}
     }
 
+    if (type.includes('LandsNotify') && t.LandsNotify) {
+      try {
+        const decoded = t.LandsNotify.decode(eventBody)
+        const notify: any = t.LandsNotify.toObject(decoded, { longs: String, enums: String })
+        notifyKind = 'lands'
+        decodedPayload = notify
+      } catch {}
+    }
+
     if (type.includes('TaskInfoNotify')) {
       try {
         const decoded = t.TaskInfoNotify.decode(eventBody)
