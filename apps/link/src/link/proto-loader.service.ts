@@ -52,6 +52,8 @@ export class ProtoLoaderService implements OnModuleInit {
     types.ItemNotify = lookup('gamepb.itempb.ItemNotify')
     types.TaskInfoNotify = lookup('gamepb.taskpb.TaskInfoNotify')
     types.LandsNotify = lookup('gamepb.plantpb.LandsNotify')
+    types.IllustratedRewardRedDotNotifyV2 = lookup('gamepb.illustratedpb.IllustratedRewardRedDotNotifyV2')
+    types.IllustratedChangeNotifyV2 = lookup('gamepb.illustratedpb.IllustratedChangeNotifyV2')
 
     return types
   }

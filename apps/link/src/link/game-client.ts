@@ -293,6 +293,24 @@ export class GameClient extends EventEmitter {
       } catch {}
     }
 
+    if (type.includes('IllustratedRewardRedDotNotify') && t.IllustratedRewardRedDotNotifyV2) {
+      try {
+        const decoded = t.IllustratedRewardRedDotNotifyV2.decode(eventBody)
+        const notify: any = t.IllustratedRewardRedDotNotifyV2.toObject(decoded, { longs: String, enums: String })
+        notifyKind = 'illustrated_reward'
+        decodedPayload = notify
+      } catch {}
+    }
+
+    if (type.includes('IllustratedChangeNotify') && t.IllustratedChangeNotifyV2) {
+      try {
+        const decoded = t.IllustratedChangeNotifyV2.decode(eventBody)
+        const notify: any = t.IllustratedChangeNotifyV2.toObject(decoded, { longs: String, enums: String })
+        notifyKind = 'illustrated_change'
+        decodedPayload = notify
+      } catch {}
+    }
+
     if (type.includes('TaskInfoNotify')) {
       try {
         const decoded = t.TaskInfoNotify.decode(eventBody)

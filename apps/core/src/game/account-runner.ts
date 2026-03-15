@@ -445,8 +445,8 @@ export class AccountRunner {
         }
       },
       notify: (data) => {
-        const type = String(data?.type || '')
-        if (type.startsWith('gamepb.illustratedpb.'))
+        const kind = String(data?.kind || '')
+        if (kind === 'illustrated_reward' || kind === 'illustrated_change')
           this.scheduler.setTimeoutTask('almanac_notify_refresh', 300, () => this.pushAlmanac(true))
         this.session?.handleNotify(data)
       },
