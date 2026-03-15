@@ -25,6 +25,7 @@ export class GameClient extends EventEmitter {
   private lastHeartbeatResponse = Date.now()
   private heartbeatMissCount = 0
   private lastBcrfTime = 0
+  private bcrfWindowStart = 0
   private _connected = false
   private _destroyed = false
 
@@ -370,9 +371,28 @@ export class GameClient extends EventEmitter {
    * 模拟真实客户端在 UI 交互后 3-10s 上报行为流。
    */
   private scheduleBcrf() {
+    const now = Date.now()
+    const isNew = !this.scheduler.has('bcrf_debounce')
+    if (isNew)
+      this.bcrfWindowStart = now
+
+    const elapsed = now - this.bcrfWindowStart
+    const maxRemaining = Math.max(0, 12000 - elapsed) // 最大等待 12s
+    if (maxRemaining <= 0) {
+      this.scheduler.clear('bcrf_debounce')
+      this.bcrfWindowStart = 0
+      this.sendBcrf()
+      return
+    }
+
+    const randomDelay = 3000 + Math.floor(Math.random() * 7000) // 3-10s 随机延迟
+    const delay = Math.min(randomDelay, maxRemaining)
+
     this.scheduler.clear('bcrf_debounce')
-    const delay = 3000 + Math.floor(Math.random() * 7000) // 3-10s 随机延迟
-    this.scheduler.setTimeoutTask('bcrf_debounce', delay, () => this.sendBcrf())
+    this.scheduler.setTimeoutTask('bcrf_debounce', delay, () => {
+      this.bcrfWindowStart = 0
+      this.sendBcrf()
+    })
   }
 
   private startHeartbeat() {
