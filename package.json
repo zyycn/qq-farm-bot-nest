@@ -23,6 +23,6 @@
     "postinstall": "turbo run stub"
   },
   "devDependencies": {
-    "turbo": "^2.8.16"
+    "turbo": "^2.8.17"
   }
 }

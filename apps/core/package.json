@@ -23,7 +23,7 @@
     "@superblocksteam/fast-deep-equal": "^3.1.4",
     "axios": "^1.13.6",
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^12.6.2",
+    "better-sqlite3": "^12.8.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "drizzle-orm": "^0.45.1",
