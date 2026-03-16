@@ -53,11 +53,16 @@ function httpPost(opts) {
 }
 
 
+// 模拟真实设备无响应 - 返回空响应，避免触发风控检测
 const DONE_RESP = {
   response: {
-    status: 403,
-    headers: {},
-    body: "blocked"
+    status: 200,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "no-cache",
+      "Server": "nginx"
+    },
+    body: ""
   }
 }
 
