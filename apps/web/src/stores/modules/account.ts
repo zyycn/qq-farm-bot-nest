@@ -1,3 +1,4 @@
+import type { AccountMutationPayload } from '@/api/types'
 import { defineStore } from 'pinia'
 import { accountApi } from '@/api'
 
@@ -24,7 +25,7 @@ export const useAccountStore = defineStore('account', {
   },
   actions: {
     resetDataStores() {
-      const storeIds = ['status', 'bag', 'farm', 'friend', 'panel', 'analytics', 'strategy']
+      const storeIds = ['status', 'bag', 'farm', 'friend', 'panel', 'analytics', 'strategy', 'behavior']
       this.$all.forEach((store) => {
         if (storeIds.includes(store.$id))
           store.$reset()
@@ -58,13 +59,13 @@ export const useAccountStore = defineStore('account', {
         this.resetDataStores()
       }
     },
-    async addAccount(payload: any) {
+    async addAccount(payload: AccountMutationPayload) {
       await accountApi.create(payload)
     },
-    async updateAccount(uin: string, payload: any) {
+    async updateAccount(uin: string, payload: AccountMutationPayload) {
       await accountApi.create({ ...payload, uin })
     },
-    setAccountsFromRealtime(data: any) {
+    setAccountsFromRealtime(data: { accounts?: Account[] } | null | undefined) {
       if (data?.accounts && Array.isArray(data.accounts))
         this.accounts = data.accounts as Account[]
       if (!this.currentAccountId && this.accounts.length > 0)
@@ -72,6 +73,6 @@ export const useAccountStore = defineStore('account', {
     }
   },
   persist: {
-    storage: sessionStorage
+    storage: localStorage
   }
 })

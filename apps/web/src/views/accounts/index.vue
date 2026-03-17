@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Account } from '@/stores'
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -15,12 +16,12 @@ const { accounts } = storeToRefs(accountStore)
 const showModal = ref(false)
 const showDeleteConfirm = ref(false)
 const deleteLoading = ref(false)
-const editingAccount = ref<any>(null)
-const accountToDelete = ref<any>(null)
+const editingAccount = ref<Account | null>(null)
+const accountToDelete = ref<Account | null>(null)
 
-function openSettings(account: any) {
+function openSettings(account: Account) {
   accountStore.selectAccount(String(account.uin))
-  router.push('/strategy')
+  router.push('/behavior')
 }
 
 function openAddModal() {
@@ -28,12 +29,12 @@ function openAddModal() {
   showModal.value = true
 }
 
-function openEditModal(account: any) {
+function openEditModal(account: Account) {
   editingAccount.value = { ...account }
   showModal.value = true
 }
 
-async function handleDelete(account: any) {
+async function handleDelete(account: Account) {
   accountToDelete.value = account
   showDeleteConfirm.value = true
 }
@@ -52,7 +53,7 @@ async function confirmDelete() {
 }
 
 const toggleRunningLoading = ref(false)
-async function toggleAccount(account: any) {
+async function toggleAccount(account: Account) {
   toggleRunningLoading.value = true
   try {
     const ref = String(account.uin || account.id)

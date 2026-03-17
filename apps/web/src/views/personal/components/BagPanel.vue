@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import type { BagItem } from '@/api/types'
 import { ref } from 'vue'
 import EmptyState from '@/components/EmptyState.vue'
 
 defineProps<{
-  items: any[]
+  items: BagItem[]
 }>()
 
 const imageErrors = ref<Record<string | number, boolean>>({})

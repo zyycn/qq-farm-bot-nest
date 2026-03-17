@@ -1,12 +1,14 @@
 <script setup lang="ts">
+import type { BagItem } from '@/api/types'
+
 defineProps<{
-  fertilizerNormal: any
-  fertilizerOrganic: any
-  collectionNormal: any
-  collectionRare: any
+  fertilizerNormal: BagItem | undefined
+  fertilizerOrganic: BagItem | undefined
+  collectionNormal: BagItem | undefined
+  collectionRare: BagItem | undefined
 }>()
 
-function formatBucketTime(item: any): string {
+function formatBucketTime(item: BagItem | undefined): string {
   if (!item)
     return '0.0h'
   if (item.hoursText)

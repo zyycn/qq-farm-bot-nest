@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import type { LogEntry, LogQueryOptions } from '@/api/types'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { EVENTS, LOG_LEVELS, MODULES } from '../constants'
 
 const props = defineProps<{
-  logs: any[]
-  filter: { module: string, event: string, keyword: string, isWarn: string }
+  logs: LogEntry[]
+  filter: LogQueryOptions
 }>()
 
 const emit = defineEmits<{

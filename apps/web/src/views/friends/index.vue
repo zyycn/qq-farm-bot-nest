@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { InteractFilterKey } from './constants'
+import type { FriendPlantSummary } from '@/api/types'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'
@@ -15,6 +16,14 @@ import InteractPanel from './components/InteractPanel.vue'
 import { OP_BUTTONS } from './constants'
 
 const OP_TYPE_LABEL: Record<string, string> = Object.fromEntries(OP_BUTTONS.map(op => [op.type, op.label]))
+
+interface FriendListItem {
+  gid?: number | string
+  uin?: number | string
+  name?: string
+  plant?: FriendPlantSummary
+  [key: string]: unknown
+}
 
 const accountStore = useAccountStore()
 const friendStore = useFriendStore()
@@ -86,8 +95,9 @@ async function onConfirm() {
       await pendingAction.value()
       const label = pendingOpType.value ? OP_TYPE_LABEL[pendingOpType.value] || '操作' : '操作'
       message.success(`${label}成功`)
-    } catch (e: any) {
-      message.error(e?.message || '操作失败')
+    } catch (e: unknown) {
+      const error = e as { message?: string }
+      message.error(error?.message || '操作失败')
     } finally {
       confirmLoading.value = false
       pendingAction.value = null
@@ -123,7 +133,7 @@ async function handleOp(friendId: string, type: string, e: Event) {
   }, type)
 }
 
-async function handleToggleBlacklist(friend: any, e: Event) {
+async function handleToggleBlacklist(friend: FriendListItem, e: Event) {
   e.stopPropagation()
   if (!currentAccountId.value)
     return
@@ -133,8 +143,9 @@ async function handleToggleBlacklist(friend: any, e: Event) {
     const wasBlacklisted = blacklist.value.includes(Number(friend.gid))
     await friendStore.toggleBlacklist(currentAccountId.value, Number(friend.gid))
     message.success(wasBlacklisted ? '已移出黑名单' : '已加入黑名单')
-  } catch (err: any) {
-    message.error(err?.message || '操作失败')
+  } catch (err: unknown) {
+    const error = err as { message?: string }
+    message.error(error?.message || '操作失败')
   }
 }
 
@@ -145,7 +156,7 @@ function handleAvatarError(key: string) {
 async function syncBlacklistFromStrategy() {
   const ok = await strategyStore.querySettings()
   if (ok.ok) {
-    const list = (strategyStore.settings as any)?.friendBlacklist
+    const list = strategyStore.settings.friendBlacklist
     friendStore.setBlacklistFromRealtime(Array.isArray(list) ? list : [])
   }
 }

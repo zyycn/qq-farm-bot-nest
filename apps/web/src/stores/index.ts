@@ -1,4 +1,5 @@
 import type { Store } from 'pinia'
+import type { OfflineReminderConfig, UIConfig } from '@/api/types'
 import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 
@@ -6,9 +7,11 @@ export { type Account, useAccountStore } from './modules/account'
 export { useAnalyticsStore } from './modules/analytics'
 export { useAppStore } from './modules/app'
 export { useBagStore } from './modules/bag'
+export { useBehaviorStore } from './modules/behavior'
+export { useDeviceStore } from './modules/device'
 export { type Land, useFarmStore } from './modules/farm'
 export { useFriendStore } from './modules/friend'
-export { type OfflineReminderConfig, type UIConfig, usePanelStore } from './modules/panel'
+export { usePanelStore } from './modules/panel'
 export { useStatusStore } from './modules/status'
 export { type AutomationConfig, type FriendQuietHoursConfig, type IntervalsConfig, useStrategyStore } from './modules/strategy'
 export { useUserStore } from './modules/user'
@@ -23,13 +26,15 @@ const stores = new Set<Store>()
 pinia.use(({ store }) => {
   stores.add(store)
   store.$all = stores
-  store.$resetAll = () => store.$all.forEach((s: any) => s.$reset())
+  store.$resetAll = () => store.$all.forEach(s => s.$reset())
 })
 
 // 重置全部
 export function resetAllStores() {
-  stores.forEach((s: any) => s.$reset())
+  stores.forEach(s => s.$reset())
 }
+
+export type { OfflineReminderConfig, UIConfig }
 
 export default pinia
 

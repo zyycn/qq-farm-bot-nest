@@ -7,10 +7,7 @@ import { useAccountStore } from '@/stores'
  */
 export function useAccountRefresh(fn: () => void | Promise<void>): void {
   const accountStore = useAccountStore()
-  const { currentAccountId, currentAccount } = storeToRefs(accountStore)
-
-  if (!currentAccount.value?.running)
-    return
+  const { currentAccountId } = storeToRefs(accountStore)
 
   onMounted(fn)
   watch(currentAccountId, fn)

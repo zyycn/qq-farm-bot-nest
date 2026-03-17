@@ -58,6 +58,17 @@ export const drizzleProvider = {
         fertilizer_land_types TEXT DEFAULT '["gold","black","red","normal"]',
         fertilizer_multi_season INTEGER DEFAULT 0,
         fertilizer_buy TEXT DEFAULT '{}',
+        device_profile_id TEXT,
+        behavior TEXT DEFAULT '{}',
+        created_at INTEGER DEFAULT 0,
+        updated_at INTEGER DEFAULT 0
+      );
+
+      CREATE TABLE IF NOT EXISTS device_profiles (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        preset_id TEXT,
+        profile TEXT NOT NULL DEFAULT '{}',
         created_at INTEGER DEFAULT 0,
         updated_at INTEGER DEFAULT 0
       );
@@ -82,6 +93,11 @@ export const drizzleProvider = {
         created_at INTEGER DEFAULT 0
       );
 
+      CREATE INDEX IF NOT EXISTS idx_game_logs_account_id ON game_logs(account_id);
+      CREATE INDEX IF NOT EXISTS idx_game_logs_created_at ON game_logs(created_at);
+      CREATE INDEX IF NOT EXISTS idx_game_logs_account_created_at ON game_logs(account_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_game_logs_account_module_event_created_at ON game_logs(account_id, module, event, created_at DESC);
+
       CREATE TABLE IF NOT EXISTS account_logs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         account_id TEXT DEFAULT '',
@@ -94,10 +110,6 @@ export const drizzleProvider = {
         updated_at INTEGER DEFAULT 0
       );
 
-      CREATE INDEX IF NOT EXISTS idx_game_logs_account_id ON game_logs(account_id);
-      CREATE INDEX IF NOT EXISTS idx_game_logs_created_at ON game_logs(created_at);
-      CREATE INDEX IF NOT EXISTS idx_game_logs_account_created_at ON game_logs(account_id, created_at DESC);
-      CREATE INDEX IF NOT EXISTS idx_game_logs_account_module_event_created_at ON game_logs(account_id, module, event, created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_account_logs_created_at ON account_logs(created_at);
       CREATE INDEX IF NOT EXISTS idx_account_logs_account_created_at ON account_logs(account_id, created_at DESC);
     `)

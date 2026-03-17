@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { AnalyticsCropRow } from '@/api/types'
 import { useMediaQuery } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
@@ -8,7 +9,7 @@ import { HIGHLIGHT_COLOR_MAP, METRIC_MAP, SORT_ICONS, SORT_OPTIONS, STRATEGY_CAR
 type StrategyKey = 'exp' | 'fert' | 'profit' | 'fert_profit'
 
 const props = defineProps<{
-  list: any[]
+  list: AnalyticsCropRow[]
 }>()
 
 const levelFilter = defineModel<number | null>('levelFilter', { required: true })
@@ -43,7 +44,7 @@ const filteredByLevel = computed(() => {
   const target = typeof lv === 'number' && Number.isFinite(lv) && lv > 0 ? lv : null
   if (!target)
     return props.list || []
-  return (props.list || []).filter((row: any) => {
+  return (props.list || []).filter((row) => {
     const rowLv = Number(row?.level)
     // row.level 可能为 null；无等级限制的作物也允许展示
     if (!Number.isFinite(rowLv))
@@ -52,9 +53,9 @@ const filteredByLevel = computed(() => {
   })
 })
 
-const bestByStrategy = computed<Record<StrategyKey, any | null>>(() => {
+const bestByStrategy = computed<Record<StrategyKey, AnalyticsCropRow | null>>(() => {
   const src = filteredByLevel.value
-  const out = { exp: null, fert: null, profit: null, fert_profit: null } as Record<StrategyKey, any | null>
+  const out = { exp: null, fert: null, profit: null, fert_profit: null } as Record<StrategyKey, AnalyticsCropRow | null>
   const keys: StrategyKey[] = ['exp', 'fert', 'profit', 'fert_profit']
 
   for (const key of keys) {
@@ -64,9 +65,9 @@ const bestByStrategy = computed<Record<StrategyKey, any | null>>(() => {
       continue
     }
     const arr = src.slice()
-    arr.sort((a: any, b: any) => {
-      const av = Number(a?.[metric])
-      const bv = Number(b?.[metric])
+    arr.sort((a, b) => {
+      const av = Number(a?.[metric as keyof AnalyticsCropRow])
+      const bv = Number(b?.[metric as keyof AnalyticsCropRow])
       if (!Number.isFinite(av) && !Number.isFinite(bv))
         return 0
       if (!Number.isFinite(av))
@@ -85,13 +86,13 @@ function getHighlightColor(key: StrategyKey): string {
   return HIGHLIGHT_COLOR_MAP[key] || 'var(--ant-color-text)'
 }
 
-function formatLv(level: any) {
+function formatLv(level: number | string | null | undefined) {
   if (level === null || level === undefined || level === '' || Number(level) < 0)
     return '未知'
   return String(level)
 }
 
-function formatGrowTime(seconds: any) {
+function formatGrowTime(seconds: number | string | null | undefined) {
   const s = Number(seconds)
   if (!Number.isFinite(s) || s <= 0)
     return '0秒'

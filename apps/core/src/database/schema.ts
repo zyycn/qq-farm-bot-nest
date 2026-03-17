@@ -29,6 +29,17 @@ export const accountConfigs = sqliteTable('account_configs', {
   fertilizerLandTypes: text('fertilizer_land_types', { mode: 'json' }).$type<string[]>().default(['gold', 'black', 'red', 'normal']),
   fertilizerMultiSeason: integer('fertilizer_multi_season', { mode: 'boolean' }).default(false),
   fertilizerBuy: text('fertilizer_buy', { mode: 'json' }).$type<Record<string, any>>().default({}),
+  deviceProfileId: text('device_profile_id'),
+  behavior: text('behavior', { mode: 'json' }).$type<Record<string, any>>().default({}),
+  createdAt: integer('created_at', { mode: 'number' }).default(0),
+  updatedAt: integer('updated_at', { mode: 'number' }).default(0)
+})
+
+export const deviceProfiles = sqliteTable('device_profiles', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  presetId: text('preset_id'),
+  profile: text('profile', { mode: 'json' }).$type<Record<string, any>>().notNull(),
   createdAt: integer('created_at', { mode: 'number' }).default(0),
   updatedAt: integer('updated_at', { mode: 'number' }).default(0)
 })

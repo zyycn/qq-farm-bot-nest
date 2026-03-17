@@ -1,8 +1,9 @@
+import type { AnalyticsCropRow } from '@/api/types'
 import { defineStore } from 'pinia'
 
 export const useAnalyticsStore = defineStore('analytics', {
   state: () => ({
-    list: [] as any[],
+    list: [] as AnalyticsCropRow[],
     strategyPanelCollapsed: false
   }),
   actions: {
@@ -14,6 +15,6 @@ export const useAnalyticsStore = defineStore('analytics', {
     }
   },
   persist: {
-    storage: sessionStorage
+    storage: localStorage
   }
 })

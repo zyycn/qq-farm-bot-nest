@@ -1,17 +1,21 @@
 import path from 'node:path'
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
+import { EventEmitterModule } from '@nestjs/event-emitter'
 import { ScheduleModule } from '@nestjs/schedule'
 import { ServeStaticModule } from '@nestjs/serve-static'
+import { AccountModule } from './account/account.module'
+import { AuthModule } from './auth/auth.module'
+import { BehaviorModule } from './behavior/behavior.module'
 import appConfig from './config/app.config'
 import { ASSETS_DIR, resolveWebDist } from './config/paths'
 import { DatabaseModule } from './database/database.module'
+import { DeviceModule } from './device/device.module'
 import { GameModule } from './game/game.module'
-import { AccountModule } from './modules/account/account.module'
-import { AuthModule } from './modules/auth/auth.module'
-import { QrModule } from './modules/qr/qr.module'
-import { RealtimeModule } from './modules/websocket/realtime.module'
+import { QrModule } from './qr/qr.module'
+import { RealtimeModule } from './realtime/realtime.module'
 import { StoreModule } from './store/store.module'
+import { TransportModule } from './transport/transport.module'
 
 const webDist = resolveWebDist()
 const gameConfigDir = path.join(ASSETS_DIR, 'gameConfig')
@@ -48,12 +52,16 @@ const serveStaticModules = [
   imports: [
     ConfigModule.forRoot({ isGlobal: true, load: [appConfig] }),
     ScheduleModule.forRoot(),
+    EventEmitterModule.forRoot(),
     ...serveStaticModules,
     DatabaseModule,
-    GameModule,
     StoreModule,
-    AuthModule,
+    TransportModule,
+    GameModule,
+    DeviceModule,
+    BehaviorModule,
     AccountModule,
+    AuthModule,
     QrModule,
     RealtimeModule
   ]

@@ -24,8 +24,9 @@ async function handleLogin() {
     const res = await authApi.login(password.value)
     userStore.setToken(res.token)
     router.push('/')
-  } catch (e: any) {
-    error.value = e.message || '登录异常'
+  } catch (e: unknown) {
+    const err = e as { message?: string }
+    error.value = err.message || '登录异常'
   } finally {
     loading.value = false
   }

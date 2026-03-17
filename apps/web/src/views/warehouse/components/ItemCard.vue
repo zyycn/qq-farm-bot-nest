@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import type { BagItem } from '@/api/types'
+
 defineProps<{
-  item: { id: number, name: string, count: number, category: string, image?: string, hoursText?: string, price?: number }
+  item: BagItem
   selling: boolean
   imageError: boolean
 }>()

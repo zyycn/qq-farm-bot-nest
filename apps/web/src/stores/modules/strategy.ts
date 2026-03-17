@@ -1,77 +1,29 @@
+import type {
+  AutomationConfig,
+  FertilizerBuyConfig,
+  FriendQuietHoursConfig,
+  IntervalsConfig,
+  StrategySettings,
+  StrategySettingsPatch
+} from '@/api/types'
 import { defineStore } from 'pinia'
 import { strategyApi } from '@/api'
 import { AUTOMATION_DEFAULTS, DEFAULT_FRIEND_QUIET_HOURS, DEFAULT_INTERVALS } from '../constants'
 
-export interface AutomationConfig {
-  farm: boolean
-  farm_manage: boolean
-  farm_water: boolean
-  farm_weed: boolean
-  farm_bug: boolean
-  farm_push: boolean
-  land_upgrade: boolean
-  friend: boolean
-  friend_help_exp_limit: boolean
-  friend_steal: boolean
-  friend_help: boolean
-  friend_bad: boolean
-  task: boolean
-  email: boolean
-  fertilizer_gift: boolean
-  fertilizer_buy: boolean
-  free_gifts: boolean
-  share_reward: boolean
-  vip_gift: boolean
-  month_card: boolean
-  open_server_gift: boolean
-  sell: boolean
-}
+export type { AutomationConfig, FertilizerBuyConfig, FriendQuietHoursConfig, IntervalsConfig }
+export type StrategyState = StrategySettings
 
-export interface IntervalsConfig {
-  farm: number
-  friend: number
-  farmMin: number
-  farmMax: number
-  friendMin: number
-  friendMax: number
-}
-
-export interface FriendQuietHoursConfig {
-  enabled: boolean
-  start: string
-  end: string
-}
-
-export interface FertilizerBuyConfig {
-  type: 'organic' | 'normal' | 'both'
-  mode: 'threshold' | 'unlimited'
-  max: number
-  threshold: number
-}
-
-export interface StrategyState {
-  plantingStrategy: string
-  preferredSeedId: number
-  bagSeedPriority: number[]
-  intervals: IntervalsConfig
-  friendQuietHours: FriendQuietHoursConfig
-  stealCropBlacklist: number[]
-  automation: AutomationConfig
-  fertilizer: string
-  fertilizerLandTypes: string[]
-  fertilizerMultiSeason: boolean
-  fertilizerBuy: FertilizerBuyConfig
-}
-
-const STRATEGY_UPDATE_KEYS = ['intervals', 'plantingStrategy', 'preferredSeedId', 'bagSeedPriority', 'friendQuietHours', 'stealCropBlacklist', 'automation', 'fertilizer', 'fertilizerLandTypes', 'fertilizerMultiSeason', 'fertilizerBuy'] as const
+const STRATEGY_UPDATE_KEYS = ['intervals', 'plantingStrategy', 'preferredSeedId', 'bagSeedPriority', 'deviceProfileId', 'friendQuietHours', 'friendBlacklist', 'stealCropBlacklist', 'automation', 'fertilizer', 'fertilizerLandTypes', 'fertilizerMultiSeason', 'fertilizerBuy'] as const
 
 function initialStrategy(): StrategyState {
   return {
     plantingStrategy: 'preferred',
     preferredSeedId: 0,
     bagSeedPriority: [],
+    deviceProfileId: null,
     intervals: { ...DEFAULT_INTERVALS },
     friendQuietHours: { ...DEFAULT_FRIEND_QUIET_HOURS },
+    friendBlacklist: [],
     stealCropBlacklist: [],
     automation: { ...AUTOMATION_DEFAULTS },
     fertilizer: 'none',
@@ -91,9 +43,7 @@ export const useStrategyStore = defineStore('strategy', {
     settings: initialStrategy()
   }),
   actions: {
-    applyStrategyUpdate(data: unknown): void {
-      if (data == null || typeof data !== 'object')
-        return
+    applyStrategyUpdate(data: StrategySettingsPatch): void {
       const payload = data as Record<string, unknown>
       for (const k of STRATEGY_UPDATE_KEYS) {
         if (payload[k] !== undefined)
@@ -105,8 +55,9 @@ export const useStrategyStore = defineStore('strategy', {
         const data = await strategyApi.query()
         this.applyStrategyUpdate(data)
         return { ok: true }
-      } catch (e: any) {
-        return { ok: false, error: e?.message || '加载失败' }
+      } catch (e: unknown) {
+        const error = e as { message?: string }
+        return { ok: false, error: error?.message || '加载失败' }
       }
     },
     async saveSettings(accountId: string): Promise<{ ok: boolean, error?: string }> {
@@ -118,8 +69,10 @@ export const useStrategyStore = defineStore('strategy', {
           plantingStrategy: s.plantingStrategy,
           preferredSeedId: s.preferredSeedId,
           bagSeedPriority: s.bagSeedPriority,
+          deviceProfileId: s.deviceProfileId,
           intervals: s.intervals,
           friendQuietHours: s.friendQuietHours,
+          friendBlacklist: s.friendBlacklist,
           stealCropBlacklist: s.stealCropBlacklist,
           automation: s.automation,
           fertilizer: s.fertilizer,
@@ -128,12 +81,13 @@ export const useStrategyStore = defineStore('strategy', {
           fertilizerBuy: s.fertilizerBuy
         })
         return { ok: true }
-      } catch (e: any) {
-        return { ok: false, error: e.message || '保存失败' }
+      } catch (e: unknown) {
+        const error = e as { message?: string }
+        return { ok: false, error: error.message || '保存失败' }
       }
     }
   },
   persist: {
-    storage: sessionStorage
+    storage: localStorage
   }
 })

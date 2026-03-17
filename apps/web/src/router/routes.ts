@@ -61,6 +61,17 @@ const routes: RouteRecordRaw[] = [
         meta: { label: '策略设置', icon: 'i-streamline-emojis-direct-hit' }
       },
       {
+        path: 'behavior',
+        name: 'behavior',
+        component: () => import('@/views/behavior/index.vue'),
+        meta: { label: '行为模拟', icon: 'i-streamline-emojis-face-with-monocle' }
+      },
+      {
+        path: 'device',
+        name: 'device',
+        redirect: ROUTE_PATHS.BEHAVIOR
+      },
+      {
         path: 'panel',
         name: 'panel',
         component: () => import('@/views/panel/index.vue'),

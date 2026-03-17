@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import type { DailyGift } from '@/api/types'
 import EmptyState from '@/components/EmptyState.vue'
 
 defineProps<{
-  gifts: any[]
+  gifts: DailyGift[]
 }>()
 
 const GIFT_ICONS: Record<string, string> = {
@@ -19,7 +20,7 @@ function getGiftIcon(key: string) {
   return GIFT_ICONS[key] || 'i-streamline-emojis-wrapped-gift-1'
 }
 
-function getGiftStatus(gift: any) {
+function getGiftStatus(gift: DailyGift) {
   if (gift.key === 'vip_daily_gift' && gift.hasGift === false)
     return { text: '未开通', color: 'default' as const }
   if (gift.key === 'month_card_gift' && gift.hasCard === false)

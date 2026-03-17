@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import type { SeedOption } from '@/api/types'
+
 const props = defineProps<{
-  seed: { seedId: number, goodsId: number, name: string, price: number, requiredLevel?: number, locked: boolean, soldOut: boolean, image?: string }
+  seed: SeedOption
   imageError: boolean
 }>()
 

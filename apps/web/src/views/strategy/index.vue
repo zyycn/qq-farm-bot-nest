@@ -14,12 +14,11 @@ const accountStore = useAccountStore()
 const farmStore = useFarmStore()
 
 const { currentAccountId, currentAccount } = storeToRefs(accountStore)
-
 const saving = ref(false)
 
 const currentAccountName = computed(() => {
-  const acc = currentAccount.value
-  return acc ? String(acc.name || acc.nick || acc.uin || '') || null : null
+  const account = currentAccount.value
+  return account ? String(account.name || account.nick || account.uin || '') || null : null
 })
 const currentAccountUin = computed(() => currentAccount.value?.uin ?? undefined)
 const currentAccountAvatar = computed(() => currentAccount.value?.avatar ?? undefined)
@@ -27,21 +26,29 @@ const currentAccountAvatar = computed(() => currentAccount.value?.avatar ?? unde
 async function saveAccountSettings(): Promise<void> {
   if (!currentAccountId.value)
     return
+
   saving.value = true
   try {
-    const res = await strategyStore.saveSettings(currentAccountId.value)
-    if (res.ok)
-      message.success('账号设置已保存')
-    else
-      message.error(`保存失败: ${res.error}`)
+    const result = await strategyStore.saveSettings(currentAccountId.value)
+    if (result.ok) {
+      message.success('策略设置已保存')
+      return
+    }
+
+    message.error(result.error || '保存失败')
   } finally {
     saving.value = false
   }
 }
 
-function initPageData() {
-  strategyStore.querySettings()
-  farmStore.querySeeds(currentAccountId.value)
+async function initPageData(): Promise<void> {
+  if (!currentAccountId.value)
+    return
+
+  await Promise.allSettled([
+    strategyStore.querySettings(),
+    farmStore.querySeeds(currentAccountId.value)
+  ])
 }
 
 useAccountRefresh(initPageData)
@@ -61,7 +68,7 @@ useAccountRefresh(initPageData)
         :loading="saving"
         @click="saveAccountSettings"
       >
-        保存账号设置
+        保存策略设置
       </a-button>
     </div>
 

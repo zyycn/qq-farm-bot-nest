@@ -1,24 +1,14 @@
+import type { FarmLand, FarmLandsResponse, FarmSummary, SeedOption, SingleLandOperationPayload } from '@/api/types'
 import { defineStore } from 'pinia'
 import { farmApi } from '@/api'
 
-export interface Land {
-  id: number
-  plantName?: string
-  phaseName?: string
-  seedImage?: string
-  status: string
-  matureInSec: number
-  needWater?: boolean
-  needWeed?: boolean
-  needBug?: boolean
-  [key: string]: any
-}
+export type Land = FarmLand
 
 export const useFarmStore = defineStore('farm', {
   state: () => ({
-    lands: [] as Land[],
-    seeds: [] as any[],
-    summary: {} as any
+    lands: [] as FarmLand[],
+    seeds: [] as SeedOption[],
+    summary: {} as FarmSummary
   }),
   actions: {
     async operate(accountId: string, opType: string) {
@@ -33,8 +23,9 @@ export const useFarmStore = defineStore('farm', {
         const list = await farmApi.querySeeds()
         this.setSeedsFromRealtime(Array.isArray(list) ? list : [])
         return { ok: true }
-      } catch (e: any) {
-        return { ok: false, error: e?.message || '加载失败' }
+      } catch (e: unknown) {
+        const error = e as { message?: string }
+        return { ok: false, error: error?.message || '加载失败' }
       }
     },
     async fetchBagSeeds(accountId: string): Promise<void> {
@@ -45,28 +36,27 @@ export const useFarmStore = defineStore('farm', {
     },
     async operateSingleLand(
       accountId: string,
-      payload: { action: string, landId: number, seedId?: number }
-    ): Promise<any> {
+      payload: SingleLandOperationPayload
+    ): Promise<unknown> {
       if (!accountId)
         return null
-      const result = await farmApi.singleLandOperate(payload)
-      return result
+      return await farmApi.singleLandOperate(payload)
     },
-    setLandsFromRealtime(res: any) {
+    setLandsFromRealtime(res: FarmLandsResponse | null | undefined) {
       if (!res)
         return
       const nowSec = Math.floor(Date.now() / 1000)
-      this.lands = (res.lands || []).map((l: any) => ({
+      this.lands = (res.lands || []).map((l): FarmLand => ({
         ...l,
         matureAt: (l.matureInSec ?? 0) > 0 ? nowSec + l.matureInSec : 0
       }))
       this.summary = res.summary || {}
     },
-    setSeedsFromRealtime(list: any[]) {
+    setSeedsFromRealtime(list: SeedOption[]) {
       this.seeds = Array.isArray(list) ? list : []
     }
   },
   persist: {
-    storage: sessionStorage
+    storage: localStorage
   }
 })

@@ -1,11 +1,11 @@
 import type { DrizzleDB } from '../database/drizzle.provider'
-import type { AccountConfigSnapshot, AutomationConfig, FertilizerBuyConfig, FertilizerLandType, FertilizerMode, FriendQuietHoursConfig, IntervalsConfig, OfflineReminderConfig, PlantingStrategy, RuntimeClientConfig } from '../game/constants'
+import type { AccountConfigSnapshot, AutomationConfig, FertilizerBuyConfig, FertilizerLandType, FertilizerMode, FriendQuietHoursConfig, IntervalsConfig, OfflineReminderConfig, PlantingStrategy } from '../game/constants'
 import { Inject, Injectable, Logger } from '@nestjs/common'
-import { CLIENT_VERSION, DEFAULT_OS, DEFAULT_REMOTE_LOGIN_KEY, GAME_SERVER_URL } from '@qq-farm/shared'
+import { DEFAULT_REMOTE_LOGIN_KEY } from '@qq-farm/shared'
 import { and, eq } from 'drizzle-orm'
 import { DRIZZLE_TOKEN } from '../database/drizzle.provider'
 import * as schema from '../database/schema'
-import { ALL_FERTILIZER_LAND_TYPES, ALLOWED_AUTOMATION_KEYS, ALLOWED_FERTILIZER_MODES, ALLOWED_PLANTING_STRATEGIES, DEFAULT_ACCOUNT_CONFIG, DEFAULT_AUTOMATION, DEFAULT_FRIEND_QUIET_HOURS, DEFAULT_INTERVALS, DEFAULT_OFFLINE_REMINDER, DEFAULT_RUNTIME_CLIENT, PUSHOO_CHANNELS } from '../game/constants'
+import { ALL_FERTILIZER_LAND_TYPES, ALLOWED_AUTOMATION_KEYS, ALLOWED_FERTILIZER_MODES, ALLOWED_PLANTING_STRATEGIES, DEFAULT_ACCOUNT_CONFIG, DEFAULT_AUTOMATION, DEFAULT_FRIEND_QUIET_HOURS, DEFAULT_INTERVALS, DEFAULT_OFFLINE_REMINDER, PUSHOO_CHANNELS } from '../game/constants'
 import { normalizeTimeString } from '../game/utils'
 
 const ALLOWED_LAND_TYPES_SET = new Set(ALL_FERTILIZER_LAND_TYPES)
@@ -153,33 +153,16 @@ export class StoreService {
     return next
   }
 
-  // ========== Runtime Client ==========
-
-  private normalizeRuntimeClient(input?: Partial<RuntimeClientConfig>): RuntimeClientConfig {
-    const src = (input && typeof input === 'object') ? input : {}
-    const base = DEFAULT_RUNTIME_CLIENT
-    const serverUrl = String(src.serverUrl || base.serverUrl || GAME_SERVER_URL).trim()
-    const clientVersion = String(src.clientVersion || base.clientVersion || CLIENT_VERSION).trim()
-    const os = String(src.os || base.os || DEFAULT_OS).trim()
-    const device = src.deviceInfo && typeof src.deviceInfo === 'object' ? src.deviceInfo : {}
-    const deviceInfo: RuntimeClientConfig['deviceInfo'] = {
-      sysSoftware: String((device as any).sysSoftware || base.deviceInfo.sysSoftware).trim(),
-      network: String((device as any).network || base.deviceInfo.network).trim(),
-      memory: String((device as any).memory || base.deviceInfo.memory).trim(),
-      deviceId: String((device as any).deviceId || base.deviceInfo.deviceId).trim()
-    }
-    return { serverUrl, clientVersion, os, deviceInfo }
+  getDefaultDeviceProfileId(): string | null {
+    const value = String(this.getGlobalValue<string | null>('defaultDeviceProfileId', '') || '').trim()
+    return value || null
   }
 
-  getRuntimeClient(): RuntimeClientConfig {
-    const saved = this.getGlobalValue<Partial<RuntimeClientConfig>>('runtimeClient', DEFAULT_RUNTIME_CLIENT)
-    return this.normalizeRuntimeClient(saved)
-  }
-
-  setRuntimeClient(cfg: Partial<RuntimeClientConfig>): RuntimeClientConfig {
-    const merged = this.normalizeRuntimeClient({ ...this.getRuntimeClient(), ...cfg })
-    this.setGlobalValue('runtimeClient', merged)
-    return merged
+  setDefaultDeviceProfileId(deviceProfileId: string | null | undefined): string | null {
+    const value = String(deviceProfileId ?? '').trim()
+    const normalized = value || null
+    this.setGlobalValue('defaultDeviceProfileId', normalized)
+    return normalized
   }
 
   // ========== Normalization Helpers ==========
@@ -224,7 +207,8 @@ export class StoreService {
       fertilizer: (b as any).fertilizer ?? DEFAULT_ACCOUNT_CONFIG.fertilizer,
       fertilizerLandTypes: normalizeFertilizerLandTypes((b as any).fertilizerLandTypes),
       fertilizerMultiSeason: (b as any).fertilizerMultiSeason !== undefined ? !!(b as any).fertilizerMultiSeason : DEFAULT_ACCOUNT_CONFIG.fertilizerMultiSeason,
-      fertilizerBuy: normalizeFertilizerBuy((b as any).fertilizerBuy)
+      fertilizerBuy: normalizeFertilizerBuy((b as any).fertilizerBuy),
+      deviceProfileId: b.deviceProfileId != null ? String(b.deviceProfileId).trim() || null : DEFAULT_ACCOUNT_CONFIG.deviceProfileId
     }
   }
 
@@ -326,7 +310,8 @@ export class StoreService {
       fertilizer: row.fertilizer as any,
       fertilizerLandTypes: row.fertilizerLandTypes as any,
       fertilizerMultiSeason: row.fertilizerMultiSeason,
-      fertilizerBuy: row.fertilizerBuy as any
+      fertilizerBuy: row.fertilizerBuy as any,
+      deviceProfileId: row.deviceProfileId
     }, fallback)
   }
 
@@ -356,7 +341,8 @@ export class StoreService {
       fertilizer: merged.fertilizer,
       fertilizerLandTypes: merged.fertilizerLandTypes as any,
       fertilizerMultiSeason: merged.fertilizerMultiSeason,
-      fertilizerBuy: merged.fertilizerBuy as any
+      fertilizerBuy: merged.fertilizerBuy as any,
+      deviceProfileId: merged.deviceProfileId
     }
 
     if (existing) {
@@ -399,6 +385,7 @@ export class StoreService {
       fertilizerLandTypes: cfg.fertilizerLandTypes as any,
       fertilizerMultiSeason: cfg.fertilizerMultiSeason,
       fertilizerBuy: cfg.fertilizerBuy as any,
+      deviceProfileId: cfg.deviceProfileId,
       createdAt: now,
       updatedAt: now
     }).run()
@@ -471,6 +458,7 @@ export class StoreService {
       friendQuietHours: { ...cfg.friendQuietHours },
       friendBlacklist: [...(cfg.friendBlacklist || [])],
       stealCropBlacklist: [...(cfg.stealCropBlacklist || [])],
+      deviceProfileId: cfg.deviceProfileId,
       ui: this.getUI()
     }
   }

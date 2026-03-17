@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import type { FarmLand } from '@/api/types'
 import { computed } from 'vue'
 
 const props = defineProps<{
-  land: any
+  land: FarmLand
 }>()
 
 const land = computed(() => props.land)
@@ -17,7 +18,7 @@ const LAND_LEVEL_CLASS: Record<number, string> = {
 const RING_HARVESTABLE = 'ring-2 ring-yellow-5 ring-offset-1'
 const RING_STEALABLE = 'ring-2 ring-purple-5 ring-offset-1'
 
-function getLandStatusClass(land: any) {
+function getLandStatusClass(land: FarmLand) {
   const status = land.status
   const level = Number(land.level) || 0
 
@@ -49,14 +50,14 @@ function getLandTypeName(level: number) {
   return typeMap[Number(level) || 0] || ''
 }
 
-function getPlantSizeText(land: any) {
+function getPlantSizeText(land: FarmLand) {
   const size = Number(land?.plantSize) || 1
   if (size <= 1)
     return ''
   return `${size}x${size}`
 }
 
-function needOperate(land: any) {
+function needOperate(land: FarmLand) {
   return land.needWater || land.needWeed || land.needBug || land.status === 'stealable'
 }
 </script>

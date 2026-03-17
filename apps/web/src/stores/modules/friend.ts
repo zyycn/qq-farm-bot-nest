@@ -1,7 +1,13 @@
+import type { FarmLand, FriendInteractRecord, FriendLandDetailResponse, FriendLandSummary, FriendPlantSummary } from '@/api/types'
 import { defineStore } from 'pinia'
 import { friendApi } from '@/api'
 
-function buildPlantSummaryFromDetail(lands: any[], summary: any): Record<string, number> {
+type FriendListItem = Record<string, unknown> & {
+  gid?: number | string
+  plant?: FriendPlantSummary
+}
+
+function buildPlantSummaryFromDetail(lands: FarmLand[], summary: FriendLandSummary | null | undefined): FriendPlantSummary {
   const stealNumFromSummary = Array.isArray(summary?.stealable) ? summary.stealable.length : null
   const dryNumFromSummary = Array.isArray(summary?.needWater) ? summary.needWater.length : null
   const weedNumFromSummary = Array.isArray(summary?.needWeed) ? summary.needWeed.length : null
@@ -43,16 +49,16 @@ function buildPlantSummaryFromDetail(lands: any[], summary: any): Record<string,
 
 export const useFriendStore = defineStore('friend', {
   state: () => ({
-    friends: [] as any[],
-    friendLands: {} as Record<string, any[]>,
+    friends: [] as FriendListItem[],
+    friendLands: {} as Record<string, FarmLand[]>,
     friendLandsLoading: {} as Record<string, boolean>,
     blacklist: [] as number[],
-    interactRecords: [] as any[],
+    interactRecords: [] as FriendInteractRecord[],
     interactLoading: false as boolean,
     interactError: '' as string
   }),
   actions: {
-    syncFriendPlantSummary(friendId: string, lands: any[], summary: any) {
+    syncFriendPlantSummary(friendId: string, lands: FarmLand[], summary: FriendLandSummary | null | undefined) {
       const key = String(friendId)
       const idx = this.friends.findIndex(f => String(f?.gid || '') === key)
       if (idx < 0)
@@ -74,10 +80,10 @@ export const useFriendStore = defineStore('friend', {
         return
       this.friendLandsLoading = { ...this.friendLandsLoading, [friendId]: true }
       try {
-        const res = await friendApi.getLands(Number(friendId))
+        const res: FriendLandDetailResponse = await friendApi.getLands(Number(friendId))
         const rawLands = res?.lands || []
         const nowSec = Math.floor(Date.now() / 1000)
-        const lands = rawLands.map((l: any) => ({
+        const lands = rawLands.map((l): FarmLand => ({
           ...l,
           matureAt: nowSec + (l.matureInSec ?? 0)
         }))
@@ -102,22 +108,23 @@ export const useFriendStore = defineStore('friend', {
       try {
         const records = await friendApi.getInteractRecords()
         this.interactRecords = Array.isArray(records) ? records : []
-      } catch (e: any) {
-        this.interactError = e?.message || '加载访客记录失败'
+      } catch (e: unknown) {
+        const error = e as { message?: string }
+        this.interactError = error?.message || '加载访客记录失败'
       } finally {
         this.interactLoading = false
       }
     },
-    setFriendsFromRealtime(list: any[]) {
+    setFriendsFromRealtime(list: FriendListItem[]) {
       this.friends = Array.isArray(list) ? list : []
     },
-    setBlacklistFromRealtime(list: number[] | any[]) {
-      this.blacklist = Array.isArray(list) ? list.map((x: any) => Number(x)).filter(n => !Number.isNaN(n)) : []
+    setBlacklistFromRealtime(list: Array<number | string>) {
+      this.blacklist = Array.isArray(list) ? list.map(x => Number(x)).filter(n => !Number.isNaN(n)) : []
     },
-    applyFriendsUpdate(data: any) {
+    applyFriendsUpdate(data: FriendListItem[] | null | undefined) {
       this.setFriendsFromRealtime(Array.isArray(data) ? data : [])
     },
-    applySettingsUpdateForBlacklist(data: any) {
+    applySettingsUpdateForBlacklist(data: { friendBlacklist?: Array<number | string>, stealCropBlacklist?: Array<number | string> } | null | undefined) {
       if (data != null) {
         if (Array.isArray(data.friendBlacklist))
           this.setBlacklistFromRealtime(data.friendBlacklist)
@@ -127,6 +134,6 @@ export const useFriendStore = defineStore('friend', {
     }
   },
   persist: {
-    storage: sessionStorage
+    storage: localStorage
   }
 })

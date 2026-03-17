@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { AnalyticsCropRow, AnalyticsSortKey } from '@/api/types'
 import { useResizeObserver } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
@@ -28,7 +29,7 @@ useResizeObserver(tableWrapperRef, (entries) => {
 })
 
 const loading = ref(false)
-const sortKey = ref('exp')
+const sortKey = ref<AnalyticsSortKey>('exp')
 const searchQuery = ref('')
 const levelFilter = ref<number | null>(null)
 
@@ -56,8 +57,8 @@ async function loadAnalytics() {
       const metric = METRIC_MAP[sortKey.value]
       if (metric) {
         list.value.sort((a, b) => {
-          const av = Number(a[metric])
-          const bv = Number(b[metric])
+          const av = Number(a[metric as keyof AnalyticsCropRow])
+          const bv = Number(b[metric as keyof AnalyticsCropRow])
           if (!Number.isFinite(av) && !Number.isFinite(bv))
             return 0
           if (!Number.isFinite(av))

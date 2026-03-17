@@ -14,3 +14,9 @@ export * from './protocol/ws'
 // utils
 export * from './utils/helpers'
 export * from './utils/scheduler'
+
+// types
+export * from './types/index'
+
+// protocol — events
+export * from './protocol/events'

@@ -41,10 +41,11 @@ async function executeOperate() {
     const opType = confirmConfig.value.opType as FarmOpType
     await farmStore.operate(currentAccountId.value, opType)
     message.success(`已提交${FARM_OP_LABELS[opType] || '农场'}操作`)
-  } catch (e: any) {
+  } catch (e: unknown) {
+    const error = e as { message?: string }
     const opType = confirmConfig.value.opType as FarmOpType
     const opLabel = FARM_OP_LABELS[opType] || '农场'
-    message.error(`${opLabel}操作失败：${e?.message || '未知错误'}`)
+    message.error(`${opLabel}操作失败：${error?.message || '未知错误'}`)
   } finally {
     operating.value = false
   }

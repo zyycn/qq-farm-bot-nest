@@ -18,7 +18,7 @@ async function bootstrap() {
   const configService = app.get(ConfigService)
   const port = configService.get<number>('app.port')
   await app.listen(port, '0.0.0.0')
-  console.warn(`[NestJS] Admin panel started on http://localhost:${port}`)
+  console.warn(`[NestJS] 管理面板已启动: http://localhost:${port}`)
 }
 
 bootstrap()

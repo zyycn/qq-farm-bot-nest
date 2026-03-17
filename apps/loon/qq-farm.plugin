@@ -7,7 +7,7 @@
 #!tag=农场
 
 [Argument]
-TARGET = input,"http://pizzas.ddns.net:9527/api/account/import-url",tag=服务器地址,desc=农场Bot服务器的导入地址
+TARGET = input,"http://192.168.0.112:5173/api/account/import-url",tag=服务器地址,desc=农场Bot服务器的导入地址
 LOGIN_KEY_HEADER = input,"X-Remote-Login-Key",tag=密钥Header名,desc=发送登录密钥时使用的HTTP Header名称
 LOGIN_KEY = input,"xxnf9527",tag=登录密钥,desc=远程登录密钥（需与服务器端一致）
 BARK = input,"https://api.day.app/gNMDZyLKWQw2ezDpC6Zm2A",tag=Bark推送地址,desc=Bark推送URL（留空则不推送）
@@ -15,7 +15,7 @@ DEBOUNCE = input,"5000",tag=防抖时间(ms),desc=同一请求的最小间隔时
 NOTIFY = switch,true,tag=Loon通知,desc=是否开启Loon系统通知推送
 
 [Script]
-http-request ^https:\/\/gate-obt\.nqf\.qq\.com\/prod\/ws script-path=https://raw.githubusercontent.com/zyycn/qq-farm-bot-nest/main/apps/loon/qq-farm.js,requires-body=false,timeout=10,tag=QQ农场抓号,argument=[{TARGET},{LOGIN_KEY_HEADER},{LOGIN_KEY},{BARK},{DEBOUNCE},{NOTIFY}]
+http-request ^https:\/\/gate-obt\.nqf\.qq\.com\/prod\/ws script-path=http://192.168.0.112:5500/qq-farm.js,requires-body=false,timeout=10,tag=QQ农场抓号,argument=[{TARGET},{LOGIN_KEY_HEADER},{LOGIN_KEY},{BARK},{DEBOUNCE},{NOTIFY}]
 
 [MITM]
 hostname = gate-obt.nqf.qq.com

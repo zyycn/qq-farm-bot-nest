@@ -1,5 +1,3 @@
-import { CLIENT_VERSION, DEFAULT_DEVICE_ID, DEFAULT_DEVICE_MEMORY, DEFAULT_DEVICE_NETWORK, DEFAULT_DEVICE_SYS_SOFTWARE, DEFAULT_OS, GAME_SERVER_URL } from '@qq-farm/shared'
-
 export const DEFAULT_FARM_INTERVAL_MS = 60_000
 export const DEFAULT_FRIEND_INTERVAL_MS = 60_000
 
@@ -133,30 +131,6 @@ export const DEFAULT_FRIEND_QUIET_HOURS: FriendQuietHoursConfig = {
   end: '07:00'
 }
 
-export interface RuntimeClientConfig {
-  serverUrl: string
-  clientVersion: string
-  os: string
-  deviceInfo: {
-    sysSoftware: string
-    network: string
-    memory: string
-    deviceId: string
-  }
-}
-
-export const DEFAULT_RUNTIME_CLIENT: RuntimeClientConfig = {
-  serverUrl: String(GAME_SERVER_URL),
-  clientVersion: String(CLIENT_VERSION),
-  os: String(DEFAULT_OS),
-  deviceInfo: {
-    sysSoftware: DEFAULT_DEVICE_SYS_SOFTWARE,
-    network: DEFAULT_DEVICE_NETWORK,
-    memory: DEFAULT_DEVICE_MEMORY,
-    deviceId: DEFAULT_DEVICE_ID
-  }
-}
-
 export interface OfflineReminderConfig {
   channel: string
   reloginUrlMode: string
@@ -204,6 +178,7 @@ export interface AccountConfigSnapshot {
   fertilizerLandTypes: FertilizerLandType[]
   fertilizerMultiSeason: boolean
   fertilizerBuy: FertilizerBuyConfig
+  deviceProfileId: string | null
 }
 
 export const DEFAULT_ACCOUNT_CONFIG: AccountConfigSnapshot = {
@@ -218,7 +193,8 @@ export const DEFAULT_ACCOUNT_CONFIG: AccountConfigSnapshot = {
   fertilizer: 'none',
   fertilizerLandTypes: [...ALL_FERTILIZER_LAND_TYPES],
   fertilizerMultiSeason: false,
-  fertilizerBuy: { ...DEFAULT_FERTILIZER_BUY }
+  fertilizerBuy: { ...DEFAULT_FERTILIZER_BUY },
+  deviceProfileId: null
 }
 
 export const PUSHOO_CHANNELS = new Set([

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { AnalyticsCropRow, SeedOption } from '@/api/types'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch, watchEffect } from 'vue'
 import { analyticsApi, farmApi } from '@/api'
@@ -88,7 +89,12 @@ function onModalSeedsChange(list: BagSeedItem[]) {
 }
 
 const preferredSeedOptions = computed(() => {
-  const options: any[] = [PREFERRED_SEED_AUTO_OPTION]
+  const options: Array<typeof PREFERRED_SEED_AUTO_OPTION | {
+    label: string
+    value: number
+    image?: string
+    disabled?: boolean
+  }> = [PREFERRED_SEED_AUTO_OPTION]
   const list = seeds.value
   if (list?.length) {
     for (const seed of list) {
@@ -107,7 +113,7 @@ const stealBlacklistOptions = computed(() => {
   const list = seeds.value
   if (!list?.length)
     return []
-  return list.map((seed: any) => ({
+  return list.map((seed: SeedOption) => ({
     label: `${seed.requiredLevel}级 ${seed.name} (${seed.price ?? 0}金)`,
     value: seed.seedId,
     image: seed.image
@@ -125,13 +131,13 @@ watchEffect(async () => {
     strategyPreviewLabel.value = null
     return
   }
-  const available = list.filter((s: { locked?: boolean, soldOut?: boolean }) => !s.locked && !s.soldOut)
+  const available = list.filter((s: SeedOption) => !s.locked && !s.soldOut)
   if (available.length === 0) {
     strategyPreviewLabel.value = '暂无可用种子'
     return
   }
   if (strategy === 'level') {
-    const best = available.toSorted((a: { requiredLevel: number }, b: { requiredLevel: number }) => b.requiredLevel - a.requiredLevel)[0]
+    const best = available.toSorted((a: SeedOption, b: SeedOption) => (b.requiredLevel ?? 0) - (a.requiredLevel ?? 0))[0]
     strategyPreviewLabel.value = best ? `${best.requiredLevel}级 ${best.name}` : null
     return
   }
@@ -143,10 +149,10 @@ watchEffect(async () => {
   try {
     const res = await analyticsApi.get(sortBy)
     const rankings = Array.isArray(res) ? res : []
-    const availableIds = new Set(available.map((s: { seedId: number }) => s.seedId))
-    const match = rankings.find((r: { seedId?: unknown }) => availableIds.has(Number(r.seedId)))
+    const availableIds = new Set(available.map((s: SeedOption) => s.seedId))
+    const match = rankings.find((r: AnalyticsCropRow) => availableIds.has(Number(r.seedId)))
     if (match) {
-      const seed = available.find((s: { seedId: number }) => s.seedId === Number(match.seedId))
+      const seed = available.find((s: SeedOption) => s.seedId === Number(match.seedId))
       strategyPreviewLabel.value = seed ? `${seed.requiredLevel}级 ${seed.name}` : null
     } else {
       strategyPreviewLabel.value = '暂无匹配种子'

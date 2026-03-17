@@ -1,12 +1,18 @@
 <script setup lang="ts">
+import type { AccountMutationPayload, QrCheckResponse, QrCreateResponse } from '@/api/types'
+import type { Account } from '@/stores'
 import { useIntervalFn } from '@vueuse/core'
 import { computed, reactive, ref, watch } from 'vue'
 import { accountApi } from '@/api'
 import { useAccountStore } from '@/stores'
 
+interface EditableAccount extends Account {
+  code?: string
+}
+
 const props = defineProps<{
   show: boolean
-  editData?: any
+  editData?: EditableAccount
 }>()
 const emit = defineEmits(['close', 'saved'])
 const RE_MOBILE_UA = /Android|iPhone|iPad|iPod|Mobile/i
@@ -14,7 +20,7 @@ const RE_CODE_PARAM = /[?&]code=([^&]+)/i
 
 const activeTab = ref('manual')
 const loading = ref(false)
-const qrData = ref<{ image?: string, code: string, qrcode?: string, url?: string } | null>(null)
+const qrData = ref<QrCreateResponse | null>(null)
 const qrStatus = ref('')
 const errorMessage = ref('')
 
@@ -29,7 +35,7 @@ const { pause: stopQRCheck, resume: startQRCheck } = useIntervalFn(
     if (!qrData.value)
       return
     try {
-      const res = await accountApi.checkQR(qrData.value.code)
+      const res: QrCheckResponse = await accountApi.checkQR(qrData.value.code)
       const status = res.status
       if (status === 'OK') {
         stopQRCheck()
@@ -72,12 +78,13 @@ async function loadQRCode() {
   qrStatus.value = '正在获取二维码'
   errorMessage.value = ''
   try {
-    const res = await accountApi.createQR()
+    const res: QrCreateResponse = await accountApi.createQR()
     qrData.value = res
     qrStatus.value = '请使用手机QQ扫码'
     startQRCheck()
-  } catch (e: any) {
-    qrStatus.value = `获取失败: ${e.message}`
+  } catch (e: unknown) {
+    const error = e as { message?: string }
+    qrStatus.value = `获取失败: ${error.message || '未知错误'}`
     console.error(e)
   } finally {
     loading.value = false
@@ -108,15 +115,16 @@ function openQRCodeLoginUrl() {
 
 const accountStore = useAccountStore()
 
-async function addAccount(data: any) {
+async function addAccount(data: AccountMutationPayload) {
   loading.value = true
   errorMessage.value = ''
   try {
     await accountStore.addAccount(data)
     emit('saved')
     close()
-  } catch (e: any) {
-    errorMessage.value = `保存失败: ${e.message}`
+  } catch (e: unknown) {
+    const error = e as { message?: string }
+    errorMessage.value = `保存失败: ${error.message || '未知错误'}`
   } finally {
     loading.value = false
   }
@@ -141,7 +149,7 @@ async function submitManual() {
     form.code = code
   }
 
-  let payload = {}
+  let payload: AccountMutationPayload
   if (props.editData) {
     const onlyNameChanged
       = form.name !== props.editData.name

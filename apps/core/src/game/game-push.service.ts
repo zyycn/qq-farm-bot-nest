@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { StoreService } from '../store/store.service'
-import { PushWorker } from './services/push.worker'
+import { PushWorker } from './workers/push.worker'
 
 @Injectable()
 export class GamePushService {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AlmanacItem, AlmanacSummary } from '@/api/modules/almanac'
+import type { AlmanacItem, AlmanacOverview, AlmanacSummary } from '@/api/modules/almanac'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { almanacApi } from '@/api'
@@ -63,7 +63,7 @@ function syncSelectedItem(nextItems: AlmanacItem[]): void {
   selectedPlant.value = nextItems.find(item => getItemKey(item) === key) ?? null
 }
 
-function applyAlmanacOverview(overview: any): void {
+function applyAlmanacOverview(overview: AlmanacOverview | null | undefined): void {
   summary.value = overview?.summary ?? DEFAULT_SUMMARY
   items.value = Array.isArray(overview?.items) ? overview.items : []
   syncSelectedItem(items.value)
@@ -228,7 +228,7 @@ useWs()
               class="min-w-0 w-full"
             >
               <template #prefix>
-                <span class="i-ant-design-search-outlined a-color-text-tertiary" />
+                <span class="i-streamline-emojis-magnifying-glass-tilted-left a-color-text-tertiary" />
               </template>
             </a-input>
             <a-button size="small" variant="filled" color="primary" :loading="loading" @click="loadPlants">

@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import type { DailyGift, DailyGiftTask } from '@/api/types'
 import EmptyState from '@/components/EmptyState.vue'
 
 defineProps<{
-  growth: { doneToday?: boolean, completedCount?: number, totalCount?: number, tasks?: any[] } | null
+  growth: DailyGift | null
 }>()
 
-function formatTaskProgress(task: any) {
+function formatTaskProgress(task: DailyGiftTask | undefined) {
   if (!task)
     return '未开始'
   const current = Number(task.progress ?? task.current) || 0

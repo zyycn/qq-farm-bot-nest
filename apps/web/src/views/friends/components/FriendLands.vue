@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import type { FarmLand } from '@/api/types'
 import EmptyState from '@/components/EmptyState.vue'
 import LandCard from '@/components/LandCard.vue'
 
 defineProps<{
-  lands: any[]
+  lands: FarmLand[]
   loading: boolean
 }>()
 </script>

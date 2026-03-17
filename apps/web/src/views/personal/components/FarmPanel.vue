@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { MenuItemType } from 'antdv-next'
 import type { SingleLandAction } from '../constants'
+import type { FarmLand, FarmSummary } from '@/api/types'
 import { storeToRefs } from 'pinia'
 import { h, ref } from 'vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -11,8 +12,8 @@ import { FARM_OPERATIONS, SINGLE_LAND_ACTION_LABELS } from '../constants'
 import FarmLandContextPanel from './FarmLandContextPanel.vue'
 
 const props = defineProps<{
-  lands: any[]
-  summary?: { harvestable?: number, growing?: number, empty?: number, dead?: number } | null
+  lands: FarmLand[]
+  summary?: FarmSummary | null
   connected?: boolean
   operating?: boolean
   currentAccountId?: string
@@ -30,7 +31,7 @@ const singleOperating = ref(false)
 const seedLoading = ref(false)
 const contextPanelRef = ref<InstanceType<typeof FarmLandContextPanel> | null>(null)
 
-function getContextMenuItems(land: any): MenuItemType[] {
+function getContextMenuItems(land: FarmLand): MenuItemType[] {
   const landId = Number(land?.id ?? 0)
   const cropName = land?.plantName ? String(land.plantName) : '空地'
   const firstLabel = landId ? `详细信息 · #${landId} ${cropName}` : '详细信息'
@@ -43,7 +44,7 @@ function getContextMenuItems(land: any): MenuItemType[] {
   ]
 }
 
-const activeLand = ref<any>(null)
+const activeLand = ref<FarmLand | null>(null)
 
 function onMenuClick(info: { key: string }): void {
   const land = activeLand.value
@@ -61,12 +62,12 @@ function onMenuClick(info: { key: string }): void {
   handleOperateSingleLand({ action, landId: Number(land.id) })
 }
 
-function onDropdownOpenChange(open: boolean, land: any): void {
+function onDropdownOpenChange(open: boolean, land: FarmLand): void {
   if (open)
     activeLand.value = land
 }
 
-function onDblClick(e: MouseEvent, land: any): void {
+function onDblClick(e: MouseEvent, land: FarmLand): void {
   activeLand.value = land
   const target = e.currentTarget as HTMLElement
   if (!target)
@@ -105,8 +106,9 @@ async function handleOperateSingleLand(payload: { action: SingleLandAction, land
     await farmStore.operateSingleLand(accountId, payload)
     const label = SINGLE_LAND_ACTION_LABELS[payload.action]
     message.success(`地块 #${payload.landId} 已执行${label}`)
-  } catch (e: any) {
-    message.error(e?.message ?? '单地块操作失败')
+  } catch (e: unknown) {
+    const error = e as { message?: string }
+    message.error(error?.message ?? '单地块操作失败')
   } finally {
     singleOperating.value = false
   }

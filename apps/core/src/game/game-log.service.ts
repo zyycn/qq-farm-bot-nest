@@ -160,7 +160,7 @@ export class GameLogService {
       const logsDeleted = logsResult?.changes ?? 0
       const accountLogsDeleted = accountLogsResult?.changes ?? 0
       if (logsDeleted > 0 || accountLogsDeleted > 0) {
-        this.logger.log(`日志清理完成: 农场日志删除 ${logsDeleted} 条, 账号操作日志删除 ${accountLogsDeleted} 条`)
+        this.logger.log(`日志清理完成: 农场日志删除 ${logsDeleted} 条，账号操作日志删除 ${accountLogsDeleted} 条`)
       }
     } catch (e: any) {
       this.logger.warn(`日志清理失败: ${e?.message}`)

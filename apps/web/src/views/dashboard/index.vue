@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { BagItem, LogQueryOptions } from '@/api/types'
 import { useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, reactive, ref, watch } from 'vue'
@@ -19,7 +20,7 @@ const bagStore = useBagStore()
 const { status, logs: statusLogs } = storeToRefs(statusStore)
 const { dashboardItems } = storeToRefs(bagStore)
 
-const filter = reactive({
+const filter = reactive<LogQueryOptions>({
   module: '',
   event: '',
   keyword: '',
@@ -104,10 +105,10 @@ const timeToLevel = computed(() => {
   return `约 ${(minsToLevel / 60).toFixed(1)} 小时后升级`
 })
 
-const fertilizerNormal = computed(() => dashboardItems.value.find((i: any) => Number(i.id) === 1011))
-const fertilizerOrganic = computed(() => dashboardItems.value.find((i: any) => Number(i.id) === 1012))
-const collectionNormal = computed(() => dashboardItems.value.find((i: any) => Number(i.id) === 3001))
-const collectionRare = computed(() => dashboardItems.value.find((i: any) => Number(i.id) === 3002))
+const fertilizerNormal = computed<BagItem | undefined>(() => dashboardItems.value.find(i => Number(i.id) === 1011))
+const fertilizerOrganic = computed<BagItem | undefined>(() => dashboardItems.value.find(i => Number(i.id) === 1012))
+const collectionNormal = computed<BagItem | undefined>(() => dashboardItems.value.find(i => Number(i.id) === 3001))
+const collectionRare = computed<BagItem | undefined>(() => dashboardItems.value.find(i => Number(i.id) === 3002))
 
 let localNextFarmRemainSec = 0
 let localNextFriendRemainSec = 0

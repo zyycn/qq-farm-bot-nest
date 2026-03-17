@@ -1,12 +1,13 @@
 <script setup lang="ts">
+import type { AnalyticsCropRow, AnalyticsSortKey } from '@/api/types'
 import { computed, ref, watch } from 'vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { COLUMNS, HIGHLIGHT_COLOR_MAP } from '../constants'
 
 const props = defineProps<{
-  list: any[]
+  list: AnalyticsCropRow[]
   loading: boolean
-  sortKey: string
+  sortKey: AnalyticsSortKey
   searchQuery: string
   tableScrollY?: number
 }>()
@@ -39,13 +40,13 @@ watch(
   }
 )
 
-function formatLv(level: any) {
+function formatLv(level: number | string | null | undefined) {
   if (level === null || level === undefined || level === '' || Number(level) < 0)
     return '未知'
   return String(level)
 }
 
-function formatGrowTime(seconds: any) {
+function formatGrowTime(seconds: number | string | null | undefined) {
   const s = Number(seconds)
   if (!Number.isFinite(s) || s <= 0)
     return '0秒'
@@ -73,7 +74,7 @@ function getHighlightColor(key: string): string {
       :data-source="pagedList"
       :loading="loading"
       :pagination="false"
-      :row-key="(record: any) => record.seedId"
+      :row-key="(record: AnalyticsCropRow) => record.seedId"
       :scroll="{ x: 800, y: props.tableScrollY }"
       size="middle"
     >

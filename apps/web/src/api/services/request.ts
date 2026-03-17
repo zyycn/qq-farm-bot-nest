@@ -1,4 +1,4 @@
-import type { AxiosRequestConfig } from 'axios'
+import type { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios'
 import axios from 'axios'
 import { useUserStore } from '@/stores/modules/user'
 import message from '@/utils/message'
@@ -23,7 +23,7 @@ api.interceptors.request.use((config) => {
   return config
 }, error => Promise.reject(error))
 
-function unwrapResponse(response: any) {
+function unwrapResponse<T>(response: AxiosResponse<NestResponse<T> | unknown>): T | AxiosResponse<NestResponse<T> | unknown> {
   const body = response.data as NestResponse | undefined
   const isNest = body && typeof body.code === 'number'
   if (!isNest)
@@ -31,14 +31,14 @@ function unwrapResponse(response: any) {
   if (body.code >= 200 && body.code < 300) {
     if (body.code !== 200 && body.message && body.message !== 'ok')
       message.warning(body.message)
-    return body.data as any
+    return body.data as T
   }
   return Promise.reject(new Error(body.message || '请求失败'))
 }
 
 type NotifyResult = { msg: string, type: 'error' | 'warning' } | null
 
-function pickErrorNotify(error: any): NotifyResult {
+function pickErrorNotify(error: AxiosError<{ message?: string, error?: string }>): NotifyResult {
   const { response, request, message: errorMsg } = error
 
   if (!response) {
@@ -92,11 +92,11 @@ function handleUnauthorized() {
 }
 
 interface ApiInstance {
-  get: <T = any>(url: string, config?: AxiosRequestConfig) => Promise<T>
-  post: <T = any>(url: string, data?: any, config?: AxiosRequestConfig) => Promise<T>
-  put: <T = any>(url: string, data?: any, config?: AxiosRequestConfig) => Promise<T>
-  delete: <T = any>(url: string, config?: AxiosRequestConfig) => Promise<T>
-  patch: <T = any>(url: string, data?: any, config?: AxiosRequestConfig) => Promise<T>
+  get: <T = unknown>(url: string, config?: AxiosRequestConfig) => Promise<T>
+  post: <T = unknown, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig<D>) => Promise<T>
+  put: <T = unknown, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig<D>) => Promise<T>
+  delete: <T = unknown>(url: string, config?: AxiosRequestConfig) => Promise<T>
+  patch: <T = unknown, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig<D>) => Promise<T>
 }
 
 export default api as unknown as ApiInstance

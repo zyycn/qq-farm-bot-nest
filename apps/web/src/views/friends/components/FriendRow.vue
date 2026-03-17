@@ -1,14 +1,33 @@
 <script setup lang="ts">
+import type { FarmLand } from '@/api/types'
 import { computed } from 'vue'
 import QqAvatar from '@/components/QqAvatar.vue'
 import { OP_BUTTONS } from '../constants'
 import FriendLands from './FriendLands.vue'
 
+interface FriendPlantStatus {
+  stealNum?: number
+  dryNum?: number
+  weedNum?: number
+  insectNum?: number
+}
+
+interface FriendListItem {
+  gid?: number | string
+  uin?: number | string
+  name?: string
+  level?: number
+  avatarUrl?: string
+  avatar_url?: string
+  plant?: FriendPlantStatus
+  [key: string]: unknown
+}
+
 const props = defineProps<{
-  friend: any
+  friend: FriendListItem
   expanded: boolean
   blacklisted: boolean
-  lands: any[]
+  lands: FarmLand[]
   landsLoading: boolean
   avatarErrorKeys: Set<string>
   disabled?: boolean
@@ -21,7 +40,7 @@ const emit = defineEmits<{
   avatarError: [key: string]
 }>()
 
-function getFriendStatusTags(friend: any) {
+function getFriendStatusTags(friend: FriendListItem) {
   const p = friend.plant || {}
   const tags: { label: string, icon: string, class: string }[] = []
   if (p.stealNum) {
@@ -43,7 +62,7 @@ function getFriendStatusTags(friend: any) {
   return tags
 }
 
-function getFriendAvatar(friend: any) {
+function getFriendAvatar(friend: FriendListItem) {
   const direct = String(friend?.avatarUrl || friend?.avatar_url || '').trim()
   if (direct)
     return direct
@@ -53,7 +72,7 @@ function getFriendAvatar(friend: any) {
   return ''
 }
 
-function getFriendAvatarKey(friend: any) {
+function getFriendAvatarKey(friend: FriendListItem) {
   return String(friend?.gid || friend?.uin || '').trim() || String(friend?.name || '').trim()
 }
 

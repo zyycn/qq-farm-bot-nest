@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common'
-import { ConnectionManagerService } from './connection-manager.service'
+import { ConnectionManagerService } from './connection/connection-manager.service'
 import { GameInvokeService } from './game-invoke.service'
-import { ProtoLoaderService } from './proto-loader.service'
-import { TcpServerService } from './tcp-server.service'
+import { ProtoLoaderService } from './proto/proto-loader.service'
+import { TcpServerService } from './tcp/tcp-server.service'
 
 @Module({
   providers: [

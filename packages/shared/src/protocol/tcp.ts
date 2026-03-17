@@ -11,12 +11,25 @@ export const TCP_HOST = '127.0.0.1'
 export interface ClientConfig {
   serverUrl?: string
   clientVersion?: string
+  platform?: string
   os?: string
+  userAgent?: string
+  origin?: string
   deviceInfo?: {
     sysSoftware?: string
+    sysHardware?: string
+    telecomOper?: string
     network?: string
+    screenWidth?: number
+    screenHeight?: number
+    density?: number
+    cpu?: string
     memory?: string
+    glRender?: string
+    glVersion?: string
     deviceId?: string
+    androidOaid?: string
+    iosCaid?: string
   }
 }
 

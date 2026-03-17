@@ -83,7 +83,7 @@ export class GameConfigService implements OnModuleInit {
         this.levelExpTable[item.level] = item.exp
       this.logger.log(`已加载等级经验表 (${this.roleLevelConfig.length} 级)`)
     } catch (e: any) {
-      this.logger.warn(`加载 RoleLevel.json 失败: ${e.message}`)
+      this.logger.warn(`加载等级经验配置失败: ${e.message}`)
     }
   }
 
@@ -105,7 +105,7 @@ export class GameConfigService implements OnModuleInit {
       }
       this.logger.log(`已加载植物配置 (${this.plantConfig.length} 种)`)
     } catch (e: any) {
-      this.logger.warn(`加载 Plant.json 失败: ${e.message}`)
+      this.logger.warn(`加载植物配置文件失败: ${e.message}`)
     }
   }
 
@@ -127,7 +127,7 @@ export class GameConfigService implements OnModuleInit {
       }
       this.logger.log(`已加载物品配置 (${this.itemInfoConfig.length} 项)`)
     } catch (e: any) {
-      this.logger.warn(`加载 ItemInfo.json 失败: ${e.message}`)
+      this.logger.warn(`加载物品配置文件失败: ${e.message}`)
     }
   }
 
@@ -159,7 +159,7 @@ export class GameConfigService implements OnModuleInit {
       }
       this.logger.log(`已加载种子图片映射 (${this.seedImageMap.size} 项)`)
     } catch (e: any) {
-      this.logger.warn(`加载 seed_images_named 失败: ${e.message}`)
+      this.logger.warn(`加载种子图片映射失败: ${e.message}`)
     }
   }
 

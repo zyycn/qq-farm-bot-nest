@@ -24,5 +24,8 @@
   },
   "devDependencies": {
     "turbo": "^2.8.17"
+  },
+  "volta": {
+    "node": "24.14.0"
   }
 }
