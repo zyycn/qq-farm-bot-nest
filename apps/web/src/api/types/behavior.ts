@@ -87,6 +87,47 @@ export interface BehaviorInspectResponse {
     }
     quietHoursGateAppliesToBusinessTraffic: boolean
     dropLowPriorityScriptRequestsWhenBusy: boolean
+    routeCoverage: {
+      total: number
+      byIntent: {
+        interactive: number
+        automation: number
+        script: number
+        system: number
+        default: number
+      }
+      routes: Array<{
+        route: string
+        intent: 'interactive' | 'automation' | 'script' | 'system' | 'default'
+      }>
+    }
+    operationCoverage: {
+      total: number
+      categories: Partial<Record<
+        | 'farm_read'
+        | 'farm_write'
+        | 'farm_cycle'
+        | 'friend_visit'
+        | 'friend_write'
+        | 'warehouse_read'
+        | 'warehouse_write'
+        | 'task_claim'
+        | 'task_followup'
+        | 'daily_reward'
+        | 'daily_reward_followup'
+        | 'session_bootstrap'
+        | 'background'
+        | 'heartbeat'
+        | 'activity_report'
+        | 'generic',
+        number
+      >>
+      systemTraffic: {
+        heartbeatDeclared: boolean
+        activityReportDeclared: boolean
+        unresolvedCategories: Array<'heartbeat' | 'activity_report'>
+      }
+    }
   }
   runtimeCoordination: {
     unifiedCoordinatorEnabled: boolean

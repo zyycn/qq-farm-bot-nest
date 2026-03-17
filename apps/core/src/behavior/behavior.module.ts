@@ -1,4 +1,5 @@
 import { Global, Module } from '@nestjs/common'
+import { DiscoveryModule } from '@nestjs/core'
 import { DeviceModule } from '../device/device.module'
 import { ActionPacerService } from './action-pacer.service'
 import { ActiveHoursService } from './active-hours.service'
@@ -26,7 +27,7 @@ const services = [
 
 @Global()
 @Module({
-  imports: [DeviceModule],
+  imports: [DeviceModule, DiscoveryModule],
   providers: services,
   exports: services
 })

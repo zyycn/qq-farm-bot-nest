@@ -2,7 +2,6 @@ import type { RhythmService } from '../../behavior/rhythm.service'
 import type { StoreService } from '../../store/store.service'
 import type { GameConfigService } from '../game-config.service'
 import type { IGameTransport } from '../interfaces/game-transport.interface'
-import type { GameRequestContext } from '../interfaces/request-context.interface'
 import type { AnalyticsWorker } from '../workers/analytics.worker'
 import type { StatsTracker } from '../workers/stats.worker'
 import { Logger } from '@nestjs/common'
@@ -156,8 +155,8 @@ export class GameSession {
     }) as boolean
   }
 
-  async runFarmOperation(opType: string, requestContext?: GameRequestContext) {
-    return await this.enqueue(`farm-op:${opType}`, async () => this.runFarmOperationUnsafe(opType, requestContext), requestContext)
+  async runFarmOperation(opType: string) {
+    return await this.enqueue(`farm-op:${opType}`, async () => this.runFarmOperationUnsafe(opType))
   }
 
   async runHarvestThenPlant() {
@@ -168,25 +167,25 @@ export class GameSession {
     })
   }
 
-  async runSingleLandOperation(payload: { action: string, landId: number, seedId: number }, requestContext?: GameRequestContext) {
+  async runSingleLandOperation(payload: { action: string, landId: number, seedId: number }) {
     return await this.enqueue(`single-land:${payload.action}:${payload.landId}`, async () => {
-      await this.ensureLandsReady(requestContext)
-      const result = await this.farmActions.runSingleLandOperation(payload, requestContext)
-      await this.followAfterSingleLandOperation(payload, requestContext)
+      await this.ensureLandsReady()
+      const result = await this.farmActions.runSingleLandOperation(payload)
+      await this.followAfterSingleLandOperation(payload)
       return result
-    }, requestContext)
+    })
   }
 
-  async sellItem(itemId: number, count: number, requestContext?: GameRequestContext) {
+  async sellItem(itemId: number, count: number) {
     return await this.enqueue(`sell-item:${itemId}`, async () => {
-      await this.ensureBagReady(requestContext)
-      return await this.warehouseActions.sellItemByIdAndCount(itemId, count, requestContext)
-    }, requestContext)
+      await this.ensureBagReady()
+      return await this.warehouseActions.sellItemByIdAndCount(itemId, count)
+    })
   }
 
-  async buySeed(goodsId: number, count: number, price: number, requestContext?: GameRequestContext) {
+  async buySeed(goodsId: number, count: number, price: number) {
     return await this.enqueue(`buy-seed:${goodsId}`, async () => {
-      const result = await this.farmActions.buyGoods(goodsId, count, price, requestContext)
+      const result = await this.farmActions.buyGoods(goodsId, count, price)
       const items = result?.get_items || []
       if (items.length > 0) {
         const seedId = Number(items[0]?.id) || 0
@@ -194,7 +193,7 @@ export class GameSession {
         this.log(`手动购买 ${name} x${count}，花费 ${price * count} 金币`, 'seed_buy')
       }
       return result
-    }, requestContext)
+    })
   }
 
   async sellAllFruits() {
@@ -216,8 +215,8 @@ export class GameSession {
     return this.landsState.getDetailSnapshot(this.gameConfig)
   }
 
-  async getAvailableSeeds(requestContext?: GameRequestContext) {
-    return await this.farmActions.getAvailableSeeds(requestContext)
+  async getAvailableSeeds() {
+    return await this.farmActions.getAvailableSeeds()
   }
 
   async getBagDetail() {
@@ -225,8 +224,8 @@ export class GameSession {
     return this.bagState.getDetailSnapshot(this.gameConfig)
   }
 
-  async getBagSeeds(requestContext?: GameRequestContext) {
-    await this.ensureBagReady(requestContext)
+  async getBagSeeds() {
+    await this.ensureBagReady()
     return this.bagState.getSeedSnapshot(this.gameConfig)
   }
 
@@ -242,20 +241,20 @@ export class GameSession {
     return this.warehouseActions.getFertilizerGiftDailyState()
   }
 
-  private async runFarmOperationUnsafe(opType: string, requestContext?: GameRequestContext) {
-    await this.ensureLandsReady(requestContext)
-    const result = await this.farmActions.runFarmOperation(opType, requestContext)
+  private async runFarmOperationUnsafe(opType: string) {
+    await this.ensureLandsReady()
+    const result = await this.farmActions.runFarmOperation(opType)
     if ((opType === 'all' || opType === 'harvest') && result.hadWork)
       await this.sellAllFruitsUnsafe()
     return result
   }
 
-  private async followAfterSingleLandOperation(payload: { action: string, landId: number }, requestContext?: GameRequestContext) {
+  private async followAfterSingleLandOperation(payload: { action: string, landId: number }) {
     if (payload.action !== 'remove')
       return
     if (!this.store.isAutomationOn('farm', this.accountId))
       return
-    await this.runFarmOperationUnsafe('plant', requestContext)
+    await this.runFarmOperationUnsafe('plant')
   }
 
   private async sellAllFruitsUnsafe() {
@@ -263,25 +262,25 @@ export class GameSession {
     return await this.warehouseActions.sellAllFruits()
   }
 
-  private async syncLandsUnsafe(requestContext?: GameRequestContext) {
-    await this.farmActions.syncLands(requestContext)
+  private async syncLandsUnsafe() {
+    await this.farmActions.syncLands()
   }
 
-  private async syncBagUnsafe(requestContext?: GameRequestContext) {
-    const reply = await this.warehouseActions.syncBag(requestContext)
+  private async syncBagUnsafe() {
+    const reply = await this.warehouseActions.syncBag()
     this.bagState.applyFull(reply)
     this.lastBagSyncAt = Date.now()
     this.afterBagChanged()
   }
 
-  private async ensureLandsReady(requestContext?: GameRequestContext) {
+  private async ensureLandsReady() {
     if (!this.landsState.getAll().length)
-      await this.syncLandsUnsafe(requestContext)
+      await this.syncLandsUnsafe()
   }
 
-  private async ensureBagReady(requestContext?: GameRequestContext) {
+  private async ensureBagReady() {
     if (!this.bagState.getRawItems().length)
-      await this.syncBagUnsafe(requestContext)
+      await this.syncBagUnsafe()
   }
 
   private async calibrateIfNeeded() {
@@ -378,12 +377,12 @@ export class GameSession {
     void this.runScheduledAutomationPass()
   }
 
-  private enqueue<T>(label: string, task: () => Promise<T>, requestContext?: GameRequestContext): Promise<T> {
+  private enqueue<T>(label: string, task: () => Promise<T>): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       this.pendingTasks.push({
         label,
         order: this.taskOrder++,
-        priority: isInteractiveRequest(requestContext) ? 1 : 0,
+        priority: isInteractiveRequest() ? 1 : 0,
         task,
         resolve,
         reject

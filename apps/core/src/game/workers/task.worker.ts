@@ -4,6 +4,7 @@ import type { IGameTransport } from '../interfaces/game-transport.interface'
 import type { StatsTracker } from './stats.worker'
 import { Logger } from '@nestjs/common'
 import { Scheduler } from '@qq-farm/shared'
+import { GameRpcExecutor } from '../rpc/game-rpc-executor'
 import { getRewardSummary, getServerDateKey, toNum } from '../utils'
 
 export class TaskWorker {
@@ -12,6 +13,7 @@ export class TaskWorker {
   private taskClaimDoneDateKey = ''
   private taskClaimLastAt = 0
   private scheduler: Scheduler
+  private readonly rpc: GameRpcExecutor
   onLog: ((entry: { msg: string, tag?: string, meta?: Record<string, string>, isWarn?: boolean }) => void) | null = null
 
   constructor(
@@ -24,6 +26,7 @@ export class TaskWorker {
   ) {
     this.logger = new Logger(`Task:${accountId}`)
     this.scheduler = new Scheduler(`task-${accountId}`, this.logger)
+    this.rpc = new GameRpcExecutor(this.client)
   }
 
   private log(msg: string, event?: string) {
@@ -36,82 +39,30 @@ export class TaskWorker {
     this.onLog?.({ msg, tag: '任务', meta: { module: 'task', ...(event && { event }) }, isWarn: true })
   }
 
-  private invokeTaskRead<T = unknown>(method: string, params: Record<string, unknown>) {
-    return this.client.invokeWithPolicy<T>({
-      service: 'gamepb.taskpb.TaskService',
-      method,
-      params,
-      policy: {
-        category: 'task_claim',
-        risk: 'low',
-        source: 'business'
-      }
-    })
-  }
-
-  private invokeTaskWrite<T = unknown>(method: string, params: Record<string, unknown>) {
-    return this.client.invokeWithPolicy<T>({
-      service: 'gamepb.taskpb.TaskService',
-      method,
-      params,
-      policy: {
-        category: 'task_claim',
-        risk: 'high',
-        source: 'business'
-      }
-    })
-  }
-
-  private invokeIllustratedRead<T = unknown>(method: string, params: Record<string, unknown>) {
-    return this.client.invokeWithPolicy<T>({
-      service: 'gamepb.illustratedpb.IllustratedService',
-      method,
-      params,
-      policy: {
-        category: 'task_claim',
-        risk: 'low',
-        source: 'business'
-      }
-    })
-  }
-
-  private invokeIllustratedWrite<T = unknown>(method: string, params: Record<string, unknown>) {
-    return this.client.invokeWithPolicy<T>({
-      service: 'gamepb.illustratedpb.IllustratedService',
-      method,
-      params,
-      policy: {
-        category: 'task_claim',
-        risk: 'high',
-        source: 'business'
-      }
-    })
-  }
-
   // ========== API ==========
 
   async getTaskInfo(): Promise<any> {
-    const { data } = await this.invokeTaskRead('TaskInfo', {})
+    const { data } = await this.rpc.call('task.taskInfo', {})
     return data ?? {}
   }
 
   async claimTaskReward(taskId: number, doShared = false): Promise<any> {
-    const { data } = await this.invokeTaskWrite('ClaimTaskReward', { id: taskId, do_shared: doShared })
+    const { data } = await this.rpc.call('task.claimTaskReward', { id: taskId, do_shared: doShared })
     return data ?? {}
   }
 
   async claimDailyReward(type: number, pointIds: number[]): Promise<any> {
-    const { data } = await this.invokeTaskWrite('ClaimDailyReward', { type: Number(type) || 0, point_ids: pointIds })
+    const { data } = await this.rpc.call('task.claimDailyReward', { type: Number(type) || 0, point_ids: pointIds })
     return data ?? { items: [] }
   }
 
   async claimAllIllustratedRewards(): Promise<any> {
-    const { data } = await this.invokeIllustratedWrite('ClaimAllRewardsV2', { only_claimable: true })
+    const { data } = await this.rpc.call('illustrated.claimAllRewardsV2', { only_claimable: true })
     return data ?? { items: [], bonus_items: [] }
   }
 
   async getIllustratedState(): Promise<any> {
-    const { data } = await this.invokeIllustratedRead('GetIllustratedListV2', {
+    const { data } = await this.rpc.call('illustrated.getIllustratedListV2', {
       // refresh=true currently returns only 101 normal entries and hides the
       // 7 treasure entries, so use the stable full response here as well.
       refresh: false,

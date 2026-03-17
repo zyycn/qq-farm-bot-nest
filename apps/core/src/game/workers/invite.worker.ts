@@ -3,6 +3,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { Logger } from '@nestjs/common'
 import { ASSETS_DIR } from '../../config/paths'
+import { GameRpcExecutor } from '../rpc/game-rpc-executor'
 
 interface ParsedInvite {
   uid: string | null
@@ -13,6 +14,7 @@ interface ParsedInvite {
 
 export class InviteWorker {
   private logger: Logger
+  private readonly rpc: GameRpcExecutor
   onLog: ((entry: { msg: string, tag?: string, meta?: Record<string, string>, isWarn?: boolean }) => void) | null = null
 
   constructor(
@@ -21,6 +23,7 @@ export class InviteWorker {
     private platform: string
   ) {
     this.logger = new Logger(`Invite:${accountId}`)
+    this.rpc = new GameRpcExecutor(this.client)
   }
 
   private log(msg: string, event?: string) {
@@ -59,21 +62,8 @@ export class InviteWorker {
     } catch { return [] }
   }
 
-  private invokeInviteWrite<T = unknown>(method: string, params: Record<string, unknown>) {
-    return this.client.invokeWithPolicy<T>({
-      service: 'gamepb.userpb.UserService',
-      method,
-      params,
-      policy: {
-        category: 'daily_reward',
-        risk: 'high',
-        source: 'business'
-      }
-    })
-  }
-
   async sendReportArkClick(sharerId: string, sharerOpenId: string, shareSource: string | null) {
-    const { data } = await this.invokeInviteWrite('ReportArkClick', {
+    const { data } = await this.rpc.call('invite.reportArkClick', {
       sharer_id: Number(sharerId),
       sharer_open_id: sharerOpenId,
       share_cfg_id: String(shareSource || '0'),

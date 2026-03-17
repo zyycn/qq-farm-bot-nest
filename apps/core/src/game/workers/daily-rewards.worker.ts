@@ -2,11 +2,13 @@ import type { DailyRoutineRunOptions } from '../../account/runner/account-runner
 import type { GameConfigService } from '../game-config.service'
 import type { IGameTransport } from '../interfaces/game-transport.interface'
 import { Logger } from '@nestjs/common'
+import { GameRpcExecutor } from '../rpc/game-rpc-executor'
 import { getDateKey, getRewardSummary } from '../utils'
 
 export class DailyRewardsWorker {
   private logger: Logger
   private readonly CHECK_COOLDOWN_MS = 10 * 60 * 1000
+  private readonly rpc: GameRpcExecutor
 
   private emailDone = ''
   private emailLastCheck = 0
@@ -38,6 +40,7 @@ export class DailyRewardsWorker {
     private platform = 'qq'
   ) {
     this.logger = new Logger(`DailyRewards:${accountId}`)
+    this.rpc = new GameRpcExecutor(this.client)
   }
 
   private log(msg: string, event?: string) {
@@ -48,32 +51,6 @@ export class DailyRewardsWorker {
   private warn(msg: string, event?: string) {
     this.logger.warn(msg)
     this.onLog?.({ msg, tag: '任务', meta: { module: 'task', ...(event && { event }) }, isWarn: true })
-  }
-
-  private invokeDailyRead<T = unknown>(service: string, method: string, params: Record<string, unknown>) {
-    return this.client.invokeWithPolicy<T>({
-      service,
-      method,
-      params,
-      policy: {
-        category: 'daily_reward',
-        risk: 'low',
-        source: 'business'
-      }
-    })
-  }
-
-  private invokeDailyWrite<T = unknown>(service: string, method: string, params: Record<string, unknown>) {
-    return this.client.invokeWithPolicy<T>({
-      service,
-      method,
-      params,
-      policy: {
-        category: 'daily_reward',
-        risk: 'high',
-        source: 'business'
-      }
-    })
   }
 
   private shouldLogNoop(options?: DailyRoutineRunOptions): boolean {
@@ -93,7 +70,7 @@ export class DailyRewardsWorker {
 
     try {
       const getEmailList = async (boxType: number): Promise<any> => {
-        const { data } = await this.invokeDailyRead('gamepb.emailpb.EmailService', 'GetEmailList', { box_type: boxType })
+        const { data } = await this.rpc.call('daily.email.getEmailList', { box_type: boxType })
         return data ?? { emails: [] }
       }
 
@@ -139,7 +116,7 @@ export class DailyRewardsWorker {
           const firstId = String(list[0]?.id || '')
           if (!firstId)
             continue
-          const { data: rep } = await this.invokeDailyWrite<any>('gamepb.emailpb.EmailService', 'BatchClaimEmail', { box_type: bt, email_id: firstId })
+          const { data: rep } = await this.rpc.call<any>('daily.email.batchClaimEmail', { box_type: bt, email_id: firstId })
           if ((rep as any)?.items?.length)
             rewards.push(...(rep as any).items)
           claimed++
@@ -149,7 +126,7 @@ export class DailyRewardsWorker {
       for (const m of claimable) {
         const bt = m.__boxType === 2 ? 2 : 1
         try {
-          const { data: rep } = await this.invokeDailyWrite<any>('gamepb.emailpb.EmailService', 'ClaimEmail', { box_type: bt, email_id: String(m.id || '') })
+          const { data: rep } = await this.rpc.call<any>('daily.email.claimEmail', { box_type: bt, email_id: String(m.id || '') })
           if ((rep as any)?.items?.length)
             rewards.push(...(rep as any).items)
           claimed++
@@ -180,7 +157,7 @@ export class DailyRewardsWorker {
     this.monthCardLastCheck = now
 
     try {
-      const { data: rep } = await this.invokeDailyRead<any>('gamepb.mallpb.MallService', 'GetMonthCardInfos', {})
+      const { data: rep } = await this.rpc.call<any>('daily.mall.getMonthCardInfos', {})
       const infos = (rep as any)?.infos || []
       const claimable = infos.filter((x: any) => x?.can_claim && Number(x.goods_id || 0) > 0)
 
@@ -194,7 +171,7 @@ export class DailyRewardsWorker {
       let claimed = 0
       for (const info of claimable) {
         try {
-          const { data: ret } = await this.invokeDailyWrite<any>('gamepb.mallpb.MallService', 'ClaimMonthCardReward', { goods_id: Number(info.goods_id) })
+          const { data: ret } = await this.rpc.call<any>('daily.mall.claimMonthCardReward', { goods_id: Number(info.goods_id) })
           const reward = getRewardSummary((ret as any)?.items || [], id => this.gameConfig.getItemName(id))
           this.log(reward ? `月卡领取成功 → ${reward}` : '月卡领取成功', 'month_card_gift')
           claimed++
@@ -226,7 +203,7 @@ export class DailyRewardsWorker {
     this.openServerLastCheck = now
 
     try {
-      const { data: status } = await this.invokeDailyRead<any>('gamepb.redpacketpb.RedPacketService', 'GetTodayClaimStatus', {})
+      const { data: status } = await this.rpc.call<any>('daily.redpacket.getTodayClaimStatus', {})
       const claimable = ((status as any)?.infos || []).filter((x: any) => x?.can_claim && Number(x.id || 0) > 0)
 
       if (!claimable.length) {
@@ -239,7 +216,7 @@ export class DailyRewardsWorker {
       let claimed = 0
       for (const info of claimable) {
         try {
-          const { data: ret } = await this.invokeDailyWrite<any>('gamepb.redpacketpb.RedPacketService', 'ClaimRedPacket', { id: Number(info.id) })
+          const { data: ret } = await this.rpc.call<any>('daily.redpacket.claimRedPacket', { id: Number(info.id) })
           const items = (ret as any)?.item ? [(ret as any).item] : []
           const reward = getRewardSummary(items, id => this.gameConfig.getItemName(id))
           this.log(reward ? `开服红包领取成功 → ${reward}` : '开服红包领取成功', 'open_server_gift')
@@ -277,7 +254,7 @@ export class DailyRewardsWorker {
     this.vipLastCheck = now
 
     try {
-      const { data: status } = await this.invokeDailyRead<any>('gamepb.qqvippb.QQVipService', 'GetDailyGiftStatus', {})
+      const { data: status } = await this.rpc.call<any>('daily.qqvip.getDailyGiftStatus', {})
 
       if (!(status as any)?.can_claim) {
         this.vipDone = getDateKey()
@@ -286,7 +263,7 @@ export class DailyRewardsWorker {
         return false
       }
 
-      const { data: rep } = await this.invokeDailyWrite<any>('gamepb.qqvippb.QQVipService', 'ClaimDailyGift', {})
+      const { data: rep } = await this.rpc.call<any>('daily.qqvip.claimDailyGift', {})
       const reward = getRewardSummary((rep as any)?.items || [], id => this.gameConfig.getItemName(id))
       this.log(reward ? `会员礼包领取成功 → ${reward}` : '会员礼包领取成功', 'vip_daily_gift')
       this.vipLastClaim = Date.now()
@@ -322,7 +299,7 @@ export class DailyRewardsWorker {
     }
 
     try {
-      const { data: can } = await this.invokeDailyRead<any>('gamepb.sharepb.ShareService', 'CheckCanShare', {})
+      const { data: can } = await this.rpc.call<any>('daily.share.checkCanShare', {})
       if (!(can as any)?.can_share) {
         this.shareDone = getDateKey()
         if (this.shouldLogNoop(options))
@@ -330,13 +307,13 @@ export class DailyRewardsWorker {
         return false
       }
 
-      const { data: report } = await this.invokeDailyWrite<any>('gamepb.sharepb.ShareService', 'ReportShare', { share_channel: 1 })
+      const { data: report } = await this.rpc.call<any>('daily.share.reportShare', { share_channel: 1 })
       if (!(report as any)?.result?.success) {
         this.warn('上报分享状态失败', 'daily_share')
         return false
       }
 
-      const { data: rep } = await this.invokeDailyWrite<any>('gamepb.sharepb.ShareService', 'ClaimShareReward', { claimed: true })
+      const { data: rep } = await this.rpc.call<any>('daily.share.claimShareReward', { claimed: true })
       if (!(rep as any)?.state?.success) {
         this.warn('领取分享礼包失败', 'daily_share')
         return false
@@ -372,7 +349,7 @@ export class DailyRewardsWorker {
     this.freeGiftLastCheck = now
 
     try {
-      const { data: mall } = await this.invokeDailyRead<any>('gamepb.mallpb.MallService', 'GetMallListBySlotType', { slot_type: 1 })
+      const { data: mall } = await this.rpc.call<any>('daily.mall.getMallListBySlotType', { slot_type: 1 })
       const goods = (mall as any)?.goods_list || []
       const free = goods.filter((g: any) => g?.is_free === true && Number(g.goods_id || 0) > 0)
       if (!free.length) {
@@ -385,7 +362,7 @@ export class DailyRewardsWorker {
       let bought = 0
       for (const g of free) {
         try {
-          await this.invokeDailyWrite('gamepb.mallpb.MallService', 'Purchase', { goods_id: Number(g.goods_id), count: 1 })
+          await this.rpc.call('daily.mall.purchase', { goods_id: Number(g.goods_id), count: 1 })
           bought++
         } catch {}
       }
@@ -418,7 +395,7 @@ export class DailyRewardsWorker {
       return 0
     this.lastBuyAt = now
     try {
-      const { data: mall } = await this.invokeDailyRead<any>('gamepb.mallpb.MallService', 'GetMallListBySlotType', { slot_type: 1 })
+      const { data: mall } = await this.rpc.call<any>('daily.mall.getMallListBySlotType', { slot_type: 1 })
       const goods = (mall as any)?.goods_list || []
       const types: Array<{ id: number, label: string }> = []
       if (config.type === 'organic' || config.type === 'both')
@@ -440,7 +417,7 @@ export class DailyRewardsWorker {
         let rounds = 0
         while (rounds < config.max) {
           try {
-            await this.invokeDailyWrite('gamepb.mallpb.MallService', 'Purchase', { goods_id: id, count: DailyRewardsWorker.BUY_PER_ROUND })
+            await this.rpc.call('daily.mall.purchase', { goods_id: id, count: DailyRewardsWorker.BUY_PER_ROUND })
             totalBought += DailyRewardsWorker.BUY_PER_ROUND
           } catch {
             break

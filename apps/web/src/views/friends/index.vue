@@ -233,7 +233,7 @@ useWs()
       class="flex shrink-0 flex-col max-h-[70%]"
       :classes="{ body: '!p-0 overflow-hidden flex flex-col' }"
     >
-        <InteractPanel
+      <InteractPanel
         v-model:collapsed="interactCollapsed"
         v-model:filter="interactFilter"
         :records="interactPanelRecords"

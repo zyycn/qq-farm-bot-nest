@@ -1,21 +1,19 @@
-import type { GameRequestContext } from '../../game/interfaces/request-context.interface'
-
 export interface AccountRunnerActionsDeps {
   ensureReady: () => Promise<void>
   getLands: () => Promise<unknown>
-  getSeeds: (requestContext?: GameRequestContext) => Promise<unknown>
-  getBagSeeds: (requestContext?: GameRequestContext) => Promise<unknown>
-  doFarmOp: (opType: string, requestContext?: GameRequestContext) => Promise<unknown>
-  doSingleLandOp: (payload: { action: string, landId: number, seedId: number }, requestContext?: GameRequestContext) => Promise<unknown>
+  getSeeds: () => Promise<unknown>
+  getBagSeeds: () => Promise<unknown>
+  doFarmOp: (opType: string) => Promise<unknown>
+  doSingleLandOp: (payload: { action: string, landId: number, seedId: number }) => Promise<unknown>
   getFriends: () => Promise<unknown>
-  getFriendLands: (gid: number, requestContext?: GameRequestContext) => Promise<unknown>
+  getFriendLands: (gid: number) => Promise<unknown>
   getAlmanac: (refresh?: boolean) => Promise<unknown>
   claimAlmanacRewards: () => Promise<unknown>
-  doFriendOp: (gid: number, opType: string, requestContext?: GameRequestContext) => Promise<unknown>
-  getInteractRecords: (requestContext?: GameRequestContext) => Promise<unknown>
+  doFriendOp: (gid: number, opType: string) => Promise<unknown>
+  getInteractRecords: () => Promise<unknown>
   getBag: () => Promise<unknown>
-  sellItem: (itemId: number, count: number, requestContext?: GameRequestContext) => Promise<unknown>
-  buySeed: (goodsId: number, count: number, price: number, requestContext?: GameRequestContext) => Promise<unknown>
+  sellItem: (itemId: number, count: number) => Promise<unknown>
+  buySeed: (goodsId: number, count: number, price: number) => Promise<unknown>
   getAnalytics: (sortBy: string) => unknown
   recordSell: (count: number) => void
   afterOperation: () => Promise<void>
@@ -31,26 +29,26 @@ export class AccountRunnerActions {
     return this.deps.getLands()
   }
 
-  async getSeeds(requestContext?: GameRequestContext) {
+  async getSeeds() {
     await this.deps.ensureReady()
-    return this.deps.getSeeds(requestContext)
+    return this.deps.getSeeds()
   }
 
-  async getBagSeeds(requestContext?: GameRequestContext) {
+  async getBagSeeds() {
     await this.deps.ensureReady()
-    return this.deps.getBagSeeds(requestContext)
+    return this.deps.getBagSeeds()
   }
 
-  async doFarmOp(opType: string, requestContext?: GameRequestContext) {
+  async doFarmOp(opType: string) {
     await this.deps.ensureReady()
-    const result = await this.deps.doFarmOp(opType, requestContext)
+    const result = await this.deps.doFarmOp(opType)
     await this.deps.afterOperation()
     return result
   }
 
-  async doSingleLandOp(payload: { action: string, landId: number, seedId: number }, requestContext?: GameRequestContext) {
+  async doSingleLandOp(payload: { action: string, landId: number, seedId: number }) {
     await this.deps.ensureReady()
-    const result = await this.deps.doSingleLandOp(payload, requestContext)
+    const result = await this.deps.doSingleLandOp(payload)
     await this.deps.afterOperation()
     return result
   }
@@ -60,9 +58,9 @@ export class AccountRunnerActions {
     return this.deps.getFriends()
   }
 
-  async getFriendLands(gid: number, requestContext?: GameRequestContext) {
+  async getFriendLands(gid: number) {
     await this.deps.ensureReady()
-    return this.deps.getFriendLands(gid, requestContext)
+    return this.deps.getFriendLands(gid)
   }
 
   async getAlmanac(refresh = false) {
@@ -78,17 +76,17 @@ export class AccountRunnerActions {
     return result
   }
 
-  async doFriendOp(gid: number, opType: string, requestContext?: GameRequestContext) {
+  async doFriendOp(gid: number, opType: string) {
     await this.deps.ensureReady()
-    const result = await this.deps.doFriendOp(gid, opType, requestContext)
+    const result = await this.deps.doFriendOp(gid, opType)
     this.deps.pushFriends().catch(() => {})
     await this.deps.afterOperation()
     return result
   }
 
-  async getInteractRecords(requestContext?: GameRequestContext) {
+  async getInteractRecords() {
     await this.deps.ensureReady()
-    return this.deps.getInteractRecords(requestContext)
+    return this.deps.getInteractRecords()
   }
 
   async getBag() {
@@ -96,17 +94,17 @@ export class AccountRunnerActions {
     return this.deps.getBag()
   }
 
-  async sellItem(itemId: number, count: number, requestContext?: GameRequestContext) {
+  async sellItem(itemId: number, count: number) {
     await this.deps.ensureReady()
-    const result = await this.deps.sellItem(itemId, count, requestContext)
+    const result = await this.deps.sellItem(itemId, count)
     this.deps.recordSell(count)
     await this.deps.afterOperation()
     return result
   }
 
-  async buySeed(goodsId: number, count: number, price: number, requestContext?: GameRequestContext) {
+  async buySeed(goodsId: number, count: number, price: number) {
     await this.deps.ensureReady()
-    const result = await this.deps.buySeed(goodsId, count, price, requestContext)
+    const result = await this.deps.buySeed(goodsId, count, price)
     await this.deps.afterOperation()
     return result
   }

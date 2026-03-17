@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { DiscoveryModule } from '@nestjs/core'
 import { AuthModule } from '../auth/auth.module'
+import { RequestIntentContextService } from '../common/request-intent/request-intent-context.service'
 import { DeviceModule } from '../device/device.module'
 import { StoreModule } from '../store/store.module'
 import { AccountPushBridge } from './account-push.bridge'
@@ -26,6 +27,7 @@ import { WsTopicsService } from './ws-topics.service'
   imports: [AuthModule, DeviceModule, DiscoveryModule, StoreModule],
   providers: [
     AccountPushBridge,
+    RequestIntentContextService,
     WsRouterService,
     WsTopicsService,
     RealtimePushService,

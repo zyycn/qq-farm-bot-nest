@@ -8,7 +8,6 @@ import type { SessionBootstrapService } from '../../behavior/session-bootstrap.s
 import type { DeviceFingerprintService, ResolvedDeviceConfig } from '../../device/device-fingerprint'
 import type { AccountConfigSnapshot } from '../../game/constants'
 import type { GameConfigService } from '../../game/game-config.service'
-import type { GameRequestContext } from '../../game/interfaces/request-context.interface'
 import type { LinkEventMap, LinkEventName } from '../../game/types'
 import type { StoreService } from '../../store/store.service'
 import type { IGameTransport } from '../../transport/interfaces/game-transport.interface'
@@ -214,28 +213,28 @@ export class AccountRunner {
     return this.actionsHandler.getLands()
   }
 
-  async getSeeds(requestContext?: GameRequestContext) {
-    return this.actionsHandler.getSeeds(requestContext)
+  async getSeeds() {
+    return this.actionsHandler.getSeeds()
   }
 
-  async getBagSeeds(requestContext?: GameRequestContext) {
-    return this.actionsHandler.getBagSeeds(requestContext)
+  async getBagSeeds() {
+    return this.actionsHandler.getBagSeeds()
   }
 
-  async doFarmOp(opType: string, requestContext?: GameRequestContext) {
-    return this.actionsHandler.doFarmOp(opType, requestContext)
+  async doFarmOp(opType: string) {
+    return this.actionsHandler.doFarmOp(opType)
   }
 
-  async doSingleLandOp(payload: { action: string, landId: number, seedId: number }, requestContext?: GameRequestContext) {
-    return this.actionsHandler.doSingleLandOp(payload, requestContext)
+  async doSingleLandOp(payload: { action: string, landId: number, seedId: number }) {
+    return this.actionsHandler.doSingleLandOp(payload)
   }
 
   async getFriends() {
     return this.actionsHandler.getFriends()
   }
 
-  async getFriendLands(gid: number, requestContext?: GameRequestContext) {
-    return this.actionsHandler.getFriendLands(gid, requestContext)
+  async getFriendLands(gid: number) {
+    return this.actionsHandler.getFriendLands(gid)
   }
 
   async getAlmanac(refresh = false) {
@@ -246,24 +245,24 @@ export class AccountRunner {
     return this.actionsHandler.claimAlmanacRewards()
   }
 
-  async doFriendOp(gid: number, opType: string, requestContext?: GameRequestContext) {
-    return this.actionsHandler.doFriendOp(gid, opType, requestContext)
+  async doFriendOp(gid: number, opType: string) {
+    return this.actionsHandler.doFriendOp(gid, opType)
   }
 
-  async getInteractRecords(requestContext?: GameRequestContext) {
-    return this.actionsHandler.getInteractRecords(requestContext)
+  async getInteractRecords() {
+    return this.actionsHandler.getInteractRecords()
   }
 
   async getBag() {
     return this.actionsHandler.getBag()
   }
 
-  async sellItem(itemId: number, count: number, requestContext?: GameRequestContext) {
-    return this.actionsHandler.sellItem(itemId, count, requestContext)
+  async sellItem(itemId: number, count: number) {
+    return this.actionsHandler.sellItem(itemId, count)
   }
 
-  async buySeed(goodsId: number, count: number, price: number, requestContext?: GameRequestContext) {
-    return this.actionsHandler.buySeed(goodsId, count, price, requestContext)
+  async buySeed(goodsId: number, count: number, price: number) {
+    return this.actionsHandler.buySeed(goodsId, count, price)
   }
 
   getAnalytics(sortBy: string) {

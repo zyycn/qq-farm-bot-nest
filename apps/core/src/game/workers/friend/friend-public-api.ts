@@ -1,5 +1,4 @@
 import type { GameConfigService } from '../../game-config.service'
-import type { GameRequestContext } from '../../interfaces/request-context.interface'
 import type { FriendLandAnalysis } from './friend-land-analysis'
 import { toNum } from '../../utils'
 import { buildFriendLandDetail } from './friend-land-detail'
@@ -8,20 +7,20 @@ import { normalizeFriendSummary, shouldKeepFriend, sortFriendSummaries } from '.
 export interface FriendPublicApiDeps {
   gameConfig: GameConfigService
   getMyGid: () => number
-  getAllFriends: (requestContext?: GameRequestContext) => Promise<any>
-  enterFriendFarm: (gid: number, requestContext?: GameRequestContext) => Promise<any>
-  leaveFriendFarm: (gid: number, requestContext?: GameRequestContext) => Promise<void>
-  checkCanOperateRemote: (gid: number, operationId: number, requestContext?: GameRequestContext) => Promise<{ canOperate: boolean, canStealNum: number }>
+  getAllFriends: () => Promise<any>
+  enterFriendFarm: (gid: number) => Promise<any>
+  leaveFriendFarm: (gid: number) => Promise<void>
+  checkCanOperateRemote: (gid: number, operationId: number) => Promise<{ canOperate: boolean, canStealNum: number }>
   analyzeFriendLands: (lands: any[], myGid: number) => FriendLandAnalysis
-  getFriendOpHandlers: () => Record<string, (status: FriendLandAnalysis, gid: number, requestContext?: GameRequestContext) => Promise<{ ok: boolean, opType: string, count?: number, message: string, bugCount?: number, weedCount?: number }>>
+  getFriendOpHandlers: () => Record<string, (status: FriendLandAnalysis, gid: number) => Promise<{ ok: boolean, opType: string, count?: number, message: string, bugCount?: number, weedCount?: number }>>
 }
 
 export class FriendPublicApi {
   constructor(private readonly deps: FriendPublicApiDeps) {}
 
-  async getFriendsList(requestContext?: GameRequestContext) {
+  async getFriendsList() {
     try {
-      const reply = await this.deps.getAllFriends(requestContext)
+      const reply = await this.deps.getAllFriends()
       const friends = reply.game_friends || []
       const myGid = this.deps.getMyGid()
       return sortFriendSummaries(
@@ -34,15 +33,15 @@ export class FriendPublicApi {
     }
   }
 
-  async getFriendLandsDetail(friendGid: number, requestContext?: GameRequestContext) {
+  async getFriendLandsDetail(friendGid: number) {
     try {
-      const enterReply = await this.deps.enterFriendFarm(friendGid, requestContext)
+      const enterReply = await this.deps.enterFriendFarm(friendGid)
       const lands = enterReply.lands || []
       const analyzed = this.deps.analyzeFriendLands(lands, this.deps.getMyGid())
-      await this.deps.leaveFriendFarm(friendGid, requestContext)
+      await this.deps.leaveFriendFarm(friendGid)
 
       if (analyzed.stealable.length > 0) {
-        const pre = await this.deps.checkCanOperateRemote(friendGid, 10008, requestContext)
+        const pre = await this.deps.checkCanOperateRemote(friendGid, 10008)
         if (!pre.canOperate) {
           analyzed.stealable = []
           analyzed.stealableInfo = []
@@ -54,14 +53,14 @@ export class FriendPublicApi {
     }
   }
 
-  async doFriendOperation(friendGid: number, opType: string, requestContext?: GameRequestContext) {
+  async doFriendOperation(friendGid: number, opType: string) {
     const gid = toNum(friendGid)
     if (!gid)
       return { ok: false, message: '无效好友ID', opType }
 
     let enterReply: any
     try {
-      enterReply = await this.deps.enterFriendFarm(gid, requestContext)
+      enterReply = await this.deps.enterFriendFarm(gid)
     } catch (e: any) {
       return { ok: false, message: `进入好友农场失败: ${e?.message}`, opType }
     }
@@ -72,12 +71,12 @@ export class FriendPublicApi {
       const handler = this.deps.getFriendOpHandlers()[opType]
       if (!handler)
         return { ok: false, opType, count: 0, message: '未知操作类型' }
-      return await handler(status, gid, requestContext)
+      return await handler(status, gid)
     } catch (e: any) {
       return { ok: false, opType, count: 0, message: e?.message || '操作失败' }
     } finally {
       try {
-        await this.deps.leaveFriendFarm(gid, requestContext)
+        await this.deps.leaveFriendFarm(gid)
       } catch {}
     }
   }

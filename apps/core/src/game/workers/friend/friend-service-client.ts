@@ -1,86 +1,68 @@
 import type { IGameTransport } from '../../interfaces/game-transport.interface'
-import type { GameRequestContext } from '../../interfaces/request-context.interface'
 import { resolveRequestSource } from '../../interfaces/request-context.interface'
+import { GameRpcExecutor } from '../../rpc/game-rpc-executor'
 import { toNum } from '../../utils'
 
 export class FriendServiceClient {
+  private readonly rpc: GameRpcExecutor
+
   constructor(
     private readonly client: IGameTransport,
     private readonly platform: string
-  ) {}
-
-  private invokeFriendRead<T = unknown>(service: string, method: string, params: Record<string, unknown>, requestContext?: GameRequestContext) {
-    return this.client.invokeWithPolicy<T>({
-      service,
-      method,
-      params,
-      policy: {
-        category: 'friend_visit',
-        risk: 'low',
-        source: resolveRequestSource(requestContext)
-      }
-    })
+  ) {
+    this.rpc = new GameRpcExecutor(this.client)
   }
 
-  private invokeFriendWrite<T = unknown>(service: string, method: string, params: Record<string, unknown>, requestContext?: GameRequestContext) {
-    return this.client.invokeWithPolicy<T>({
-      service,
-      method,
-      params,
-      policy: {
-        category: 'friend_write',
-        risk: 'high',
-        source: resolveRequestSource(requestContext)
-      }
-    })
-  }
-
-  private invokeFriendVisit<T = unknown>(service: string, method: string, params: Record<string, unknown>, requestContext?: GameRequestContext) {
-    return this.client.invokeWithPolicy<T>({
-      service,
-      method,
-      params,
-      policy: {
-        category: 'friend_visit',
-        risk: 'high',
-        source: resolveRequestSource(requestContext)
-      }
-    })
-  }
-
-  async getAllFriends(requestContext?: GameRequestContext): Promise<any> {
+  async getAllFriends(): Promise<any> {
     if (this.platform === 'qq') {
-      const { data } = await this.invokeFriendRead('gamepb.friendpb.FriendService', 'SyncAll', { open_ids: [] }, requestContext)
+      const { data } = await this.rpc.call<any>('friend.syncAll', { open_ids: [] }, {
+        source: resolveRequestSource()
+      })
       return data ?? {}
     }
-    const { data } = await this.invokeFriendRead('gamepb.friendpb.FriendService', 'GetAll', {}, requestContext)
+    const { data } = await this.rpc.call<any>('friend.getAll', {}, {
+      source: resolveRequestSource()
+    })
     return data ?? {}
   }
 
-  async getApplications(requestContext?: GameRequestContext): Promise<any> {
-    const { data } = await this.invokeFriendRead('gamepb.friendpb.FriendService', 'GetApplications', {}, requestContext)
+  async getApplications(): Promise<any> {
+    const { data } = await this.rpc.call<any>('friend.getApplications', {}, {
+      source: resolveRequestSource()
+    })
     return data ?? {}
   }
 
-  async acceptFriends(gids: number[], requestContext?: GameRequestContext): Promise<any> {
-    const { data } = await this.invokeFriendWrite('gamepb.friendpb.FriendService', 'AcceptFriends', { friend_gids: gids }, requestContext)
+  async acceptFriends(gids: number[]): Promise<any> {
+    const { data } = await this.rpc.call<any>('friend.acceptFriends', { friend_gids: gids }, {
+      source: resolveRequestSource()
+    })
     return data ?? {}
   }
 
-  async enterFriendFarm(friendGid: number, requestContext?: GameRequestContext): Promise<any> {
-    const { data } = await this.invokeFriendVisit('gamepb.visitpb.VisitService', 'Enter', { host_gid: friendGid, reason: 2 }, requestContext)
+  async enterFriendFarm(friendGid: number): Promise<any> {
+    const { data } = await this.rpc.call<any>('friend.enter', { host_gid: friendGid, reason: 2 }, {
+      source: resolveRequestSource()
+    })
     return data ?? {}
   }
 
-  async leaveFriendFarm(friendGid: number, requestContext?: GameRequestContext) {
+  async leaveFriendFarm(friendGid: number) {
     try {
-      await this.invokeFriendVisit('gamepb.visitpb.VisitService', 'Leave', { host_gid: friendGid }, requestContext)
+      await this.rpc.call('friend.leave', { host_gid: friendGid }, {
+        source: resolveRequestSource()
+      })
     } catch {}
   }
 
-  async checkCanOperateRemote(friendGid: number, operationId: number, requestContext?: GameRequestContext) {
+  async checkCanOperateRemote(friendGid: number, operationId: number) {
     try {
-      const { data: reply } = await this.invokeFriendRead<any>('gamepb.plantpb.PlantService', 'CheckCanOperate', { host_gid: friendGid, operation_id: operationId }, requestContext)
+      const { data: reply } = await this.rpc.call<any>('friend.checkCanOperate', {
+        host_gid: friendGid,
+        operation_id: operationId
+      }, {
+        source: resolveRequestSource()
+      })
       return { canOperate: !!(reply as any)?.can_operate, canStealNum: toNum((reply as any)?.can_steal_num) }
     } catch {
       return { canOperate: true, canStealNum: 0 }

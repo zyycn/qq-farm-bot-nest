@@ -5,6 +5,7 @@ import type {
   RequestQueue
 } from '../transport/interfaces/request-pacing.interface'
 import { Injectable, Logger } from '@nestjs/common'
+import { RequestIntentContextService } from '../common/request-intent/request-intent-context.service'
 import { ActiveHoursService } from './active-hours.service'
 import { BehaviorResolverService } from './behavior-resolver.service'
 
@@ -61,6 +62,9 @@ export class RequestPacingGateway {
       }
 
       if (normalized.dropIfQueueBusy && this.getQueueDepth(state) > 0) {
+        this.logger.debug(this.formatAuditLog(accountId, normalized, 0, 0, 'dropped_by_policy', {
+          droppedByPolicy: true
+        }))
         reject(new Error(`Request dropped by pacing policy: ${normalized.service}.${normalized.method}`))
         return
       }
@@ -85,11 +89,20 @@ export class RequestPacingGateway {
         const queueWaitTimeoutMs = item.envelope.queueWaitTimeoutMs ?? RequestPacingGateway.DEFAULT_QUEUE_WAIT_TIMEOUT_MS
         const maxQueueDelayMs = item.envelope.maxQueueDelayMs ?? RequestPacingGateway.DEFAULT_MAX_QUEUE_DELAY_MS
         if (queuedForMs > queueWaitTimeoutMs || queuedForMs > maxQueueDelayMs) {
+          this.logger.debug(this.formatAuditLog(accountId, item.envelope, queuedForMs, 0, 'queue_wait_timeout', {
+            queueWaitTimeoutMs,
+            maxQueueDelayMs
+          }))
           item.reject(new Error(`Request queue wait timeout: ${item.envelope.service}.${item.envelope.method}`))
           continue
         }
 
         if (!this.canRunInCurrentHours(accountId, item.envelope.policy)) {
+          this.logger.debug(this.formatAuditLog(accountId, item.envelope, queuedForMs, 0, 'suppressed_by_quiet_hours', {
+            queueWaitTimeoutMs,
+            maxQueueDelayMs,
+            suppressedByQuietHours: true
+          }))
           item.reject(new Error(`Request suppressed by quiet hours: ${item.envelope.service}.${item.envelope.method}`))
           continue
         }
@@ -103,9 +116,19 @@ export class RequestPacingGateway {
           const sentAt = Date.now()
           state.lastSentAt = sentAt
           state.categoryLastSentAt[item.envelope.policy.category] = sentAt
-          this.logger.debug(this.formatAuditLog(accountId, item.envelope, queuedForMs, appliedDelayMs))
+          this.logger.debug(this.formatAuditLog(accountId, item.envelope, queuedForMs, appliedDelayMs, 'sent', {
+            queueWaitTimeoutMs,
+            maxQueueDelayMs,
+            invokeTimeoutMs: item.envelope.invokeTimeoutMs ?? RequestPacingGateway.DEFAULT_INVOKE_TIMEOUT_MS
+          }))
           item.resolve(result)
         } catch (error) {
+          this.logger.debug(this.formatAuditLog(accountId, item.envelope, queuedForMs, appliedDelayMs, 'invoke_failed', {
+            queueWaitTimeoutMs,
+            maxQueueDelayMs,
+            invokeTimeoutMs: item.envelope.invokeTimeoutMs ?? RequestPacingGateway.DEFAULT_INVOKE_TIMEOUT_MS,
+            error: error instanceof Error ? error.message : String(error || '')
+          }))
           item.reject(error)
         }
       }
@@ -254,18 +277,26 @@ export class RequestPacingGateway {
     accountId: string,
     envelope: QueuedRequest['envelope'],
     queuedForMs: number,
-    appliedDelayMs: number
+    appliedDelayMs: number,
+    status: 'sent' | 'queue_wait_timeout' | 'suppressed_by_quiet_hours' | 'dropped_by_policy' | 'invoke_failed',
+    extra: Record<string, unknown> = {}
   ): string {
+    const requestContext = RequestIntentContextService.getCurrent()
     return JSON.stringify({
       accountId,
+      requestId: requestContext?.requestId,
+      triggerRoute: requestContext?.route,
+      triggerIntent: requestContext?.intent,
       service: envelope.service,
       method: envelope.method,
       category: envelope.policy.category,
       risk: envelope.policy.risk,
       source: envelope.policy.source,
       queue: envelope.queue,
+      status,
       queuedForMs,
-      appliedDelayMs
+      appliedDelayMs,
+      ...extra
     })
   }
 

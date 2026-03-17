@@ -1,36 +1,26 @@
 import type { GameConfigService } from '../../game-config.service'
 import type { IGameTransport } from '../../interfaces/game-transport.interface'
-import type { GameRequestContext } from '../../interfaces/request-context.interface'
 import type { StatsTracker } from '../stats.worker'
 import type { FriendWorker } from './friend.worker'
-import { resolveRequestSource } from '../../interfaces/request-context.interface'
+import { GameRpcExecutor } from '../../rpc/game-rpc-executor'
 
 export class FriendStealHandler {
+  private readonly rpc: GameRpcExecutor
+
   constructor(
     private accountId: string,
     private client: IGameTransport,
     private gameConfig: GameConfigService,
     private stats: StatsTracker,
     private owner: FriendWorker
-  ) {}
-
-  private invokeFriendHarvest<T = unknown>(params: Record<string, unknown>, requestContext?: GameRequestContext) {
-    return this.client.invokeWithPolicy<T>({
-      service: 'gamepb.plantpb.PlantService',
-      method: 'Harvest',
-      params,
-      policy: {
-        category: 'friend_write',
-        risk: 'high',
-        source: resolveRequestSource(requestContext)
-      }
-    })
+  ) {
+    this.rpc = new GameRpcExecutor(this.client)
   }
 
   // ========== Steal Action ==========
 
-  async stealHarvest(friendGid: number, landIds: any[], requestContext?: GameRequestContext): Promise<any> {
-    const { data: reply } = await this.invokeFriendHarvest<any>({ land_ids: landIds, host_gid: friendGid, is_all: true }, requestContext)
+  async stealHarvest(friendGid: number, landIds: any[]): Promise<any> {
+    const { data: reply } = await this.rpc.call<any>('friend.harvest', { land_ids: landIds, host_gid: friendGid, is_all: true })
     if ((reply as any)?.operation_limits)
       this.owner.updateOperationLimits((reply as any).operation_limits)
     return reply ?? {}
@@ -86,16 +76,16 @@ export class FriendStealHandler {
 
   // ========== Manual Steal Handler ==========
 
-  buildManualStealHandler(runBatchWithFallback: (ids: number[], batchFn: (ids: number[]) => Promise<any>, singleFn: (ids: number[]) => Promise<any>) => Promise<number>, sellAllFruits: () => Promise<number | void>): Record<string, (status: any, gid: number, requestContext?: GameRequestContext) => Promise<any>> {
+  buildManualStealHandler(runBatchWithFallback: (ids: number[], batchFn: (ids: number[]) => Promise<any>, singleFn: (ids: number[]) => Promise<any>) => Promise<number>, sellAllFruits: () => Promise<number | void>): Record<string, (status: any, gid: number) => Promise<any>> {
     return {
-      steal: async (status, gid, requestContext) => {
+      steal: async (status, gid) => {
         if (!status.stealable.length)
           return { ok: true, opType: 'steal', count: 0, message: '没有可偷取土地' }
-        const pre = await this.owner.checkCanOperateRemote(gid, 10008, requestContext)
+        const pre = await this.owner.checkCanOperateRemote(gid, 10008)
         if (!pre.canOperate)
           return { ok: true, opType: 'steal', count: 0, message: '今日偷菜次数已用完' }
         const target = status.stealable.slice(0, pre.canStealNum > 0 ? pre.canStealNum : status.stealable.length)
-        const count = await runBatchWithFallback(target, ids => this.stealHarvest(gid, ids, requestContext), ids => this.stealHarvest(gid, ids, requestContext))
+        const count = await runBatchWithFallback(target, ids => this.stealHarvest(gid, ids), ids => this.stealHarvest(gid, ids))
         if (count > 0) {
           this.stats.recordOperation('steal', count)
           await sellAllFruits()

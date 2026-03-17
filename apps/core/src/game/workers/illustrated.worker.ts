@@ -1,6 +1,7 @@
 import type { GameConfigService, ItemInfo, PlantInfo } from '../game-config.service'
 import type { IGameTransport } from '../interfaces/game-transport.interface'
 import { Logger } from '@nestjs/common'
+import { GameRpcExecutor } from '../rpc/game-rpc-executor'
 import { getRewardSummary, toNum } from '../utils'
 
 const CATEGORY_NAME_MAP: Record<string, string> = {
@@ -110,6 +111,7 @@ export interface AlmanacClaimResult {
 
 export class IllustratedWorker {
   private readonly logger: Logger
+  private readonly rpc: GameRpcExecutor
   onLog: ((entry: { msg: string, tag?: string, meta?: Record<string, string>, isWarn?: boolean }) => void) | null = null
 
   constructor(
@@ -118,6 +120,7 @@ export class IllustratedWorker {
     private readonly gameConfig: GameConfigService
   ) {
     this.logger = new Logger(`Illustrated:${accountId}`)
+    this.rpc = new GameRpcExecutor(this.client)
   }
 
   private log(msg: string, event?: string) {
@@ -125,34 +128,8 @@ export class IllustratedWorker {
     this.onLog?.({ msg, tag: '图鉴', meta: { module: 'illustrated', ...(event && { event }) }, isWarn: false })
   }
 
-  private invokeIllustratedRead<T = unknown>(method: string, params: Record<string, unknown>) {
-    return this.client.invokeWithPolicy<T>({
-      service: 'gamepb.illustratedpb.IllustratedService',
-      method,
-      params,
-      policy: {
-        category: 'task_claim',
-        risk: 'low',
-        source: 'business'
-      }
-    })
-  }
-
-  private invokeIllustratedWrite<T = unknown>(method: string, params: Record<string, unknown>) {
-    return this.client.invokeWithPolicy<T>({
-      service: 'gamepb.illustratedpb.IllustratedService',
-      method,
-      params,
-      policy: {
-        category: 'task_claim',
-        risk: 'high',
-        source: 'business'
-      }
-    })
-  }
-
   async getIllustratedList(_refresh = false): Promise<any> {
-    const { data } = await this.invokeIllustratedRead('GetIllustratedListV2', {
+    const { data } = await this.rpc.call('illustrated.getIllustratedListV2', {
       // The server drops the 7 treasure entries when refresh=true, so we
       // always read the full stable list and only use the caller flag to
       // trigger a client-side reload.
@@ -163,7 +140,7 @@ export class IllustratedWorker {
   }
 
   async claimAllRewards(): Promise<any> {
-    const { data } = await this.invokeIllustratedWrite('ClaimAllRewardsV2', {
+    const { data } = await this.rpc.call('illustrated.claimAllRewardsV2', {
       only_claimable: true
     })
     return data ?? { items: [], bonus_items: [] }

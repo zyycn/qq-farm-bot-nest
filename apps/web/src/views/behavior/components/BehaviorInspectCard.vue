@@ -69,6 +69,23 @@ const summarySourceLabel = computed(() => (
 function formatRange(range: { min: number, max: number }): string {
   return `${range.min}ms - ${range.max}ms`
 }
+
+const routeIntentLabelMap: Record<BehaviorInspectResponse['requestPacing']['routeCoverage']['routes'][number]['intent'], string> = {
+  interactive: '手动入口',
+  automation: '自动入口',
+  script: '脚本入口',
+  system: '系统入口',
+  default: '未声明'
+}
+
+const routeCoveragePreview = computed(() => inspect.value?.requestPacing.routeCoverage.routes.slice(0, 8) ?? [])
+
+const unresolvedSystemTrafficLabel = computed(() => {
+  const unresolved = inspect.value?.requestPacing.operationCoverage.systemTraffic.unresolvedCategories ?? []
+  if (!unresolved.length)
+    return '已声明'
+  return unresolved.join(' / ')
+})
 </script>
 
 <template>
@@ -250,6 +267,49 @@ function formatRange(range: { min: number, max: number }): string {
               背景请求
             </div>
             <div>{{ formatRange(inspect.requestPacing.categoryPolicyRanges.background) }}</div>
+          </div>
+          <div>
+            <div class="a-color-text-tertiary text-xs">
+              路由意图覆盖
+            </div>
+            <div>
+              共 {{ inspect.requestPacing.routeCoverage.total }} 条 /
+              手动 {{ inspect.requestPacing.routeCoverage.byIntent.interactive }} /
+              自动 {{ inspect.requestPacing.routeCoverage.byIntent.automation }} /
+              脚本 {{ inspect.requestPacing.routeCoverage.byIntent.script }} /
+              系统 {{ inspect.requestPacing.routeCoverage.byIntent.system }} /
+              未声明 {{ inspect.requestPacing.routeCoverage.byIntent.default }}
+            </div>
+          </div>
+          <div>
+            <div class="a-color-text-tertiary text-xs">
+              Operation 覆盖
+            </div>
+            <div>
+              共 {{ inspect.requestPacing.operationCoverage.total }} 个 /
+              心跳 {{ inspect.requestPacing.operationCoverage.systemTraffic.heartbeatDeclared ? '已声明' : '未声明' }} /
+              活跃上报 {{ inspect.requestPacing.operationCoverage.systemTraffic.activityReportDeclared ? '已声明' : '未声明' }}
+            </div>
+          </div>
+          <div class="md:col-span-2">
+            <div class="a-color-text-tertiary text-xs">
+              系统流量缺口
+            </div>
+            <div>{{ unresolvedSystemTrafficLabel }}</div>
+          </div>
+          <div class="md:col-span-2">
+            <div class="a-color-text-tertiary text-xs">
+              路由示例
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <span
+                v-for="item in routeCoveragePreview"
+                :key="item.route"
+                class="px-2 py-1 rounded-full bg-[var(--ant-color-fill-tertiary)] text-xs"
+              >
+                {{ item.route }} · {{ routeIntentLabelMap[item.intent] }}
+              </span>
+            </div>
           </div>
         </div>
       </fieldset>

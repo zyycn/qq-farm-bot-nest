@@ -1,10 +1,13 @@
 import type { OnModuleInit } from '@nestjs/common'
 import type { WsResponse } from '@qq-farm/shared'
 import type { Socket } from 'socket.io'
+import type { RequestIntent } from '../common/request-intent/request-intent-context.service'
 import type { WsParamMetadata } from './decorators/ws-body.decorator'
 import { Injectable } from '@nestjs/common'
 import { DiscoveryService, MetadataScanner, Reflector } from '@nestjs/core'
 import { createResponse } from '@qq-farm/shared'
+import { RequestIntentContextService } from '../common/request-intent/request-intent-context.service'
+import { WS_REQUEST_INTENT_KEY } from './decorators/request-intent.decorator'
 import { WS_PARAMS_KEY } from './decorators/ws-body.decorator'
 import { WS_FIRE_AND_FORGET_KEY, WS_ROUTE_KEY } from './decorators/ws-route.decorator'
 import { requireAccountId } from './ws-guards'
@@ -29,6 +32,7 @@ interface RouteHandlerDef {
   methodName: string
   params: WsParamMetadata[]
   fireAndForget: boolean
+  intent?: RequestIntent
 }
 
 @Injectable()
@@ -38,7 +42,8 @@ export class WsRouterService implements OnModuleInit {
   constructor(
     private readonly discovery: DiscoveryService,
     private readonly scanner: MetadataScanner,
-    private readonly reflector: Reflector
+    private readonly reflector: Reflector,
+    private readonly requestIntentContext: RequestIntentContextService
   ) {}
 
   onModuleInit(): void {
@@ -69,8 +74,10 @@ export class WsRouterService implements OnModuleInit {
           = Reflect.getMetadata(WS_PARAMS_KEY, proto, methodName) ?? []
         const fireAndForget: boolean
           = this.reflector.get<boolean>(WS_FIRE_AND_FORGET_KEY, descriptor.value) ?? false
+        const intent
+          = this.reflector.get<RequestIntent | undefined>(WS_REQUEST_INTENT_KEY, descriptor.value)
 
-        this.handlers.set(route, { instance, methodName, params, fireAndForget })
+        this.handlers.set(route, { instance, methodName, params, fireAndForget, intent })
       })
     }
   }
@@ -85,28 +92,35 @@ export class WsRouterService implements OnModuleInit {
     if (!def)
       return createResponse(id, WS_CODE_NOT_FOUND, undefined, `未知路由: ${route}`)
 
-    try {
-      const { instance, methodName, params } = def
-      const handler = instance[methodName].bind(instance)
+    return this.requestIntentContext.run({
+      intent: def.intent,
+      route,
+      requestId: id,
+      accountId: client.data.accountId
+    }, async () => {
+      try {
+        const { instance, methodName, params } = def
+        const handler = instance[methodName].bind(instance)
 
-      const args: unknown[] = []
-      // 默认第一个参数始终注入 client，方便需要原始 Socket 的 handler 使用
-      args[0] = client
+        const args: unknown[] = []
+        // 默认第一个参数始终注入 client，方便需要原始 Socket 的 handler 使用
+        args[0] = client
 
-      for (const meta of params) {
-        if (meta.type === 'body')
-          args[meta.index] = data ?? {}
-        else if (meta.type === 'account')
-          args[meta.index] = requireAccountId(client)
+        for (const meta of params) {
+          if (meta.type === 'body')
+            args[meta.index] = data ?? {}
+          else if (meta.type === 'account')
+            args[meta.index] = requireAccountId(client)
+        }
+
+        const result = await handler(...args)
+        if (def.fireAndForget)
+          return null
+        return createResponse(id, WS_CODE_SUCCESS, result ?? null)
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : '操作失败'
+        return createResponse(id, WS_CODE_INTERNAL, undefined, msg)
       }
-
-      const result = await handler(...args)
-      if (def.fireAndForget)
-        return null
-      return createResponse(id, WS_CODE_SUCCESS, result ?? null)
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : '操作失败'
-      return createResponse(id, WS_CODE_INTERNAL, undefined, msg)
-    }
+    })
   }
 }

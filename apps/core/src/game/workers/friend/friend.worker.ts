@@ -2,7 +2,6 @@ import type { RhythmService } from '../../../behavior/rhythm.service'
 import type { StoreService } from '../../../store/store.service'
 import type { GameConfigService } from '../../game-config.service'
 import type { IGameTransport } from '../../interfaces/game-transport.interface'
-import type { GameRequestContext } from '../../interfaces/request-context.interface'
 import type { StatsTracker } from '../stats.worker'
 import type { FriendLandAnalysis } from './friend-land-analysis'
 import { Logger } from '@nestjs/common'
@@ -101,10 +100,10 @@ export class FriendWorker {
     this.publicApi = new FriendPublicApi({
       gameConfig: this.gameConfig,
       getMyGid: () => this.client.userState.gid,
-      getAllFriends: requestContext => this.getAllFriends(requestContext),
-      enterFriendFarm: (gid, requestContext) => this.enterFriendFarm(gid, requestContext),
-      leaveFriendFarm: (gid, requestContext) => this.leaveFriendFarm(gid, requestContext),
-      checkCanOperateRemote: (gid, operationId, requestContext) => this.checkCanOperateRemote(gid, operationId, requestContext),
+      getAllFriends: () => this.getAllFriends(),
+      enterFriendFarm: gid => this.enterFriendFarm(gid),
+      leaveFriendFarm: gid => this.leaveFriendFarm(gid),
+      checkCanOperateRemote: (gid, operationId) => this.checkCanOperateRemote(gid, operationId),
       analyzeFriendLands: (lands, myGid) => this.analyzeFriendLands(lands, myGid),
       getFriendOpHandlers: () => this.friendOpHandlers
     })
@@ -160,17 +159,17 @@ export class FriendWorker {
 
   // ========== API ==========
 
-  async getAllFriends(requestContext?: GameRequestContext): Promise<any> { return this.serviceClient.getAllFriends(requestContext) }
+  async getAllFriends(): Promise<any> { return this.serviceClient.getAllFriends() }
 
-  async getApplications(requestContext?: GameRequestContext): Promise<any> { return this.serviceClient.getApplications(requestContext) }
+  async getApplications(): Promise<any> { return this.serviceClient.getApplications() }
 
-  async acceptFriends(gids: number[], requestContext?: GameRequestContext): Promise<any> { return this.serviceClient.acceptFriends(gids, requestContext) }
+  async acceptFriends(gids: number[]): Promise<any> { return this.serviceClient.acceptFriends(gids) }
 
-  async enterFriendFarm(friendGid: number, requestContext?: GameRequestContext): Promise<any> { return this.serviceClient.enterFriendFarm(friendGid, requestContext) }
+  async enterFriendFarm(friendGid: number): Promise<any> { return this.serviceClient.enterFriendFarm(friendGid) }
 
-  async leaveFriendFarm(friendGid: number, requestContext?: GameRequestContext) { await this.serviceClient.leaveFriendFarm(friendGid, requestContext) }
+  async leaveFriendFarm(friendGid: number) { await this.serviceClient.leaveFriendFarm(friendGid) }
 
-  async checkCanOperateRemote(friendGid: number, operationId: number, requestContext?: GameRequestContext) { return this.serviceClient.checkCanOperateRemote(friendGid, operationId, requestContext) }
+  async checkCanOperateRemote(friendGid: number, operationId: number) { return this.serviceClient.checkCanOperateRemote(friendGid, operationId) }
 
   // ========== Land Analysis ==========
 
@@ -178,15 +177,15 @@ export class FriendWorker {
 
   // ========== Public API ==========
 
-  async getFriendsList(requestContext?: GameRequestContext) { return this.publicApi.getFriendsList(requestContext) }
+  async getFriendsList() { return this.publicApi.getFriendsList() }
 
-  async getInteractRecords(requestContext?: GameRequestContext) { return await this.interactHandler.getInteractRecords(requestContext) }
+  async getInteractRecords() { return await this.interactHandler.getInteractRecords() }
 
-  async getFriendLandsDetail(friendGid: number, requestContext?: GameRequestContext) { return this.publicApi.getFriendLandsDetail(friendGid, requestContext) }
+  async getFriendLandsDetail(friendGid: number) { return this.publicApi.getFriendLandsDetail(friendGid) }
 
   // ========== Manual Operation ==========
 
-  private buildFriendOpHandlers(): Record<string, (status: FriendLandAnalysis, gid: number, requestContext?: GameRequestContext) => Promise<{ ok: boolean, opType: string, count?: number, message: string, bugCount?: number, weedCount?: number }>> {
+  private buildFriendOpHandlers(): Record<string, (status: FriendLandAnalysis, gid: number) => Promise<{ ok: boolean, opType: string, count?: number, message: string, bugCount?: number, weedCount?: number }>> {
     const helpHandlers = this.helpHandler.buildManualOpHandlers()
     const stealHandlers = this.stealHandler.buildManualStealHandler(
       (ids, batchFn, singleFn) => this.helpHandler.runBatchWithFallback(ids, batchFn, singleFn),
@@ -195,9 +194,9 @@ export class FriendWorker {
     return { ...stealHandlers, ...helpHandlers }
   }
 
-  private friendOpHandlers: Record<string, (status: FriendLandAnalysis, gid: number, requestContext?: GameRequestContext) => Promise<{ ok: boolean, opType: string, count?: number, message: string, bugCount?: number, weedCount?: number }>>
+  private friendOpHandlers: Record<string, (status: FriendLandAnalysis, gid: number) => Promise<{ ok: boolean, opType: string, count?: number, message: string, bugCount?: number, weedCount?: number }>>
 
-  async doFriendOperation(friendGid: number, opType: string, requestContext?: GameRequestContext) { return this.publicApi.doFriendOperation(friendGid, opType, requestContext) }
+  async doFriendOperation(friendGid: number, opType: string) { return this.publicApi.doFriendOperation(friendGid, opType) }
 
   // ========== Friend Loop ==========
 

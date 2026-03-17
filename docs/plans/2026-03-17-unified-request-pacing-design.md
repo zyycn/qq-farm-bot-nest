@@ -881,6 +881,15 @@ Phase E：移除旧时序表面
 - 将 websocket 手动入口接到了显式 `interactive` 请求上下文，包括农场操作、单地块操作、好友详情、好友手动操作、访客记录、商店购买和仓库售卖
 - 将 `interactive` 请求上下文沿 `handler -> runner -> session / friend worker -> invokeWithPolicy(...)` 透传到真实请求出口
 - 将 `GameSession` 内部的待执行任务改为优先级队列，允许手动任务插到尚未开始的自动化任务前面
+- 为 websocket 入口增加了意图装饰器和 `AsyncLocalStorage` 上下文承载，入口层开始摆脱手写 `INTERACTIVE_REQUEST` 常量
+- 外层 `requestContext` 透传已从 handler、runner、session 主链以及 friend 模块主链移除，改为由上下文自动解析
+- 新增了 `GameRpcExecutor` 与 `OperationCatalog` 骨架，并已落到 `warehouse-actions`、`friend-service-client`、`farm-actions`、`task.worker`、`daily-rewards.worker`、`invite.worker`、`illustrated.worker`
+- `farm-actions` 已进一步去掉通用 `invokeFarmWrite(...)` 入口，`WaterLand / WeedOut / Insecticide` 也改由 operation alias 统一映射
+- `warehouse-actions` 的 `Bag / Sell / Use / BatchUse` 已完全改由 `GameRpcExecutor` 调度，不再保留过渡期读写 helper
+- `friend-help`、`friend-steal`、`friend-interact` 已改为通过 operation alias 或 executor 兼容调用统一发起请求；`friend-interact` 的多候选 service/method 探测已上收为执行层能力
+- `GameRpcExecutor` 已支持“候选 operation 依次尝试”的兼容调用模式，避免业务文件继续手写 `for + try/catch + invokeWithPolicy(...)`
+- `RequestPacingGateway` 的审计日志已携带入口上下文、队列状态和关键超时/抑制字段，新增 `requestId`、`triggerRoute`、`triggerIntent`、`status`、`queueWaitTimeoutMs`、`invokeTimeoutMs`、`droppedByPolicy`、`suppressedByQuietHours` 等字段，便于区分 interactive / automation / script 流量
+- `behavior.inspect` 已开始暴露 route intent 覆盖和 operation category 覆盖，页面可以直接看到哪些 websocket 路由是 `interactive / default`，以及 `heartbeat / activity_report` 当前是否已有显式 operation 声明
 
 ## 2026-03-17 实现差异
 
@@ -907,7 +916,7 @@ Phase E：移除旧时序表面
 - 但如果某个自动化 pass 已经进入执行中，手动请求仍要等它完成后才会真正进入出口
 - 若后续确认这仍会造成明显体感延迟，需要继续把长任务拆成更细检查点，或在 session 层引入更强的可抢占边界
 
-### 差异 2：请求审计日志仍是部分可观测，尚未达到完全可解释
+### 差异 2：请求审计日志已具备主要诊断字段，但还缺少最终策略命名与覆盖摘要
 
 设计意图：
 
@@ -915,14 +924,14 @@ Phase E：移除旧时序表面
 
 当前状态：
 
-- `RequestPacingGateway` 当前记录了 `accountId`、`service`、`method`、`category`、`risk`、`source`、`queue`、`queuedForMs`、`appliedDelayMs`
-- 但还没有完整记录本文前面设计的全部决策面
-- `queueWaitTimeoutMs`、`invokeTimeoutMs`、`policyName`、`droppedByPolicy`、`suppressedByQuietHours` 这些字段还未全部进入结构化审计记录
+- `RequestPacingGateway` 当前已记录 `accountId`、`requestId`、`triggerRoute`、`triggerIntent`、`service`、`method`、`category`、`risk`、`source`、`queue`、`queuedForMs`、`appliedDelayMs`
+- 对 `queue wait timeout`、`invoke failed`、`drop`、`quiet hours suppress` 等状态，也已经记录了 `queueWaitTimeoutMs`、`invokeTimeoutMs`、`droppedByPolicy`、`suppressedByQuietHours`、`error`
+- 但还没有形成设计层面所说的“最终命中哪条策略”的命名摘要，例如 `policyName`、`batchCurveName`、`routeCoverage`
 
 实际影响：
 
-- gateway 已具备一定可观测性
-- 但在排查 pacing 问题时，还不能做到完全自解释
+- gateway 已经能支持大部分排障
+- 但在排查“为什么是这一档延时、为什么这个入口仍走默认分类”时，还不能做到完全自解释
 
 ### 差异 3：heartbeat / activity-report 类别已存在，但系统流量覆盖还未完全验证
 
@@ -935,12 +944,13 @@ Phase E：移除旧时序表面
 
 - 分类模型里已经有 `heartbeat` 和 `activity_report`
 - gateway 也已经对这两类做了专门的最小间隔处理
-- 但从当前代码使用情况看，还不能证明所有真实系统流量都已经显式通过这两个分类进入出口
+- inspect 现在可以直接显示 `heartbeat / activity_report` 是否已有 operation 声明
+- 当前检查结果仍然说明：系统流量分类表面已准备好，但调用侧尚未发现显式接入
 
 实际影响：
 
 - 策略表面已经准备好
-- 但从实现验证角度看，system 流量的端到端分类覆盖仍未完全收口
+- 且现在这一缺口已经能被页面和 inspect 明确看出来，不再只是代码阅读结论
 
 ### 差异 4：inspect 当前反映的是配置区间，不是路由级覆盖证明
 
@@ -963,6 +973,6 @@ Phase E：移除旧时序表面
 当前最高优先级剩余工作：
 
 1. 评估并收口“已经在执行中的长自动化任务”对 interactive 的阻塞边界，必要时把长任务拆成更细的可抢占检查点
-2. 增强 gateway 审计日志，使 timeout 和 suppression 原因可完整排查
-3. 验证并显式归类剩余 system 流量，例如 heartbeat / activity-report
-4. 让 inspect 能直接显示关键路由的显式 queue/source 覆盖情况，而不只是配置区间
+2. 验证并显式归类剩余 system 流量，例如 heartbeat / activity-report
+3. 让 inspect 能直接显示关键路由与 operation alias 的显式 queue/source 覆盖情况，而不只是配置区间
+4. 验证 `GameRpcExecutor` 的兼容调用模式是否还需要进一步抽象，例如是否要补“候选 operation 命中摘要”到审计或 inspect

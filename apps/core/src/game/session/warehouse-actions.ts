@@ -1,10 +1,9 @@
 import type { StoreService } from '../../store/store.service'
 import type { GameConfigService } from '../game-config.service'
 import type { IGameTransport } from '../interfaces/game-transport.interface'
-import type { GameRequestContext } from '../interfaces/request-context.interface'
 import type { StatsTracker } from '../workers/stats.worker'
 import { Logger } from '@nestjs/common'
-import { resolveRequestSource } from '../interfaces/request-context.interface'
+import { GameRpcExecutor } from '../rpc/game-rpc-executor'
 import { getDateKey, toNum } from '../utils'
 
 const SELL_BATCH_SIZE = 15
@@ -23,6 +22,7 @@ export interface WarehouseActionsOptions {
 
 export class WarehouseActions {
   private readonly logger: Logger
+  private readonly rpc: GameRpcExecutor
   private fertilizerGiftDoneDateKey = ''
   private fertilizerGiftLastOpenAt = 0
   constructor(
@@ -34,33 +34,7 @@ export class WarehouseActions {
     private readonly options: WarehouseActionsOptions
   ) {
     this.logger = new Logger(`WarehouseActions:${accountId}`)
-  }
-
-  private invokeWarehouseRead<T = unknown>(method: string, params: Record<string, unknown>, requestContext?: GameRequestContext) {
-    return this.client.invokeWithPolicy<T>({
-      service: 'gamepb.itempb.ItemService',
-      method,
-      params,
-      policy: {
-        category: 'warehouse_read',
-        risk: 'low',
-        source: resolveRequestSource(requestContext)
-      }
-    })
-  }
-
-  private invokeWarehouseWrite<T = unknown>(method: string, params: Record<string, unknown>, batchKey?: string, requestContext?: GameRequestContext) {
-    return this.client.invokeWithPolicy<T>({
-      service: 'gamepb.itempb.ItemService',
-      method,
-      params,
-      policy: {
-        category: 'warehouse_write',
-        risk: 'high',
-        source: resolveRequestSource(requestContext),
-        batchKey
-      }
-    })
+    this.rpc = new GameRpcExecutor(this.client)
   }
 
   private log(msg: string, event?: string) {
@@ -73,12 +47,12 @@ export class WarehouseActions {
     this.options.onLog?.({ msg, tag: '仓库', meta: { module: 'warehouse', ...(event && { event }) }, isWarn: true })
   }
 
-  async syncBag(requestContext?: GameRequestContext): Promise<any> {
-    const { data } = await this.invokeWarehouseRead('Bag', {}, requestContext)
+  async syncBag(): Promise<any> {
+    const { data } = await this.rpc.call('warehouse.bag', {})
     return data ?? {}
   }
 
-  async sellItems(items: any[], requestContext?: GameRequestContext): Promise<any> {
+  async sellItems(items: any[]): Promise<any> {
     const payload = items.map((item: any) => {
       const next: any = { id: toNum(item?.id), count: toNum(item?.count) }
       const uid = toNum(item?.uid)
@@ -86,11 +60,11 @@ export class WarehouseActions {
         next.uid = uid
       return next
     })
-    const { data } = await this.invokeWarehouseWrite('Sell', { items: payload }, 'sell', requestContext)
+    const { data } = await this.rpc.call('warehouse.sell', { items: payload }, { batchKey: 'sell' })
     return data ?? {}
   }
 
-  async sellItemByIdAndCount(itemId: number, count: number, requestContext?: GameRequestContext): Promise<any> {
+  async sellItemByIdAndCount(itemId: number, count: number): Promise<any> {
     if (count < 1)
       throw new Error('售卖数量必须大于 0')
 
@@ -116,7 +90,7 @@ export class WarehouseActions {
     if (remaining > 0)
       throw new Error('背包中该物品数量不足')
 
-    const result = await this.sellItems(toSell, requestContext)
+    const result = await this.sellItems(toSell)
     const earned = this.getGoldFromItems(result?.get_items || [])
     const totalCount = toSell.reduce((sum, item) => sum + (Number(item?.count) || 0), 0)
     const name = this.gameConfig.getItemName(idNum)
@@ -126,24 +100,24 @@ export class WarehouseActions {
 
   async useItem(itemId: number, count = 1, landIds: number[] = []): Promise<any> {
     try {
-      const { data } = await this.invokeWarehouseWrite('Use', {
+      const { data } = await this.rpc.call('warehouse.use', {
         param: { item_id: itemId, count, land_ids: landIds }
-      }, 'use_item')
+      }, { batchKey: 'use_item' })
       return data ?? {}
     } catch (error: any) {
       const msg = String(error?.message || '')
       if (!msg.includes('code=1000020') && !msg.includes('请求参数错误'))
         throw error
-      const { data } = await this.invokeWarehouseWrite('Use', {
+      const { data } = await this.rpc.call('warehouse.use', {
         param: { item_id: itemId, count }
-      }, 'use_item')
+      }, { batchKey: 'use_item' })
       return data ?? {}
     }
   }
 
   async batchUseItems(items: { itemId: number, count: number, uid?: number }[]): Promise<any> {
     const payload = items.map(item => ({ id: item.itemId, count: item.count || 1, uid: item.uid || 0 }))
-    const { data } = await this.invokeWarehouseWrite('BatchUse', { items: payload }, 'batch_use')
+    const { data } = await this.rpc.call('warehouse.batchUse', { items: payload }, { batchKey: 'batch_use' })
     return data ?? {}
   }
 

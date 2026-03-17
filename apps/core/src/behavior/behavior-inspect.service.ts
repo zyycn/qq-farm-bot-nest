@@ -1,6 +1,13 @@
+import type { RequestIntent } from '../common/request-intent/request-intent-context.service'
+import type { GameOperationSpec } from '../game/rpc/operation-catalog'
+import type { RequestCategory } from '../transport/interfaces/request-pacing.interface'
 import { Injectable } from '@nestjs/common'
+import { DiscoveryService, MetadataScanner, Reflector } from '@nestjs/core'
 import { AccountRegistryService } from '../account/account-registry.service'
 import { DeviceFingerprintService } from '../device/device-fingerprint'
+import { GAME_OPERATION_CATALOG } from '../game/rpc/operation-catalog'
+import { WS_REQUEST_INTENT_KEY } from '../realtime/decorators/request-intent.decorator'
+import { WS_ROUTE_KEY } from '../realtime/decorators/ws-route.decorator'
 import { StoreService } from '../store/store.service'
 import { ActiveHoursService } from './active-hours.service'
 import { BehaviorConfigService } from './behavior-config.service'
@@ -13,15 +20,27 @@ import {
   SESSION_BOOTSTRAP_REQUESTS
 } from './behavior-script.constants'
 
+type RouteIntentSummary = RequestIntent | 'default'
+
+export interface RouteCoverageItem {
+  route: string
+  intent: RouteIntentSummary
+}
+
 @Injectable()
 export class BehaviorInspectService {
+  private routeCoverageCache: RouteCoverageItem[] | null = null
+
   constructor(
     private readonly behaviorConfig: BehaviorConfigService,
     private readonly behaviorResolver: BehaviorResolverService,
     private readonly activeHours: ActiveHoursService,
     private readonly deviceFingerprint: DeviceFingerprintService,
     private readonly store: StoreService,
-    private readonly registry: AccountRegistryService
+    private readonly registry: AccountRegistryService,
+    private readonly discovery: DiscoveryService,
+    private readonly scanner: MetadataScanner,
+    private readonly reflector: Reflector
   ) {}
 
   inspect(accountId: string) {
@@ -33,6 +52,28 @@ export class BehaviorInspectService {
       this.store.getDefaultDeviceProfileId()
     )
     const runnerSnapshot = this.registry.getRunner(accountId)?.getStatusSnapshot() ?? null
+    const routeCoverage = this.getRouteCoverage()
+    const routeCoverageByIntent = {
+      interactive: routeCoverage.filter(item => item.intent === 'interactive').length,
+      automation: routeCoverage.filter(item => item.intent === 'automation').length,
+      script: routeCoverage.filter(item => item.intent === 'script').length,
+      system: routeCoverage.filter(item => item.intent === 'system').length,
+      default: routeCoverage.filter(item => item.intent === 'default').length
+    }
+    const operationEntries = Object.entries(GAME_OPERATION_CATALOG) as Array<[string, GameOperationSpec]>
+    const operationCategories = operationEntries.reduce<Record<RequestCategory, number>>((acc, [, spec]) => {
+      acc[spec.category] = (acc[spec.category] ?? 0) + 1
+      return acc
+    }, {} as Record<RequestCategory, number>)
+    const operationCoverage = {
+      total: operationEntries.length,
+      categories: operationCategories,
+      systemTraffic: {
+        heartbeatDeclared: operationEntries.some(([, spec]) => spec.category === 'heartbeat'),
+        activityReportDeclared: operationEntries.some(([, spec]) => spec.category === 'activity_report'),
+        unresolvedCategories: (['heartbeat', 'activity_report'] as const).filter(category => !operationEntries.some(([, spec]) => spec.category === category))
+      }
+    }
 
     return {
       stored,
@@ -109,7 +150,13 @@ export class BehaviorInspectService {
           }
         },
         quietHoursGateAppliesToBusinessTraffic: true,
-        dropLowPriorityScriptRequestsWhenBusy: true
+        dropLowPriorityScriptRequestsWhenBusy: true,
+        routeCoverage: {
+          total: routeCoverage.length,
+          byIntent: routeCoverageByIntent,
+          routes: routeCoverage
+        },
+        operationCoverage
       },
       runtimeCoordination: {
         unifiedCoordinatorEnabled: true,
@@ -130,5 +177,38 @@ export class BehaviorInspectService {
         }
       }
     }
+  }
+
+  private getRouteCoverage(): RouteCoverageItem[] {
+    if (this.routeCoverageCache)
+      return this.routeCoverageCache
+
+    const routes: RouteCoverageItem[] = []
+    const providers = this.discovery
+      .getProviders()
+      .filter(wrapper => wrapper.isDependencyTreeStatic?.() && wrapper.instance)
+
+    for (const wrapper of providers) {
+      const instance = wrapper.instance as Record<string, (...args: unknown[]) => unknown>
+      const proto = Object.getPrototypeOf(instance)
+      if (!proto)
+        continue
+
+      this.scanner.getAllMethodNames(proto).forEach((methodName) => {
+        const descriptor = Object.getOwnPropertyDescriptor(proto, methodName)
+        if (!descriptor || typeof descriptor.value !== 'function')
+          return
+
+        const route = this.reflector.get<string | undefined>(WS_ROUTE_KEY, descriptor.value)
+        if (!route)
+          return
+
+        const intent = this.reflector.get<RequestIntent | undefined>(WS_REQUEST_INTENT_KEY, descriptor.value) ?? 'default'
+        routes.push({ route, intent })
+      })
+    }
+
+    this.routeCoverageCache = routes.toSorted((left, right) => left.route.localeCompare(right.route))
+    return this.routeCoverageCache
   }
 }

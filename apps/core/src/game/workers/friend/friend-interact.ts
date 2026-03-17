@@ -1,7 +1,7 @@
 import type { GameConfigService } from '../../game-config.service'
 import type { IGameTransport } from '../../interfaces/game-transport.interface'
-import type { GameRequestContext } from '../../interfaces/request-context.interface'
-import { resolveRequestSource } from '../../interfaces/request-context.interface'
+import type { GameOperationKey } from '../../rpc/operation-catalog'
+import { GameRpcExecutor } from '../../rpc/game-rpc-executor'
 import { toNum, toTimeSec } from '../../utils'
 
 export interface FriendInteractRecord {
@@ -26,50 +26,33 @@ export interface FriendInteractRecord {
 }
 
 export class FriendInteractHandler {
-  private readonly interactRpcCandidates: Array<[string, string]> = [
-    ['gamepb.interactpb.InteractService', 'InteractRecords'],
-    ['gamepb.interactpb.InteractService', 'GetInteractRecords'],
-    ['gamepb.interactpb.VisitorService', 'InteractRecords'],
-    ['gamepb.interactpb.VisitorService', 'GetInteractRecords']
+  private readonly rpc: GameRpcExecutor
+  private readonly interactRpcCandidates: readonly GameOperationKey[] = [
+    'friend.interactRecords',
+    'friend.getInteractRecords',
+    'friend.visitorInteractRecords',
+    'friend.visitorGetInteractRecords'
   ]
 
   constructor(
     private readonly client: IGameTransport,
     private readonly gameConfig: GameConfigService,
     private readonly warn: (msg: string, event?: string) => void
-  ) {}
-
-  private invokeInteractRead<T = unknown>(serviceName: string, methodName: string, timeout?: number, requestContext?: GameRequestContext) {
-    return this.client.invokeWithPolicy<T>({
-      service: serviceName,
-      method: methodName,
-      params: {},
-      invokeTimeoutMs: timeout,
-      policy: {
-        category: 'friend_visit',
-        risk: 'low',
-        source: resolveRequestSource(requestContext)
-      }
-    })
+  ) {
+    this.rpc = new GameRpcExecutor(this.client)
   }
 
-  async getInteractRecords(requestContext?: GameRequestContext): Promise<FriendInteractRecord[]> {
-    const errors: string[] = []
-    for (const [serviceName, methodName] of this.interactRpcCandidates) {
-      try {
-        const { data: reply } = await this.invokeInteractRead<any>(serviceName, methodName, 2500, requestContext)
-        const records = Array.isArray(reply?.records) ? reply.records : []
-        return records
-          .map((record, index) => this.normalizeInteractRecord(record, index))
-          .sort((a, b) => (b.serverTimeSec - a.serverTimeSec) || (b.visitorGid - a.visitorGid) || (b.actionType - a.actionType))
-      } catch (error: any) {
-        const msg = error?.message || String(error || 'unknown')
-        errors.push(`${serviceName}.${methodName}: ${msg}`)
-      }
+  async getInteractRecords(): Promise<FriendInteractRecord[]> {
+    try {
+      const { data: reply } = await this.rpc.callFirstAvailable<any>(this.interactRpcCandidates, {}, { invokeTimeoutMs: 2500 })
+      const records = Array.isArray(reply?.records) ? reply.records : []
+      return records
+        .map((record, index) => this.normalizeInteractRecord(record, index))
+        .sort((a, b) => (b.serverTimeSec - a.serverTimeSec) || (b.visitorGid - a.visitorGid) || (b.actionType - a.actionType))
+    } catch (error: any) {
+      this.warn(`访客记录接口调用失败: ${error?.message || String(error || 'unknown')}`, 'interact_records')
+      throw new Error('访客记录接口调用失败，请确认服务名和方法名是否与当前版本一致')
     }
-
-    this.warn(`访客记录接口调用失败: ${errors.join(' | ')}`, 'interact_records')
-    throw new Error('访客记录接口调用失败，请确认服务名和方法名是否与当前版本一致')
   }
 
   private getInteractActionLabel(actionType: number): string {
