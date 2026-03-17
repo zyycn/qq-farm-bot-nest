@@ -125,8 +125,34 @@ export class IllustratedWorker {
     this.onLog?.({ msg, tag: '图鉴', meta: { module: 'illustrated', ...(event && { event }) }, isWarn: false })
   }
 
+  private invokeIllustratedRead<T = unknown>(method: string, params: Record<string, unknown>) {
+    return this.client.invokeWithPolicy<T>({
+      service: 'gamepb.illustratedpb.IllustratedService',
+      method,
+      params,
+      policy: {
+        category: 'task_claim',
+        risk: 'low',
+        source: 'business'
+      }
+    })
+  }
+
+  private invokeIllustratedWrite<T = unknown>(method: string, params: Record<string, unknown>) {
+    return this.client.invokeWithPolicy<T>({
+      service: 'gamepb.illustratedpb.IllustratedService',
+      method,
+      params,
+      policy: {
+        category: 'task_claim',
+        risk: 'high',
+        source: 'business'
+      }
+    })
+  }
+
   async getIllustratedList(_refresh = false): Promise<any> {
-    const { data } = await this.client.invoke('gamepb.illustratedpb.IllustratedService', 'GetIllustratedListV2', {
+    const { data } = await this.invokeIllustratedRead('GetIllustratedListV2', {
       // The server drops the 7 treasure entries when refresh=true, so we
       // always read the full stable list and only use the caller flag to
       // trigger a client-side reload.
@@ -137,7 +163,7 @@ export class IllustratedWorker {
   }
 
   async claimAllRewards(): Promise<any> {
-    const { data } = await this.client.invoke('gamepb.illustratedpb.IllustratedService', 'ClaimAllRewardsV2', {
+    const { data } = await this.invokeIllustratedWrite('ClaimAllRewardsV2', {
       only_claimable: true
     })
     return data ?? { items: [], bonus_items: [] }

@@ -15,15 +15,27 @@ export class FriendHelpHandler {
     private owner: FriendWorker
   ) {}
 
+  private invokeFriendPlantWrite<T = unknown>(method: string, params: Record<string, unknown>) {
+    return this.client.invokeWithPolicy<T>({
+      service: 'gamepb.plantpb.PlantService',
+      method,
+      params,
+      policy: {
+        category: 'friend_write',
+        risk: 'high',
+        source: 'business'
+      }
+    })
+  }
+
   // ========== Help Actions ==========
 
   private async helpAction(gid: number, landIds: any[], method: string, stopWhenExpLimit = false) {
     const beforeExp = toNum(this.client.userState?.exp)
-    const { data: reply } = await this.client.invoke<any>('gamepb.plantpb.PlantService', method, { land_ids: landIds, host_gid: gid })
+    const { data: reply } = await this.invokeFriendPlantWrite<any>(method, { land_ids: landIds, host_gid: gid })
     if ((reply as any)?.operation_limits)
       this.owner.updateOperationLimits((reply as any).operation_limits)
     if (stopWhenExpLimit) {
-      await this.owner.waitAction(200)
       const afterExp = toNum(this.client.userState?.exp)
       if (afterExp <= beforeExp)
         this.owner.autoDisableHelpByExpLimit()
@@ -49,12 +61,11 @@ export class FriendHelpHandler {
     let ok = 0
     for (const landId of landIds) {
       try {
-        const { data: reply } = await this.client.invoke<any>('gamepb.plantpb.PlantService', method, { land_ids: [landId], host_gid: friendGid })
+        const { data: reply } = await this.invokeFriendPlantWrite<any>(method, { land_ids: [landId], host_gid: friendGid })
         if ((reply as any)?.operation_limits)
           this.owner.updateOperationLimits((reply as any).operation_limits)
         ok++
       } catch {}
-      await this.owner.waitRapid(100)
     }
     return ok
   }
@@ -64,12 +75,11 @@ export class FriendHelpHandler {
     const failed: { landId: number, reason: string }[] = []
     for (const landId of landIds) {
       try {
-        const { data: reply } = await this.client.invoke<any>('gamepb.plantpb.PlantService', method, { land_ids: [landId], host_gid: friendGid })
+        const { data: reply } = await this.invokeFriendPlantWrite<any>(method, { land_ids: [landId], host_gid: friendGid })
         if ((reply as any)?.operation_limits)
           this.owner.updateOperationLimits((reply as any).operation_limits)
         ok++
       } catch (e: any) { failed.push({ landId, reason: e?.message || '未知错误' }) }
-      await this.owner.waitRapid(100)
     }
     return { ok, failed }
   }
@@ -95,7 +105,6 @@ export class FriendHelpHandler {
           await singleFn([landId])
           ok++
         } catch {}
-        await this.owner.waitRapid(100)
       }
       return ok
     }

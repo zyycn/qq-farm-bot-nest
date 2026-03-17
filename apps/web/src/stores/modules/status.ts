@@ -17,17 +17,17 @@ function formatTimeChina(ts: number): string {
 }
 
 function normalizeLogEntry(input: unknown): LogEntry {
-  const entry = (input && typeof input === 'object') ? { ...input } : {}
+  const entry: Record<string, unknown> = (input && typeof input === 'object') ? { ...(input as Record<string, unknown>) } : {}
   const createdAt = Number(entry.createdAt) || Number(entry.ts) || Date.parse(String(entry.time || '')) || Date.now()
   return {
     ...entry,
     createdAt,
-    time: entry.time || formatTimeChina(createdAt)
+    time: typeof entry.time === 'string' ? entry.time : formatTimeChina(createdAt)
   }
 }
 
 function normalizeStatusPayload(input: unknown): AccountRealtimeStatus {
-  return (input && typeof input === 'object') ? { ...input } : {}
+  return (input && typeof input === 'object') ? { ...(input as Record<string, unknown>) } : {}
 }
 
 export const useStatusStore = defineStore('status', {

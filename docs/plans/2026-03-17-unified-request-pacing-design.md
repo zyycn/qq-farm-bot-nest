@@ -675,3 +675,118 @@ await pacingTransport.invokeWithPolicy({
 - 节奏统一控制
 - 风控边界清晰
 - 可观测性可验收
+## 2026-03-17 Decision Update
+
+The implementation will use the aggressive migration path.
+
+Final target:
+
+- business code must not contain scattered delay semantics
+- business code must not directly express `delay`, `rhythm`, `session`, `backgroundRequests`, `activeHours`, or `multiAccount`
+- all request pacing for game-process interaction must be controlled at a single request exit
+- all non-request runtime timing policies must be controlled in one runtime coordination layer
+- page configuration remains the only user-facing source of pacing strategy inputs
+
+### Final layering
+
+Two unified layers are required:
+
+1. `RequestPacingGateway`
+   - owns all request-time semantics for traffic to the game process
+   - maps behavior config into request policies
+   - applies queueing, quiet-hours gating, delay, jitter, batch pacing, timeout split, and request audit logging
+   - becomes the only place that decides when an RPC is actually sent
+
+2. `RuntimePolicyCoordinator`
+   - owns runtime lifecycle timing that is not reducible to a single RPC pacing decision
+   - covers session lifecycle and multi-account scheduling
+   - removes `session` and `multiAccount` semantics from workers, actions, and runner business flow
+
+### Config mapping boundary
+
+The following categories must stop appearing as direct business semantics:
+
+- `delay`
+- `rhythm`
+- `session`
+- `backgroundRequests`
+- `activeHours`
+- `multiAccount`
+
+The business layer may still declare:
+
+- operation order
+- batch grouping
+- request category / risk / source / queue intent
+- whether a request is allowed in quiet hours
+
+The business layer must not declare:
+
+- sleeps between requests
+- sleeps between batches
+- friend/task switching waits
+- bootstrap/background step waits
+- session linger / cold-start timing
+- multi-account start jitter / schedule offset
+
+### Implementation path for plan 3
+
+Phase A: add unified request exit
+
+- extend transport with policy-aware request entry
+- route plain `invoke()` through the gateway with default classification
+- add queue model, queue wait timeout, invoke timeout, and structured request audit logs
+
+Phase B: migrate high-risk business paths
+
+- migrate farm write paths
+- migrate friend visit/write paths
+- migrate warehouse write paths
+- migrate task claim and daily reward paths
+- remove direct delay semantics from these business modules
+
+Phase C: migrate built-in scripts and system traffic
+
+- make `SessionBootstrapService` only describe request sequence
+- make `BackgroundRequestService` only describe request selection
+- move actual bootstrap/background pacing into the gateway
+- classify heartbeat / activity-report requests as system traffic
+
+Phase D: unify runtime timing outside request exit
+
+- introduce `RuntimePolicyCoordinator`
+- move `session` and `multiAccount` timing ownership out of business modules
+- keep these concerns outside request business code even when they are not single-request pacing problems
+
+Phase E: remove legacy timing surface
+
+- delete or shrink `DelayService` and `ActionPacerService` so they no longer define business-facing pacing semantics
+- remove remaining scattered timing calls from workers, session helpers, and runner flow
+- keep only policy mapping and unified orchestration surfaces
+
+### Acceptance criteria update
+
+The migration is complete only when all of the following are true:
+
+- every request to the game process passes through the unified request exit
+- business code no longer contains scattered delay semantics
+- business code no longer exposes behavior timing vocabulary directly
+- page configuration is mapped into unified request/runtime policy layers
+- request-level pacing is explainable from gateway logs and inspect output
+- session and multi-account timing are owned by a single runtime coordination layer instead of business modules
+
+## 2026-03-17 Implementation Progress
+
+Implemented in this round:
+
+- added `RequestPacingGateway` as the unified request exit behind transport
+- added request policy metadata and queue model to transport requests
+- migrated farm, warehouse, friend, task, daily-reward, bootstrap, and background-request traffic onto `invokeWithPolicy(...)`
+- moved runner-facing `session` and `multiAccount` timing ownership to `RuntimePolicyCoordinator`
+- updated account runner startup, login-ready flow, linger handling, idle-disconnect timing, start jitter, and schedule offset wiring to use runtime coordination instead of business-facing session timing APIs
+
+Still pending for full completion:
+
+- remove legacy `DelayService` / `SessionPatternService` shells that now remain mostly as compatibility residue
+- finish shrinking old worker-facing timing helpers so no dead timing surface remains in code
+- expose gateway/runtime policy summaries through inspect output with stronger observability

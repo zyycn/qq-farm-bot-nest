@@ -4,10 +4,9 @@ import { EventEmitter2 } from '@nestjs/event-emitter'
 import { ActiveHoursService } from '../../behavior/active-hours.service'
 import { BackgroundRequestService } from '../../behavior/background-request.service'
 import { BehaviorResolverService } from '../../behavior/behavior-resolver.service'
-import { DelayService } from '../../behavior/delay.service'
 import { RhythmService } from '../../behavior/rhythm.service'
+import { RuntimePolicyCoordinator } from '../../behavior/runtime-policy.coordinator'
 import { SessionBootstrapService } from '../../behavior/session-bootstrap.service'
-import { SessionPatternService } from '../../behavior/session-pattern.service'
 import { DeviceFingerprintService } from '../../device/device-fingerprint'
 import { GameConfigService } from '../../game/game-config.service'
 import { StoreService } from '../../store/store.service'
@@ -22,9 +21,8 @@ export class AccountRunnerFactory {
     private readonly store: StoreService,
     private readonly eventEmitter: EventEmitter2,
     private readonly deviceFingerprint: DeviceFingerprintService,
-    private readonly delay: DelayService,
     private readonly rhythm: RhythmService,
-    private readonly sessionPattern: SessionPatternService,
+    private readonly runtimePolicy: RuntimePolicyCoordinator,
     private readonly sessionBootstrap: SessionBootstrapService,
     private readonly backgroundRequest: BackgroundRequestService,
     private readonly activeHours: ActiveHoursService,
@@ -38,9 +36,8 @@ export class AccountRunnerFactory {
       store: this.store,
       eventEmitter: this.eventEmitter,
       deviceFingerprint: this.deviceFingerprint,
-      delay: this.delay,
       rhythm: this.rhythm,
-      sessionPattern: this.sessionPattern,
+      runtimePolicy: this.runtimePolicy,
       sessionBootstrap: this.sessionBootstrap,
       backgroundRequest: this.backgroundRequest,
       activeHours: this.activeHours,
@@ -55,8 +52,8 @@ export class AccountRunnerFactory {
       platform: String(account.platform || 'qq'),
       clientConfig: deviceResolution.clientConfig,
       deviceResolution,
-      startJitterMs: this.sessionPattern.getStartJitter(accountId),
-      scheduleOffsetMs: this.sessionPattern.getScheduleOffset(accountId)
+      startJitterMs: this.runtimePolicy.getStartJitter(accountId),
+      scheduleOffsetMs: this.runtimePolicy.getScheduleOffset(accountId)
     }
   }
 

@@ -79,8 +79,8 @@ function updateActiveWindowEnd(index: number, value: unknown): void {
               <span>快速回退开关</span>
             </label>
             <div class="a-color-text-tertiary text-sm">
-              关闭后只回退 delay / rhythm / session / background / multi-account 等增强逻辑，
-              activeHours 仍按自己的子开关生效。
+              关闭后会回退统一请求出口和运行时协调层的增强策略，
+              activeHours 仍按自己的子开关单独生效。
             </div>
           </div>
         </div>
@@ -92,7 +92,7 @@ function updateActiveWindowEnd(index: number, value: unknown): void {
             {{ modeHintMap[config.mode] }}
           </div>
           <div class="mt-1 a-color-text-tertiary">
-            登录热身和背景请求属于内置脚本；这里主要控制启用状态、频率和增强参数，不直接编辑请求池、固定顺序或脚本步长上限。
+            登录热身和背景请求属于内置脚本；这里配置的是映射到统一请求出口与运行时协调层的策略，不直接编辑请求池、固定顺序或脚本步长上限。
           </div>
         </div>
       </fieldset>
@@ -159,6 +159,7 @@ function updateActiveWindowEnd(index: number, value: unknown): void {
         </legend>
         <div class="mb-3 a-color-text-tertiary text-sm">
           只有在 `custom` 模式下，下列参数才会作为最终生效值；其它模式会使用预设。
+          这些参数不会散落到业务逻辑里，而是映射到统一请求出口和运行时协调层。
         </div>
 
         <div class="space-y-4">

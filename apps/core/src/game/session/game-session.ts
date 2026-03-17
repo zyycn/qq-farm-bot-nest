@@ -1,4 +1,3 @@
-import type { DelayService } from '../../behavior/delay.service'
 import type { RhythmService } from '../../behavior/rhythm.service'
 import type { StoreService } from '../../store/store.service'
 import type { GameConfigService } from '../game-config.service'
@@ -84,10 +83,8 @@ export class GameSession {
     this.scheduler.clearAll()
   }
 
-  setBehaviorServices(services: { delay?: DelayService, rhythm?: RhythmService }) {
-    this.farmActions.delay = services.delay
+  setBehaviorServices(services: { rhythm?: RhythmService }) {
     this.farmActions.rhythm = services.rhythm
-    this.warehouseActions.delay = services.delay
   }
 
   onConfigChanged() {

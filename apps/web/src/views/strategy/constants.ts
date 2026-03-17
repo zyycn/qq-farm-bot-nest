@@ -35,9 +35,10 @@ export const PLANTING_STRATEGY_OPTIONS = [
   { label: '最大普通肥净利润/小时', value: 'max_fert_profit' }
 ]
 
-export const ANALYTICS_SORT_BY_MAP: Record<string, string> = {
+export const ANALYTICS_SORT_BY_MAP: Record<string, StrategyAnalyticsSortKey> = {
   max_exp: 'exp',
   max_fert_exp: 'fert',
   max_profit: 'profit',
   max_fert_profit: 'fert_profit'
 }
+type StrategyAnalyticsSortKey = 'exp' | 'fert' | 'profit' | 'fert_profit'

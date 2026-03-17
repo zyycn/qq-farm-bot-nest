@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { SeedOption } from '@/api/types'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { shopApi } from '@/api'
@@ -16,9 +17,20 @@ const { seeds } = storeToRefs(farmStore)
 const { currentAccountId } = storeToRefs(accountStore)
 const { onImageError, hasImageError } = useImageFallback()
 
+interface BuySeedPayload {
+  seedId: number
+  goodsId: number
+  name: string
+  price: number
+  requiredLevel?: number
+  image?: string
+  locked: boolean
+  soldOut: boolean
+}
+
 const searchQuery = ref('')
 const buyModalVisible = ref(false)
-const buyTarget = ref<{ seedId: number, goodsId: number, name: string, price: number, requiredLevel?: number, image?: string, locked: boolean, soldOut: boolean } | null>(null)
+const buyTarget = ref<BuySeedPayload | null>(null)
 const buying = ref(false)
 
 const filteredSeeds = computed(() => {
@@ -29,10 +41,19 @@ const filteredSeeds = computed(() => {
   return list.filter((s: { name?: string }) => (s.name ?? '').toLowerCase().includes(q))
 })
 
-function openBuyModal(seed: { seedId: number, goodsId: number, name: string, price: number, requiredLevel?: number, image?: string, locked: boolean, soldOut: boolean }): void {
+function openBuyModal(seed: SeedOption): void {
   if (seed.locked || seed.soldOut || !seed.goodsId)
     return
-  buyTarget.value = { ...seed }
+  buyTarget.value = {
+    seedId: seed.seedId,
+    goodsId: seed.goodsId,
+    name: seed.name,
+    price: seed.price ?? 0,
+    requiredLevel: seed.requiredLevel,
+    image: seed.image,
+    locked: !!seed.locked,
+    soldOut: !!seed.soldOut
+  }
   buyModalVisible.value = true
 }
 

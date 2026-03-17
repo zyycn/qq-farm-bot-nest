@@ -1,4 +1,3 @@
-import type { DelayService } from '../../../behavior/delay.service'
 import type { RhythmService } from '../../../behavior/rhythm.service'
 import type { StoreService } from '../../../store/store.service'
 import type { GameConfigService } from '../../game-config.service'
@@ -35,7 +34,6 @@ export class FriendWorker {
   private publicApi: FriendPublicApi
   private serviceClient: FriendServiceClient
   private stealHandler: FriendStealHandler
-  delay?: DelayService
   rhythm?: RhythmService
   onLog: ((entry: { msg: string, tag?: string, meta?: Record<string, string>, isWarn?: boolean }) => void) | null = null
 
@@ -77,7 +75,6 @@ export class FriendWorker {
       shouldSkipFriendVisit: () => this.shouldSkipFriendVisit(),
       shuffleOrder: items => this.shuffleOrder(items),
       friendBatches: items => this.friendBatches(items),
-      waitFriendSwitch: fallbackMs => this.waitFriendSwitch(fallbackMs),
       sellAllFruits: () => this.sellAllFruits(),
       executeHelpOps: (gid, status, stopWhenExpLimit, totalActions) => this.helpHandler.executeHelpOps(gid, status, stopWhenExpLimit, totalActions),
       executeStealOps: (gid, status, totalActions) => this.stealHandler.executeStealOps(gid, status, totalActions, this.sellAllFruits),
@@ -114,12 +111,6 @@ export class FriendWorker {
     this.friendOpHandlers = this.buildFriendOpHandlers()
   }
 
-  private getDelay(): DelayService {
-    if (!this.delay)
-      throw new Error(`好友模块未绑定延迟服务 [${this.accountId}]`)
-    return this.delay
-  }
-
   private shuffleOrder<T>(items: T[]): T[] {
     return this.rhythm ? this.rhythm.shuffleOrder(this.accountId, items) : items
   }
@@ -136,18 +127,6 @@ export class FriendWorker {
 
   shouldSkipFriendVisit(): boolean {
     return this.rhythm ? this.rhythm.shouldSkipFriend(this.accountId) : false
-  }
-
-  async waitAction(fallbackMs = 200): Promise<void> {
-    await this.getDelay().action(this.accountId, fallbackMs)
-  }
-
-  async waitRapid(fallbackMs = 100): Promise<void> {
-    await this.getDelay().rapidFire(this.accountId, fallbackMs)
-  }
-
-  async waitFriendSwitch(fallbackMs = 200): Promise<void> {
-    await this.getDelay().friendSwitch(this.accountId, fallbackMs)
   }
 
   private log(msg: string, event?: string) {

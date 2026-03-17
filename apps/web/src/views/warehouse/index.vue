@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { BagItem } from '@/api/types'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { warehouseApi } from '@/api'
@@ -14,9 +15,18 @@ const bagStore = useBagStore()
 const { items: bagItems } = storeToRefs(bagStore)
 const { onImageError, hasImageError } = useImageFallback()
 
+interface SellItemPayload {
+  id: number
+  name: string
+  count: number
+  image?: string
+  price?: number
+  category?: string
+}
+
 const activeTab = ref('all')
 const sellConfirmVisible = ref(false)
-const sellTarget = ref<{ id: number, name: string, count: number, image?: string, price?: number, category?: string } | null>(null)
+const sellTarget = ref<SellItemPayload | null>(null)
 const selling = ref(false)
 
 const CATEGORY_TABS = [
@@ -33,8 +43,8 @@ const filteredItems = computed(() => {
   return list.filter((it: { category?: string }) => (it.category || 'item') === activeTab.value)
 })
 
-function openSellConfirm(item: { id: number, name: string, count: number, image?: string, price?: number, category?: string }): void {
-  if ((item.price ?? 0) <= 0 || !item.id || !(item.count > 0))
+function openSellConfirm(item: BagItem): void {
+  if ((item.price ?? 0) <= 0 || !item.id || Number(item.count ?? 0) <= 0)
     return
   sellTarget.value = {
     id: Number(item.id),

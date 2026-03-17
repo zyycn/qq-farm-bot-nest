@@ -33,7 +33,7 @@ function unwrapResponse<T>(response: AxiosResponse<NestResponse<T> | unknown>): 
       message.warning(body.message)
     return body.data as T
   }
-  return Promise.reject(new Error(body.message || '请求失败'))
+  throw new Error(body.message || '请求失败')
 }
 
 type NotifyResult = { msg: string, type: 'error' | 'warning' } | null

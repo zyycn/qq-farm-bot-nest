@@ -25,6 +25,19 @@ interface FriendListItem {
   [key: string]: unknown
 }
 
+interface InteractDisplayRecord {
+  key: string
+  serverTimeSec?: number
+  serverTimeMs: number
+  actionType: number
+  actionLabel: string
+  actionDetail?: string
+  visitorGid: number
+  nick: string
+  avatarUrl: string
+  level?: number
+}
+
 const accountStore = useAccountStore()
 const friendStore = useFriendStore()
 const statusStore = useStatusStore()
@@ -52,12 +65,24 @@ const searchQuery = ref('')
 const connected = computed(() => status.value?.connection?.connected)
 const blacklistedCount = computed(() => friends.value.filter(f => blacklist.value.includes(Number(f.gid))).length)
 
+function getFriendId(friend: FriendListItem): string {
+  return String(friend.gid ?? friend.uin ?? '').trim()
+}
+
+function getFriendName(friend: FriendListItem): string {
+  return String(friend.name ?? '').trim()
+}
+
+function getFriendGid(friend: FriendListItem): number {
+  return Number(friend.gid ?? 0)
+}
+
 const filteredFriends = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
   if (!q)
     return friends.value
   return friends.value.filter(
-    f => (f.name || '').toLowerCase().includes(q) || String(f.uin || '').includes(q) || String(f.gid || '').includes(q)
+    f => getFriendName(f).toLowerCase().includes(q) || String(f.uin ?? '').includes(q) || String(f.gid ?? '').includes(q)
   )
 })
 
@@ -74,6 +99,27 @@ const expandedFriends = ref<Set<string>>(new Set())
 
 const interactCollapsed = ref(true)
 const interactFilter = ref<InteractFilterKey>('all')
+
+const interactPanelRecords = computed<InteractDisplayRecord[]>(() => {
+  return interactRecords.value.map((record) => {
+    const serverTimeSec = Number(record.serverTimeSec ?? 0) || undefined
+    const serverTimeMs = serverTimeSec ? serverTimeSec * 1000 : Date.now()
+    const visitorGid = Number(record.visitorGid ?? 0)
+    const nick = String(record.visitorName ?? record.targetName ?? (visitorGid > 0 ? `GID:${visitorGid}` : '访客'))
+    const detailParts = [record.targetName, record.rewardText].filter(Boolean)
+    return {
+      key: `${visitorGid}-${record.actionType}-${serverTimeSec ?? serverTimeMs}`,
+      serverTimeSec,
+      serverTimeMs,
+      actionType: Number(record.actionType ?? 0),
+      actionLabel: String(record.actionName ?? '互动'),
+      actionDetail: detailParts.length ? detailParts.join(' · ') : undefined,
+      visitorGid,
+      nick,
+      avatarUrl: visitorGid > 0 ? `https://q1.qlogo.cn/g?b=qq&nk=${visitorGid}&s=100` : ''
+    }
+  })
+})
 
 async function refreshInteractRecords(): Promise<void> {
   if (!currentAccountId.value)
@@ -141,7 +187,7 @@ async function handleToggleBlacklist(friend: FriendListItem, e: Event) {
     return
   try {
     const wasBlacklisted = blacklist.value.includes(Number(friend.gid))
-    await friendStore.toggleBlacklist(currentAccountId.value, Number(friend.gid))
+    await friendStore.toggleBlacklist(currentAccountId.value, getFriendGid(friend))
     message.success(wasBlacklisted ? '已移出黑名单' : '已加入黑名单')
   } catch (err: unknown) {
     const error = err as { message?: string }
@@ -187,10 +233,10 @@ useWs()
       class="flex shrink-0 flex-col max-h-[70%]"
       :classes="{ body: '!p-0 overflow-hidden flex flex-col' }"
     >
-      <InteractPanel
+        <InteractPanel
         v-model:collapsed="interactCollapsed"
         v-model:filter="interactFilter"
-        :records="interactRecords"
+        :records="interactPanelRecords"
         :loading="interactLoading"
         :error="interactError"
         class="flex flex-1 flex-col min-h-0"
@@ -258,14 +304,14 @@ useWs()
             >
               <FriendRow
                 :friend="friend"
-                :expanded="expandedFriends.has(friend.gid)"
+                :expanded="expandedFriends.has(getFriendId(friend))"
                 :blacklisted="false"
-                :lands="friendLandsWithCountdown[friend.gid] || []"
-                :lands-loading="!!friendLandsLoading[friend.gid]"
+                :lands="friendLandsWithCountdown[getFriendId(friend)] || []"
+                :lands-loading="!!friendLandsLoading[getFriendId(friend)]"
                 :avatar-error-keys="avatarErrorKeys"
                 :disabled="!currentAccount?.running"
-                @toggle="toggleFriend(friend.gid)"
-                @operate="(type, e) => handleOp(friend.gid, type, e)"
+                @toggle="toggleFriend(getFriendId(friend))"
+                @operate="(type, e) => handleOp(getFriendId(friend), type, e)"
                 @toggle-blacklist="e => handleToggleBlacklist(friend, e)"
                 @avatar-error="key => handleAvatarError(key)"
               />
@@ -301,14 +347,14 @@ useWs()
               >
                 <FriendRow
                   :friend="friend"
-                  :expanded="expandedFriends.has(friend.gid)"
+                  :expanded="expandedFriends.has(getFriendId(friend))"
                   :blacklisted="true"
-                  :lands="friendLandsWithCountdown[friend.gid] || []"
-                  :lands-loading="!!friendLandsLoading[friend.gid]"
+                  :lands="friendLandsWithCountdown[getFriendId(friend)] || []"
+                  :lands-loading="!!friendLandsLoading[getFriendId(friend)]"
                   :avatar-error-keys="avatarErrorKeys"
                   :disabled="!currentAccount?.running"
-                  @toggle="toggleFriend(friend.gid)"
-                  @operate="(type, e) => handleOp(friend.gid, type, e)"
+                  @toggle="toggleFriend(getFriendId(friend))"
+                  @operate="(type, e) => handleOp(getFriendId(friend), type, e)"
                   @toggle-blacklist="e => handleToggleBlacklist(friend, e)"
                   @avatar-error="key => handleAvatarError(key)"
                 />

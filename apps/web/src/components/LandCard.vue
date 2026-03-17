@@ -78,7 +78,7 @@ function needOperate(land: FarmLand) {
 
       <div class="flex flex-col gap-1 items-end">
         <div
-          v-if="land.plantSize > 1"
+          v-if="(land.plantSize ?? 1) > 1"
           class="text-[10px] leading-none font-medium px-1.5 py-0.5 rounded-full w-fit a-color-text-tertiary shadow-sm"
         >
           {{ getPlantSizeText(land) }}
@@ -115,7 +115,7 @@ function needOperate(land: FarmLand) {
     </div>
 
     <div class="mb-1.5 flex flex-col gap-0.5 items-center a-color-text-tertiary text-xs">
-      {{ getLandTypeName(land.level) }}
+      {{ getLandTypeName(land.level ?? 0) }}
     </div>
   </a-card>
 </template>

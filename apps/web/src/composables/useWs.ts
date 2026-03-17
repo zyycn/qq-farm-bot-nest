@@ -1,8 +1,8 @@
 import { onBeforeUnmount, onMounted } from 'vue'
 import { socket } from '@/api'
 
-type Handler = (data: unknown) => void
-interface EventItem { name: string, handler: Handler, once?: boolean }
+type Handler<T = unknown> = (data: T) => void
+interface EventItem<T = unknown> { name: string, handler: Handler<T>, once?: boolean }
 
 let consumerId = 0
 
@@ -42,16 +42,16 @@ export function useWs(initialTopic?: string) {
       topics.add(name)
       return builder
     },
-    on(event: string, handler: Handler) {
+    on<T = unknown>(event: string, handler: Handler<T>) {
       requireTopicForEvent(event)
       eventNames.add(event)
-      eventItems.push({ name: event, handler })
+      eventItems.push({ name: event, handler: handler as Handler })
       return builder
     },
-    once(event: string, handler: Handler) {
+    once<T = unknown>(event: string, handler: Handler<T>) {
       requireTopicForEvent(event)
       eventNames.add(event)
-      eventItems.push({ name: event, handler, once: true })
+      eventItems.push({ name: event, handler: handler as Handler, once: true })
       return builder
     }
   }

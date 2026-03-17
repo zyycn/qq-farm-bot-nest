@@ -2,10 +2,9 @@ import type { ClientConfig } from '@qq-farm/shared/node'
 import type { ActiveHoursService } from '../../behavior/active-hours.service'
 import type { BackgroundRequestService } from '../../behavior/background-request.service'
 import type { BehaviorResolverService } from '../../behavior/behavior-resolver.service'
-import type { DelayService } from '../../behavior/delay.service'
 import type { RhythmService } from '../../behavior/rhythm.service'
+import type { RuntimePolicyCoordinator } from '../../behavior/runtime-policy.coordinator'
 import type { SessionBootstrapService } from '../../behavior/session-bootstrap.service'
-import type { SessionPatternService } from '../../behavior/session-pattern.service'
 import type { DeviceFingerprintService, ResolvedDeviceConfig } from '../../device/device-fingerprint'
 import type { AccountConfigSnapshot } from '../../game/constants'
 import type { GameConfigService } from '../../game/game-config.service'
@@ -55,9 +54,8 @@ export interface AccountRunnerDeps {
   store: StoreService
   eventEmitter: EventEmitter2
   deviceFingerprint: DeviceFingerprintService
-  delay: DelayService
   rhythm: RhythmService
-  sessionPattern: SessionPatternService
+  runtimePolicy: RuntimePolicyCoordinator
   sessionBootstrap: SessionBootstrapService
   backgroundRequest: BackgroundRequestService
   activeHours: ActiveHoursService

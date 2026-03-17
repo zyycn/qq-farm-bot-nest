@@ -37,11 +37,25 @@ export class FriendInteractHandler {
     private readonly warn: (msg: string, event?: string) => void
   ) {}
 
+  private invokeInteractRead<T = unknown>(serviceName: string, methodName: string, timeout?: number) {
+    return this.client.invokeWithPolicy<T>({
+      service: serviceName,
+      method: methodName,
+      params: {},
+      invokeTimeoutMs: timeout,
+      policy: {
+        category: 'friend_visit',
+        risk: 'low',
+        source: 'business'
+      }
+    })
+  }
+
   async getInteractRecords(): Promise<FriendInteractRecord[]> {
     const errors: string[] = []
     for (const [serviceName, methodName] of this.interactRpcCandidates) {
       try {
-        const { data: reply } = await this.client.invoke<any>(serviceName, methodName, {}, 2500)
+        const { data: reply } = await this.invokeInteractRead<any>(serviceName, methodName, 2500)
         const records = Array.isArray(reply?.records) ? reply.records : []
         return records
           .map((record, index) => this.normalizeInteractRecord(record, index))

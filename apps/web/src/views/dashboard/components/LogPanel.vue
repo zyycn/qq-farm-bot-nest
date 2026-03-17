@@ -28,7 +28,7 @@ watch(filterPopoverOpen, (open) => {
 })
 
 const hasActiveFilter = computed(() =>
-  !!(props.filter.module || props.filter.event || props.filter.keyword.trim() || props.filter.isWarn))
+  !!(props.filter.module || props.filter.event || props.filter.keyword?.trim() || props.filter.isWarn))
 
 function setDraftField(key: keyof typeof props.filter, value: string) {
   draftFilter.value = { ...draftFilter.value, [key]: value }
@@ -197,8 +197,8 @@ onMounted(() => {
       <div v-if="!logs.length" class="flex h-full items-center justify-center">
         <EmptyState icon="i-streamline-emojis-scroll text-4xl" description="暂无日志" />
       </div>
-      <div v-for="log in logs" v-else :key="(log.createdAt ?? log.ts ?? 0) + log.msg" class="mb-1 break-all text-xs">
-        <span class="mr-2 select-none a-color-text-tertiary">[{{ formatLogTime(log.time) }}]</span>
+      <div v-for="log in logs" v-else :key="(log.createdAt ?? log.ts ?? 0) + (log.msg ?? '')" class="mb-1 break-all text-xs">
+        <span class="mr-2 select-none a-color-text-tertiary">[{{ formatLogTime(log.time ?? '') }}]</span>
         <a-tag :color="log.tag === '错误' ? 'red' : log.isWarn ? 'orange' : 'green'" size="small" class="mr-1">
           {{ log.tag }}
         </a-tag>
@@ -206,7 +206,7 @@ onMounted(() => {
           {{ getEventLabel(log.meta.event) }}
         </a-tag>
         <span :class="log.tag === '错误' ? 'a-color-error' : log.isWarn ? 'a-color-warning' : 'a-color-text'">{{
-          log.msg
+          log.msg ?? ''
         }}</span>
       </div>
     </div>

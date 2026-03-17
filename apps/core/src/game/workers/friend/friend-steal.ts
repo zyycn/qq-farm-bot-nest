@@ -12,10 +12,23 @@ export class FriendStealHandler {
     private owner: FriendWorker
   ) {}
 
+  private invokeFriendHarvest<T = unknown>(params: Record<string, unknown>) {
+    return this.client.invokeWithPolicy<T>({
+      service: 'gamepb.plantpb.PlantService',
+      method: 'Harvest',
+      params,
+      policy: {
+        category: 'friend_write',
+        risk: 'high',
+        source: 'business'
+      }
+    })
+  }
+
   // ========== Steal Action ==========
 
   async stealHarvest(friendGid: number, landIds: any[]): Promise<any> {
-    const { data: reply } = await this.client.invoke<any>('gamepb.plantpb.PlantService', 'Harvest', { land_ids: landIds, host_gid: friendGid, is_all: true })
+    const { data: reply } = await this.invokeFriendHarvest<any>({ land_ids: landIds, host_gid: friendGid, is_all: true })
     if ((reply as any)?.operation_limits)
       this.owner.updateOperationLimits((reply as any).operation_limits)
     return reply ?? {}
@@ -58,7 +71,6 @@ export class FriendStealHandler {
           if (info)
             stolenPlants.push(info.name)
         } catch {}
-        await this.owner.waitRapid(100)
       }
     }
     if (ok > 0) {

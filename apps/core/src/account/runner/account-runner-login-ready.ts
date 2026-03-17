@@ -1,5 +1,5 @@
+import type { RuntimePolicyCoordinator } from '../../behavior/runtime-policy.coordinator'
 import type { SessionBootstrapService } from '../../behavior/session-bootstrap.service'
-import type { SessionPatternService } from '../../behavior/session-pattern.service'
 import type { LinkUserState } from '../../game/types'
 import type { IGameTransport } from '../../transport/interfaces/game-transport.interface'
 import type { RunnerDaily } from './runner-daily'
@@ -8,7 +8,7 @@ import type { RunnerScheduler } from './runner-scheduler'
 export interface AccountRunnerLoginReadyDeps {
   accountId: string
   transport: IGameTransport
-  sessionPattern: SessionPatternService
+  runtimePolicy: RuntimePolicyCoordinator
   sessionBootstrap: SessionBootstrapService
   scheduler: RunnerScheduler
   daily: RunnerDaily
@@ -39,11 +39,11 @@ export class AccountRunnerLoginReady {
     const firstLogin = !this.deps.getStatsInitialized()
 
     if (firstLogin) {
-      await this.deps.sessionPattern.applyColdStart(this.deps.accountId)
+      await this.deps.runtimePolicy.applyColdStart(this.deps.accountId)
       if (!this.deps.getIsRunning())
         return
 
-      if (this.deps.sessionPattern.shouldSessionBootstrap(this.deps.accountId))
+      if (this.deps.runtimePolicy.shouldSessionBootstrap(this.deps.accountId))
         await this.deps.sessionBootstrap.onLoginSuccess(this.deps.accountId, this.deps.transport).catch(() => {})
 
       if (!this.deps.getIsRunning())

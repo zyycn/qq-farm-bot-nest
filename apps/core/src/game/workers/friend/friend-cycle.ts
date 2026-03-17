@@ -18,7 +18,6 @@ export interface FriendCycleHandlerDeps {
   shouldSkipFriendVisit: () => boolean
   shuffleOrder: <T>(items: T[]) => T[]
   friendBatches: <T>(items: T[]) => AsyncGenerator<T[]>
-  waitFriendSwitch: (fallbackMs?: number) => Promise<void>
   sellAllFruits: () => Promise<number | void>
   executeHelpOps: (gid: number, status: FriendLandAnalysis, stopWhenExpLimit: boolean, totalActions: Record<string, number>) => Promise<string[]>
   executeStealOps: (gid: number, status: FriendLandAnalysis, totalActions: Record<string, number>) => Promise<string[]>
@@ -158,7 +157,6 @@ export class FriendCycleHandler {
           try {
             await this.visitFriend(friend, totalActions)
           } catch {}
-          await this.deps.waitFriendSwitch(200)
         }
         if (exhaustedOperations)
           break

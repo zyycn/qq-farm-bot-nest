@@ -1,11 +1,8 @@
-import type { DelayService } from '../../behavior/delay.service'
 import type { IGameTransport } from '../interfaces/game-transport.interface'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { Logger } from '@nestjs/common'
 import { ASSETS_DIR } from '../../config/paths'
-
-const INVITE_REQUEST_DELAY = 2000
 
 interface ParsedInvite {
   uid: string | null
@@ -16,7 +13,6 @@ interface ParsedInvite {
 
 export class InviteWorker {
   private logger: Logger
-  delay?: DelayService
   onLog: ((entry: { msg: string, tag?: string, meta?: Record<string, string>, isWarn?: boolean }) => void) | null = null
 
   constructor(
@@ -25,12 +21,6 @@ export class InviteWorker {
     private platform: string
   ) {
     this.logger = new Logger(`Invite:${accountId}`)
-  }
-
-  private getDelay(): DelayService {
-    if (!this.delay)
-      throw new Error(`邀请模块未绑定延迟服务 [${this.accountId}]`)
-    return this.delay
   }
 
   private log(msg: string, event?: string) {
@@ -69,8 +59,21 @@ export class InviteWorker {
     } catch { return [] }
   }
 
+  private invokeInviteWrite<T = unknown>(method: string, params: Record<string, unknown>) {
+    return this.client.invokeWithPolicy<T>({
+      service: 'gamepb.userpb.UserService',
+      method,
+      params,
+      policy: {
+        category: 'daily_reward',
+        risk: 'high',
+        source: 'business'
+      }
+    })
+  }
+
   async sendReportArkClick(sharerId: string, sharerOpenId: string, shareSource: string | null) {
-    const { data } = await this.client.invoke('gamepb.userpb.UserService', 'ReportArkClick', {
+    const { data } = await this.invokeInviteWrite('ReportArkClick', {
       sharer_id: Number(sharerId),
       sharer_open_id: sharerOpenId,
       share_cfg_id: String(shareSource || '0'),
@@ -100,9 +103,6 @@ export class InviteWorker {
       } catch (e: any) {
         failCount++
         this.warn(`[${i + 1}/${invites.length}] 向 uid=${invite.uid} 发送申请失败: ${e?.message}`, 'invite_process')
-      }
-      if (i < invites.length - 1) {
-        await this.getDelay().action(this.accountId, INVITE_REQUEST_DELAY)
       }
     }
     this.log(`处理完成: 成功 ${successCount}, 失败 ${failCount}`, 'invite_process')

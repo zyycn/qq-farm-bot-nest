@@ -1,11 +1,11 @@
-import type { SessionPatternService } from '../../behavior/session-pattern.service'
+import type { RuntimePolicyCoordinator } from '../../behavior/runtime-policy.coordinator'
 import type { LinkClientService } from '../../transport/link-client.service'
 import { Scheduler } from '@qq-farm/shared'
 
 export interface AccountRunnerLifecycleDeps {
   accountId: string
   scheduler: Scheduler
-  sessionPattern: SessionPatternService
+  runtimePolicy: RuntimePolicyCoordinator
   linkClient: LinkClientService
   getIsRunning: () => boolean
   getLoginReady: () => boolean
@@ -27,9 +27,9 @@ export class AccountRunnerLifecycle {
     this.deps.scheduler.clear('idle_disconnect')
     if (!this.deps.getIsRunning() || !this.deps.getLoginReady())
       return
-    if (!this.deps.sessionPattern.shouldIdleDisconnect(this.deps.accountId))
+    if (!this.deps.runtimePolicy.shouldIdleDisconnect(this.deps.accountId))
       return
-    const delay = this.deps.sessionPattern.getIdleDisconnectDelay(this.deps.accountId)
+    const delay = this.deps.runtimePolicy.getIdleDisconnectDelay(this.deps.accountId)
     this.deps.scheduler.setTimeoutTask('idle_disconnect', delay, () => {
       void this.disconnectForIdle()
     })

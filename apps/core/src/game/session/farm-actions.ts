@@ -1,4 +1,3 @@
-import type { DelayService } from '../../behavior/delay.service'
 import type { RhythmService } from '../../behavior/rhythm.service'
 import type { StoreService } from '../../store/store.service'
 import type { GameConfigService } from '../game-config.service'
@@ -24,7 +23,6 @@ export interface FarmActionsOptions {
 
 export class FarmActions {
   private readonly logger: Logger
-  delay?: DelayService
   rhythm?: RhythmService
 
   constructor(
@@ -37,12 +35,6 @@ export class FarmActions {
     private readonly options: FarmActionsOptions
   ) {
     this.logger = new Logger(`FarmActions:${accountId}`)
-  }
-
-  private getDelay(): DelayService {
-    if (!this.delay)
-      throw new Error(`农场操作未绑定延迟服务 [${this.accountId}]`)
-    return this.delay
   }
 
   private shuffleOrder<T>(items: T[]): T[] {
@@ -64,18 +56,72 @@ export class FarmActions {
     return new Error(message ? `${prefix}: ${message}` : prefix)
   }
 
+  private invokeRead<T = unknown>(service: string, method: string, params: Record<string, unknown>, timeout?: number) {
+    return this.client.invokeWithPolicy<T>({
+      service,
+      method,
+      params,
+      invokeTimeoutMs: timeout,
+      policy: {
+        category: 'farm_read',
+        risk: 'low',
+        source: 'business'
+      }
+    })
+  }
+
+  private invokeFarmWrite<T = unknown>(method: string, params: Record<string, unknown>, batchKey?: string) {
+    return this.client.invokeWithPolicy<T>({
+      service: 'gamepb.plantpb.PlantService',
+      method,
+      params,
+      policy: {
+        category: 'farm_write',
+        risk: 'high',
+        source: 'business',
+        batchKey
+      }
+    })
+  }
+
+  private invokeShopRead<T = unknown>(method: string, params: Record<string, unknown>) {
+    return this.client.invokeWithPolicy<T>({
+      service: 'gamepb.shoppb.ShopService',
+      method,
+      params,
+      policy: {
+        category: 'farm_read',
+        risk: 'low',
+        source: 'business'
+      }
+    })
+  }
+
+  private invokeShopWrite<T = unknown>(method: string, params: Record<string, unknown>) {
+    return this.client.invokeWithPolicy<T>({
+      service: 'gamepb.shoppb.ShopService',
+      method,
+      params,
+      policy: {
+        category: 'farm_write',
+        risk: 'high',
+        source: 'business'
+      }
+    })
+  }
+
   async syncLands(): Promise<any> {
-    const { data } = await this.client.invoke<any>('gamepb.plantpb.PlantService', 'AllLands', {})
+    const { data } = await this.invokeRead<any>('gamepb.plantpb.PlantService', 'AllLands', {})
     this.options.onFullSync((data?.lands || []) as any[])
     return data ?? {}
   }
 
   async harvest(landIds: number[]): Promise<any> {
-    const { data } = await this.client.invoke<any>('gamepb.plantpb.PlantService', 'Harvest', {
+    const { data } = await this.invokeFarmWrite<any>('Harvest', {
       land_ids: landIds,
       host_gid: this.client.userState.gid,
       is_all: true
-    })
+    }, 'harvest')
     this.options.onLandDelta(data?.land || [])
     return data ?? {}
   }
@@ -99,10 +145,10 @@ export class FarmActions {
 
     if (ids.length > 1) {
       try {
-        const { data } = await this.client.invoke<any>('gamepb.plantpb.PlantService', 'Fertilize', {
+        const { data } = await this.invokeFarmWrite<any>('Fertilize', {
           land_ids: ids,
           fertilizer_id: fertilizerId
-        })
+        }, 'fertilize')
         this.options.onLandDelta(data?.land || [])
         return ids.length
       } catch {}
@@ -112,16 +158,14 @@ export class FarmActions {
     const changed: any[] = []
     for (const landId of ids) {
       try {
-        const { data } = await this.client.invoke<any>('gamepb.plantpb.PlantService', 'Fertilize', {
+        const { data } = await this.invokeFarmWrite<any>('Fertilize', {
           land_ids: [landId],
           fertilizer_id: fertilizerId
-        })
+        }, 'fertilize')
         success++
         if (data?.land?.length)
           changed.push(...data.land)
       } catch { break }
-      if (ids.length > 1)
-        await this.getDelay().rapidFire(this.accountId, 50)
     }
 
     if (changed.length)
@@ -130,30 +174,30 @@ export class FarmActions {
   }
 
   async removePlant(landIds: number[]): Promise<any> {
-    const { data } = await this.client.invoke<any>('gamepb.plantpb.PlantService', 'RemovePlant', { land_ids: landIds })
+    const { data } = await this.invokeFarmWrite<any>('RemovePlant', { land_ids: landIds }, 'remove_plant')
     this.options.onLandDelta(data?.land || [])
     return data ?? {}
   }
 
   async upgradeLand(landId: number): Promise<any> {
-    const { data } = await this.client.invoke<any>('gamepb.plantpb.PlantService', 'UpgradeLand', { land_id: landId })
+    const { data } = await this.invokeFarmWrite<any>('UpgradeLand', { land_id: landId }, 'upgrade_land')
     this.options.onLandDelta(data?.land ? [data.land] : [])
     return data ?? {}
   }
 
   async unlockLand(landId: number, doShared = false): Promise<any> {
-    const { data } = await this.client.invoke<any>('gamepb.plantpb.PlantService', 'UnlockLand', { land_id: landId, do_shared: doShared })
+    const { data } = await this.invokeFarmWrite<any>('UnlockLand', { land_id: landId, do_shared: doShared }, 'unlock_land')
     this.options.onLandDelta(data?.land ? [data.land] : [])
     return data ?? {}
   }
 
   async getShopInfo(shopId: number): Promise<any> {
-    const { data } = await this.client.invoke<any>('gamepb.shoppb.ShopService', 'ShopInfo', { shop_id: shopId })
+    const { data } = await this.invokeShopRead<any>('ShopInfo', { shop_id: shopId })
     return data ?? {}
   }
 
   async buyGoods(goodsId: number, num: number, price: number): Promise<any> {
-    const { data } = await this.client.invoke<any>('gamepb.shoppb.ShopService', 'BuyGoods', { goods_id: goodsId, num, price })
+    const { data } = await this.invokeShopWrite<any>('BuyGoods', { goods_id: goodsId, num, price })
     return data ?? {}
   }
 
@@ -170,9 +214,9 @@ export class FarmActions {
     const changed: any[] = []
     for (const landId of targetIds) {
       try {
-        const { data } = await this.client.invoke<any>('gamepb.plantpb.PlantService', 'Plant', {
+        const { data } = await this.invokeFarmWrite<any>('Plant', {
           items: [{ seed_id: seedId, land_ids: [landId] }]
-        })
+        }, 'plant')
         success++
         plantedLandIds.push(landId)
         occupiedLandIds.add(landId)
@@ -181,8 +225,6 @@ export class FarmActions {
       } catch (error: any) {
         this.warn(`土地#${landId} 种植失败: ${error?.message}`, 'plant_seed')
       }
-      if (targetIds.length > 1)
-        await this.getDelay().rapidFire(this.accountId, 50)
     }
 
     if (changed.length)
@@ -221,10 +263,10 @@ export class FarmActions {
   }
 
   private async sendPlantRequest(method: string, landIds: number[], hostGid: number): Promise<any> {
-    const { data } = await this.client.invoke<any>('gamepb.plantpb.PlantService', method, {
+    const { data } = await this.invokeFarmWrite<any>(method, {
       land_ids: landIds,
       host_gid: hostGid
-    })
+    }, method)
     this.options.onLandDelta(data?.land || [])
     return data ?? {}
   }
@@ -337,7 +379,6 @@ export class FarmActions {
           actions.push('解锁1')
           unlocked++
         } catch {}
-        await this.getDelay().action(this.accountId, 200)
       }
       if (unlocked > 0)
         this.log(`自动解锁土地 x${unlocked}`, 'unlock_land')
@@ -350,7 +391,6 @@ export class FarmActions {
           this.stats.recordOperation('upgrade', 1)
           upgraded++
         } catch {}
-        await this.getDelay().action(this.accountId, 200)
       }
       if (upgraded > 0)
         this.log(`自动升级土地 x${upgraded}`, 'upgrade_land')
@@ -379,9 +419,9 @@ export class FarmActions {
         throw new Error(`仅支持 1x1 种子，当前为 ${plantSize}x${plantSize}`)
 
       try {
-        const { data } = await this.client.invoke<any>('gamepb.plantpb.PlantService', 'Plant', {
+        const { data } = await this.invokeFarmWrite<any>('Plant', {
           items: [{ seed_id: seedId, land_ids: [landId] }]
-        })
+        }, 'plant')
         this.options.onLandDelta(data?.land || [])
         return { action: 'plant', landId, seedId, planted: 1 }
       } catch (error) {
@@ -391,10 +431,10 @@ export class FarmActions {
 
     if (action === 'organic_fertilize') {
       try {
-        const { data } = await this.client.invoke<any>('gamepb.plantpb.PlantService', 'Fertilize', {
+        const { data } = await this.invokeFarmWrite<any>('Fertilize', {
           land_ids: [landId],
           fertilizer_id: ORGANIC_FERTILIZER_ID
-        })
+        }, 'fertilize')
         this.options.onLandDelta(data?.land || [])
         return { action: 'organic_fertilize', landId, fertilized: 1 }
       } catch (error) {

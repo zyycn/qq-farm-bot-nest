@@ -61,7 +61,7 @@ const { pause: stopQRCheck, resume: startQRCheck } = useIntervalFn(
       } else if (status === 'Wait') {
         qrStatus.value = '等待扫码...'
       } else {
-        qrStatus.value = `错误: ${res.error || '未知'}`
+        qrStatus.value = `错误: ${status === 'Error' ? (res.error || '未知') : '未知'}`
       }
     } catch (e) {
       console.error(e)

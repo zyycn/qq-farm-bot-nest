@@ -20,10 +20,10 @@ const strategyPreviewLabel = ref<string | null>(null)
 interface BagSeedItem {
   seedId: number
   name: string
-  count: number
-  requiredLevel: number
-  image: string
-  plantSize: number
+  count?: number
+  requiredLevel?: number
+  image?: string
+  plantSize?: number
 }
 
 const bagSeeds = ref<BagSeedItem[]>([])
@@ -56,7 +56,7 @@ const sortedBagSeeds = computed<BagSeedItem[]>(() => {
     const pb = map.has(b.seedId) ? map.get(b.seedId)! : Number.MAX_SAFE_INTEGER
     if (pa !== pb)
       return pa - pb
-    return b.requiredLevel - a.requiredLevel
+    return (b.requiredLevel ?? 0) - (a.requiredLevel ?? 0)
   })
 })
 

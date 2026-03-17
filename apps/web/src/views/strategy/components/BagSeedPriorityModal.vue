@@ -5,10 +5,10 @@ import { VueDraggable } from 'vue-draggable-plus'
 interface BagSeedItem {
   seedId: number
   name: string
-  count: number
-  requiredLevel: number
-  image: string
-  plantSize: number
+  count?: number
+  requiredLevel?: number
+  image?: string
+  plantSize?: number
 }
 
 const props = defineProps<{
@@ -120,13 +120,13 @@ function handleCancel() {
             <span class="font-medium truncate a-color-text text-sm">{{ seed.name }}</span>
             <div class="flex gap-1 items-center">
               <a-tag size="small" color="geekblue" variant="outlined" class="leading-none px-1! py-0.5!">
-                x {{ seed.count }}
+                x {{ seed.count ?? 0 }}
               </a-tag>
               <a-tag size="small" color="cyan" variant="outlined" class="leading-none px-1! py-0.5!">
-                {{ seed.requiredLevel >= 200 ? '活动种子' : `Lv.${seed.requiredLevel}` }}
+                {{ (seed.requiredLevel ?? 0) >= 200 ? '活动种子' : `Lv.${seed.requiredLevel ?? 0}` }}
               </a-tag>
-              <a-tag v-if="seed.plantSize > 1" size="small" color="purple" variant="outlined" class="leading-none px-1! py-0.5!">
-                {{ seed.plantSize }}x{{ seed.plantSize }}
+              <a-tag v-if="(seed.plantSize ?? 1) > 1" size="small" color="purple" variant="outlined" class="leading-none px-1! py-0.5!">
+                {{ seed.plantSize ?? 1 }}x{{ seed.plantSize ?? 1 }}
               </a-tag>
             </div>
           </div>

@@ -16,7 +16,7 @@ const { accounts } = storeToRefs(accountStore)
 const showModal = ref(false)
 const showDeleteConfirm = ref(false)
 const deleteLoading = ref(false)
-const editingAccount = ref<Account | null>(null)
+const editingAccount = ref<Account>()
 const accountToDelete = ref<Account | null>(null)
 
 function openSettings(account: Account) {
@@ -25,7 +25,7 @@ function openSettings(account: Account) {
 }
 
 function openAddModal() {
-  editingAccount.value = null
+  editingAccount.value = undefined
   showModal.value = true
 }
 

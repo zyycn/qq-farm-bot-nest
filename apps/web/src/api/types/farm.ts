@@ -26,6 +26,10 @@ export interface FarmLand {
   status: string
   matureInSec: number
   matureAt?: number
+  level?: number
+  plantSize?: number
+  totalSeasons?: number
+  currentSeason?: number
   needWater?: boolean
   needWeed?: boolean
   needBug?: boolean

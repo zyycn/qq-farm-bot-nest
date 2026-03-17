@@ -7,6 +7,7 @@ import { useAnalyticsStore } from '@/stores'
 import { HIGHLIGHT_COLOR_MAP, METRIC_MAP, SORT_ICONS, SORT_OPTIONS, STRATEGY_CARD_COLORS } from '../constants'
 
 type StrategyKey = 'exp' | 'fert' | 'profit' | 'fert_profit'
+type StrategyMetricKey = 'expPerHour' | 'normalFertilizerExpPerHour' | 'profitPerHour' | 'normalFertilizerProfitPerHour'
 
 const props = defineProps<{
   list: AnalyticsCropRow[]
@@ -59,15 +60,11 @@ const bestByStrategy = computed<Record<StrategyKey, AnalyticsCropRow | null>>(()
   const keys: StrategyKey[] = ['exp', 'fert', 'profit', 'fert_profit']
 
   for (const key of keys) {
-    const metric = METRIC_MAP[key]
-    if (!metric) {
-      out[key] = null
-      continue
-    }
+    const metric = getStrategyMetric(key)
     const arr = src.slice()
     arr.sort((a, b) => {
-      const av = Number(a?.[metric as keyof AnalyticsCropRow])
-      const bv = Number(b?.[metric as keyof AnalyticsCropRow])
+      const av = Number(a?.[metric])
+      const bv = Number(b?.[metric])
       if (!Number.isFinite(av) && !Number.isFinite(bv))
         return 0
       if (!Number.isFinite(av))
@@ -84,6 +81,21 @@ const bestByStrategy = computed<Record<StrategyKey, AnalyticsCropRow | null>>(()
 
 function getHighlightColor(key: StrategyKey): string {
   return HIGHLIGHT_COLOR_MAP[key] || 'var(--ant-color-text)'
+}
+
+function getStrategyMetric(key: StrategyKey): StrategyMetricKey {
+  return METRIC_MAP[key] as StrategyMetricKey
+}
+
+function getBestSeedId(key: StrategyKey): number {
+  return Number(bestByStrategy.value[key]?.seedId ?? 0)
+}
+
+function getBestMetricValue(key: StrategyKey): AnalyticsCropRow[StrategyMetricKey] | '-' {
+  const record = bestByStrategy.value[key]
+  if (!record)
+    return '-'
+  return record[getStrategyMetric(key)] as AnalyticsCropRow[StrategyMetricKey]
 }
 
 function formatLv(level: number | string | null | undefined) {
@@ -179,11 +191,11 @@ function clearLevelFilter() {
             <div v-if="bestByStrategy[s.value]" class="flex gap-2.5 items-center">
               <div class="flex shrink-0 h-10 w-10 items-center justify-center overflow-hidden a-bg-layout rounded-lg">
                 <img
-                  v-if="bestByStrategy[s.value]?.image && !imageErrors[bestByStrategy[s.value]?.seedId]"
+                  v-if="bestByStrategy[s.value]?.image && !imageErrors[getBestSeedId(s.value)]"
                   :src="bestByStrategy[s.value]?.image"
                   class="h-8 w-8 object-contain"
                   loading="lazy"
-                  @error="imageErrors[bestByStrategy[s.value]?.seedId] = true"
+                  @error="imageErrors[getBestSeedId(s.value)] = true"
                 >
                 <div v-else class="i-streamline-emojis-seedling text-lg" />
               </div>
@@ -202,7 +214,7 @@ function clearLevelFilter() {
                     关键指标
                   </div>
                   <div class="font-bold text-base" :style="{ color: getHighlightColor(s.value) }">
-                    {{ bestByStrategy[s.value]?.[METRIC_MAP[s.value]] ?? '-' }}
+                    {{ getBestMetricValue(s.value) }}
                   </div>
                 </div>
               </div>

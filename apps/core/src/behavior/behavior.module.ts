@@ -6,19 +6,19 @@ import { BackgroundRequestService } from './background-request.service'
 import { BehaviorConfigService } from './behavior-config.service'
 import { BehaviorInspectService } from './behavior-inspect.service'
 import { BehaviorResolverService } from './behavior-resolver.service'
-import { DelayService } from './delay.service'
+import { RequestPacingGateway } from './request-pacing.gateway'
 import { RhythmService } from './rhythm.service'
+import { RuntimePolicyCoordinator } from './runtime-policy.coordinator'
 import { SessionBootstrapService } from './session-bootstrap.service'
-import { SessionPatternService } from './session-pattern.service'
 
 const services = [
   BehaviorConfigService,
   BehaviorResolverService,
   BehaviorInspectService,
   ActionPacerService,
-  DelayService,
+  RequestPacingGateway,
   RhythmService,
-  SessionPatternService,
+  RuntimePolicyCoordinator,
   SessionBootstrapService,
   BackgroundRequestService,
   ActiveHoursService

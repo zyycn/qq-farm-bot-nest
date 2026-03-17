@@ -1,4 +1,3 @@
-import type { DelayService } from '../../behavior/delay.service'
 import type { RhythmService } from '../../behavior/rhythm.service'
 import type { GameConfigService } from '../../game/game-config.service'
 import type { GameLogEntry } from '../../game/types'
@@ -30,7 +29,6 @@ export interface WorkerFactoryDeps {
   gameConfig: GameConfigService
   store: StoreService
   platform: string
-  delay?: DelayService
   rhythm?: RhythmService
   onLog: (entry: GameLogEntry) => void
   onLandsUpdate: (data: unknown) => void
@@ -48,10 +46,9 @@ export function createWorkers(deps: WorkerFactoryDeps): WorkerSet {
     onLandsUpdate: deps.onLandsUpdate,
     onBagUpdate: deps.onBagUpdate
   })
-  session.setBehaviorServices({ delay: deps.delay, rhythm: deps.rhythm })
+  session.setBehaviorServices({ rhythm: deps.rhythm })
 
   const friend = new FriendWorker(deps.accountId, deps.transport, deps.gameConfig, deps.store, deps.getSellAllFruits, deps.platform, stats)
-  friend.delay = deps.delay
   friend.rhythm = deps.rhythm
   friend.onLog = deps.onLog
 
@@ -59,15 +56,12 @@ export function createWorkers(deps: WorkerFactoryDeps): WorkerSet {
   illustrated.onLog = deps.onLog
 
   const task = new TaskWorker(deps.accountId, deps.transport, deps.gameConfig, deps.store, stats, deps.getRawBagItems)
-  task.delay = deps.delay
   task.onLog = deps.onLog
 
   const dailyRewards = new DailyRewardsWorker(deps.accountId, deps.transport, deps.gameConfig, deps.store, deps.platform)
-  dailyRewards.delay = deps.delay
   dailyRewards.onLog = deps.onLog
 
   const invite = new InviteWorker(deps.accountId, deps.transport, deps.platform)
-  invite.delay = deps.delay
   invite.onLog = deps.onLog
 
   return { session, friend, illustrated, task, dailyRewards, invite, stats, analytics }

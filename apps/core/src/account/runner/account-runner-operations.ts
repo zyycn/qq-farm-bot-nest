@@ -1,5 +1,5 @@
 import type { BackgroundRequestService } from '../../behavior/background-request.service'
-import type { SessionPatternService } from '../../behavior/session-pattern.service'
+import type { RuntimePolicyCoordinator } from '../../behavior/runtime-policy.coordinator'
 import type { StoreService } from '../../store/store.service'
 import type { IGameTransport } from '../../transport/interfaces/game-transport.interface'
 
@@ -43,7 +43,7 @@ export interface AccountRunnerOperationsDeps {
   store: StoreService
   transport: IGameTransport
   backgroundRequest: BackgroundRequestService
-  sessionPattern: SessionPatternService
+  runtimePolicy: RuntimePolicyCoordinator
   getTaskDailyState: () => Promise<TaskDailyOverview>
   getGrowthTaskState: () => Promise<GrowthTaskOverview>
   getEmailDailyState: () => DailyRewardCheckState
@@ -105,7 +105,7 @@ export class AccountRunnerOperations {
 
   async afterOperation() {
     await this.deps.backgroundRequest.sprinkle(this.deps.accountId, this.deps.transport).catch(() => {})
-    await this.deps.sessionPattern.applyLinger(this.deps.accountId).catch(() => {})
+    await this.deps.runtimePolicy.applyLinger(this.deps.accountId).catch(() => {})
     this.deps.refreshIdleDisconnectTimer()
   }
 }

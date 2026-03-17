@@ -28,13 +28,13 @@ const filter = reactive<LogQueryOptions>({
 })
 
 async function queryLogs() {
-  const hasFilter = !!(filter.module || filter.event || filter.keyword.trim() || filter.isWarn)
+  const hasFilter = !!(filter.module || filter.event || filter.keyword?.trim() || filter.isWarn)
   statusStore.setLogFilterActive(hasFilter)
   try {
     const data = await logsApi.query({
       module: filter.module || undefined,
       event: filter.event || undefined,
-      keyword: filter.keyword.trim() || undefined,
+      keyword: filter.keyword?.trim() || undefined,
       isWarn: filter.isWarn || undefined,
       limit: 50
     })
@@ -103,6 +103,16 @@ const timeToLevel = computed(() => {
   if (minsToLevel < 60)
     return `约 ${Math.ceil(minsToLevel)} 分钟后升级`
   return `约 ${(minsToLevel / 60).toFixed(1)} 小时后升级`
+})
+
+const normalizedLevelProgress = computed(() => {
+  const progress = status.value?.levelProgress
+  if (progress?.current == null || progress.needed == null)
+    return undefined
+  return {
+    current: progress.current,
+    needed: progress.needed
+  }
 })
 
 const fertilizerNormal = computed<BagItem | undefined>(() => dashboardItems.value.find(i => Number(i.id) === 1011))
@@ -184,7 +194,7 @@ useAccountRefresh(queryLogs)
       <AccountExpCard
         :display-name="displayName"
         :level="status?.status?.level || 0"
-        :level-progress="status?.levelProgress"
+        :level-progress="normalizedLevelProgress"
         :exp-rate="expRate"
         :time-to-level="timeToLevel"
         :connected="!!status?.connection?.connected"

@@ -74,7 +74,7 @@ function getHighlightColor(key: string): string {
       :data-source="pagedList"
       :loading="loading"
       :pagination="false"
-      :row-key="(record: AnalyticsCropRow) => record.seedId"
+      row-key="seedId"
       :scroll="{ x: 800, y: props.tableScrollY }"
       size="middle"
     >

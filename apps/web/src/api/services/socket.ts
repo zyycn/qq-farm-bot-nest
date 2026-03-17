@@ -19,7 +19,7 @@ interface QueuedRequest {
   reject: (reason: unknown) => void
 }
 
-type EventHandler = (data: unknown) => void
+type EventHandler<T = unknown> = (data: T) => void
 
 function generateId(): string {
   return typeof crypto !== 'undefined' && crypto.randomUUID
@@ -116,30 +116,31 @@ export class SocketClient {
       this.sendUnsubscribe([...(topics ?? [])], [...(events ?? [])])
   }
 
-  on(route: string, handler: EventHandler): void {
+  on<T = unknown>(route: string, handler: EventHandler<T>): void {
     let set = this.listeners.get(route)
     if (!set) {
       set = new Set()
       this.listeners.set(route, set)
     }
-    if (set.has(handler))
+    const listener = handler as EventHandler
+    if (set.has(listener))
       return
-    set.add(handler)
+    set.add(listener)
   }
 
-  once(route: string, handler: EventHandler): void {
-    const wrapper: EventHandler = (data) => {
+  once<T = unknown>(route: string, handler: EventHandler<T>): void {
+    const wrapper: EventHandler<T> = (data) => {
       this.off(route, wrapper)
       handler(data)
     }
     this.on(route, wrapper)
   }
 
-  off(route: string, handler: EventHandler): void {
+  off<T = unknown>(route: string, handler: EventHandler<T>): void {
     const set = this.listeners.get(route)
     if (!set)
       return
-    set.delete(handler)
+    set.delete(handler as EventHandler)
     if (set.size === 0)
       this.listeners.delete(route)
   }

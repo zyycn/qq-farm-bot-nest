@@ -34,7 +34,7 @@ interface LandDetail {
 interface BagSeedItem {
   seedId: number
   name: string
-  count: number
+  count?: number
   requiredLevel?: number
   plantSize?: number
   image?: string
@@ -233,7 +233,7 @@ defineExpose({
             {{ seed.name }}
           </div>
           <div class="mt-0.5 a-color-text-tertiary text-xs">
-            数量 {{ seed.count }} · {{ seed.requiredLevel }}级
+            数量 {{ seed.count ?? 0 }} · {{ seed.requiredLevel ?? 0 }}级
           </div>
         </div>
       </div>

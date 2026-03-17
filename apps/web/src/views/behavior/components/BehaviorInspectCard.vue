@@ -65,6 +65,10 @@ const fallbackHint = computed(() => {
 const summarySourceLabel = computed(() => (
   inspect.value?.device.runtime ? '运行态摘要' : '配置态摘要'
 ))
+
+function formatRange(range: { min: number, max: number }): string {
+  return `${range.min}ms - ${range.max}ms`
+}
 </script>
 
 <template>
@@ -178,6 +182,124 @@ const summarySourceLabel = computed(() => (
             <div>
               热身请求池、背景请求池和固定步长上限属于内置脚本；页面自定义参数不会逐条改写这些内置列表。
             </div>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend class="tracking-wide font-medium mb-2 op-50 uppercase text-xs">
+          请求出口
+        </legend>
+        <div class="gap-x-4 gap-y-3 grid grid-cols-1 md:grid-cols-2">
+          <div>
+            <div class="a-color-text-tertiary text-xs">
+              统一网关
+            </div>
+            <div>{{ inspect.requestPacing.unifiedGatewayEnabled ? '开启' : '关闭' }}</div>
+          </div>
+          <div>
+            <div class="a-color-text-tertiary text-xs">
+              队列
+            </div>
+            <div>{{ inspect.requestPacing.queues.join(' / ') }}</div>
+          </div>
+          <div>
+            <div class="a-color-text-tertiary text-xs">
+              静默时段闸门
+            </div>
+            <div>{{ inspect.requestPacing.quietHoursGateAppliesToBusinessTraffic ? '作用于业务请求' : '不作用于业务请求' }}</div>
+          </div>
+          <div>
+            <div class="a-color-text-tertiary text-xs">
+              忙时脚本降级
+            </div>
+            <div>{{ inspect.requestPacing.dropLowPriorityScriptRequestsWhenBusy ? '低优先级脚本可丢弃' : '关闭' }}</div>
+          </div>
+          <div>
+            <div class="a-color-text-tertiary text-xs">
+              农场读 / 写
+            </div>
+            <div>{{ formatRange(inspect.requestPacing.categoryPolicyRanges.farmRead) }} / {{ formatRange(inspect.requestPacing.categoryPolicyRanges.farmWrite) }}</div>
+          </div>
+          <div>
+            <div class="a-color-text-tertiary text-xs">
+              好友访问 / 交互
+            </div>
+            <div>{{ formatRange(inspect.requestPacing.categoryPolicyRanges.friendVisit) }} / {{ formatRange(inspect.requestPacing.categoryPolicyRanges.friendWrite) }}</div>
+          </div>
+          <div>
+            <div class="a-color-text-tertiary text-xs">
+              仓库写操作
+            </div>
+            <div>{{ formatRange(inspect.requestPacing.categoryPolicyRanges.warehouseWrite) }}</div>
+          </div>
+          <div>
+            <div class="a-color-text-tertiary text-xs">
+              任务 / 日常奖励
+            </div>
+            <div>{{ formatRange(inspect.requestPacing.categoryPolicyRanges.taskClaim) }} / {{ formatRange(inspect.requestPacing.categoryPolicyRanges.dailyReward) }}</div>
+          </div>
+          <div>
+            <div class="a-color-text-tertiary text-xs">
+              热身脚本
+            </div>
+            <div>{{ formatRange(inspect.requestPacing.categoryPolicyRanges.bootstrap) }}</div>
+          </div>
+          <div>
+            <div class="a-color-text-tertiary text-xs">
+              背景请求
+            </div>
+            <div>{{ formatRange(inspect.requestPacing.categoryPolicyRanges.background) }}</div>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend class="tracking-wide font-medium mb-2 op-50 uppercase text-xs">
+          运行时协调
+        </legend>
+        <div class="gap-x-4 gap-y-3 grid grid-cols-1 md:grid-cols-2">
+          <div>
+            <div class="a-color-text-tertiary text-xs">
+              统一协调层
+            </div>
+            <div>{{ inspect.runtimeCoordination.unifiedCoordinatorEnabled ? '开启' : '关闭' }}</div>
+          </div>
+          <div>
+            <div class="a-color-text-tertiary text-xs">
+              登录热身生命周期
+            </div>
+            <div>{{ inspect.runtimeCoordination.session.bootstrapEnabled ? '开启' : '关闭' }}</div>
+          </div>
+          <div>
+            <div class="a-color-text-tertiary text-xs">
+              冷启动停顿
+            </div>
+            <div>{{ inspect.runtimeCoordination.session.coldStartEnabled ? formatRange(inspect.runtimeCoordination.session.coldStartRange) : '关闭' }}</div>
+          </div>
+          <div>
+            <div class="a-color-text-tertiary text-xs">
+              操作后停留
+            </div>
+            <div>{{ inspect.runtimeCoordination.session.lingerEnabled ? formatRange(inspect.runtimeCoordination.session.lingerRange) : '关闭' }}</div>
+          </div>
+          <div>
+            <div class="a-color-text-tertiary text-xs">
+              空闲断开
+            </div>
+            <div>{{ inspect.runtimeCoordination.session.idleDisconnectEnabled ? formatRange(inspect.runtimeCoordination.session.idleDisconnectRange) : '关闭' }}</div>
+          </div>
+          <div>
+            <div class="a-color-text-tertiary text-xs">
+              多账号启动抖动
+            </div>
+            <div>{{ inspect.runtimeCoordination.multiAccount.startJitterEnabled ? formatRange(inspect.runtimeCoordination.multiAccount.startJitterRange) : '关闭' }}</div>
+          </div>
+          <div>
+            <div class="a-color-text-tertiary text-xs">
+              多账号调度错峰
+            </div>
+            <div>{{ inspect.runtimeCoordination.multiAccount.scheduleOffsetEnabled ? formatRange(inspect.runtimeCoordination.multiAccount.scheduleOffsetRange) : '关闭' }}</div>
           </div>
         </div>
       </fieldset>

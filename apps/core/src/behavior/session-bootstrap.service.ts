@@ -1,6 +1,5 @@
 import type { IGameTransport } from '../transport/interfaces/game-transport.interface'
 import { Injectable, Logger } from '@nestjs/common'
-import { ActionPacerService } from './action-pacer.service'
 import { BehaviorResolverService } from './behavior-resolver.service'
 import { SESSION_BOOTSTRAP_REQUESTS } from './behavior-script.constants'
 
@@ -8,10 +7,7 @@ import { SESSION_BOOTSTRAP_REQUESTS } from './behavior-script.constants'
 export class SessionBootstrapService {
   private readonly logger = new Logger(SessionBootstrapService.name)
 
-  constructor(
-    private readonly resolver: BehaviorResolverService,
-    private readonly pacer: ActionPacerService
-  ) {}
+  constructor(private readonly resolver: BehaviorResolverService) {}
 
   async onLoginSuccess(accountId: string, transport: IGameTransport): Promise<void> {
     const cfg = this.resolver.getEffectiveConfig(accountId)
@@ -21,8 +17,18 @@ export class SessionBootstrapService {
     this.logger.debug(`[${accountId}] 正在发送会话预热请求`)
 
     for (const [service, method, params] of SESSION_BOOTSTRAP_REQUESTS) {
-      transport.invoke(service, method, params as Record<string, unknown>).catch(() => {})
-      await this.pacer.bootstrapStep(accountId)
+      transport.invokeWithPolicy({
+        service,
+        method,
+        params: params as Record<string, unknown>,
+        queue: 'script',
+        dropIfQueueBusy: true,
+        policy: {
+          category: 'session_bootstrap',
+          risk: 'low',
+          source: 'bootstrap'
+        }
+      }).catch(() => {})
     }
   }
 }

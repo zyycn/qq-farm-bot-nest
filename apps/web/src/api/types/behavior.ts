@@ -71,4 +71,39 @@ export interface BehaviorInspectResponse {
       independentFromMasterSwitch: boolean
     }
   }
+  requestPacing: {
+    unifiedGatewayEnabled: boolean
+    queues: string[]
+    categoryPolicyRanges: {
+      farmRead: { min: number, max: number }
+      farmWrite: { min: number, max: number }
+      friendVisit: { min: number, max: number }
+      friendWrite: { min: number, max: number }
+      warehouseWrite: { min: number, max: number }
+      taskClaim: { min: number, max: number }
+      dailyReward: { min: number, max: number }
+      bootstrap: { min: number, max: number }
+      background: { min: number, max: number }
+    }
+    quietHoursGateAppliesToBusinessTraffic: boolean
+    dropLowPriorityScriptRequestsWhenBusy: boolean
+  }
+  runtimeCoordination: {
+    unifiedCoordinatorEnabled: boolean
+    session: {
+      coldStartEnabled: boolean
+      coldStartRange: { min: number, max: number }
+      lingerEnabled: boolean
+      lingerRange: { min: number, max: number }
+      idleDisconnectEnabled: boolean
+      idleDisconnectRange: { min: number, max: number }
+      bootstrapEnabled: boolean
+    }
+    multiAccount: {
+      startJitterEnabled: boolean
+      startJitterRange: { min: number, max: number }
+      scheduleOffsetEnabled: boolean
+      scheduleOffsetRange: { min: number, max: number }
+    }
+  }
 }

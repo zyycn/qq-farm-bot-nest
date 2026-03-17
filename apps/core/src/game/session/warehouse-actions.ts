@@ -1,4 +1,3 @@
-import type { DelayService } from '../../behavior/delay.service'
 import type { StoreService } from '../../store/store.service'
 import type { GameConfigService } from '../game-config.service'
 import type { IGameTransport } from '../interfaces/game-transport.interface'
@@ -24,8 +23,6 @@ export class WarehouseActions {
   private readonly logger: Logger
   private fertilizerGiftDoneDateKey = ''
   private fertilizerGiftLastOpenAt = 0
-  delay?: DelayService
-
   constructor(
     private readonly accountId: string,
     private readonly client: IGameTransport,
@@ -37,10 +34,31 @@ export class WarehouseActions {
     this.logger = new Logger(`WarehouseActions:${accountId}`)
   }
 
-  private getDelay(): DelayService {
-    if (!this.delay)
-      throw new Error(`仓库操作未绑定延迟服务 [${this.accountId}]`)
-    return this.delay
+  private invokeWarehouseRead<T = unknown>(method: string, params: Record<string, unknown>) {
+    return this.client.invokeWithPolicy<T>({
+      service: 'gamepb.itempb.ItemService',
+      method,
+      params,
+      policy: {
+        category: 'warehouse_read',
+        risk: 'low',
+        source: 'business'
+      }
+    })
+  }
+
+  private invokeWarehouseWrite<T = unknown>(method: string, params: Record<string, unknown>, batchKey?: string) {
+    return this.client.invokeWithPolicy<T>({
+      service: 'gamepb.itempb.ItemService',
+      method,
+      params,
+      policy: {
+        category: 'warehouse_write',
+        risk: 'high',
+        source: 'business',
+        batchKey
+      }
+    })
   }
 
   private log(msg: string, event?: string) {
@@ -54,7 +72,7 @@ export class WarehouseActions {
   }
 
   async syncBag(): Promise<any> {
-    const { data } = await this.client.invoke('gamepb.itempb.ItemService', 'Bag', {})
+    const { data } = await this.invokeWarehouseRead('Bag', {})
     return data ?? {}
   }
 
@@ -66,7 +84,7 @@ export class WarehouseActions {
         next.uid = uid
       return next
     })
-    const { data } = await this.client.invoke('gamepb.itempb.ItemService', 'Sell', { items: payload })
+    const { data } = await this.invokeWarehouseWrite('Sell', { items: payload }, 'sell')
     return data ?? {}
   }
 
@@ -106,24 +124,24 @@ export class WarehouseActions {
 
   async useItem(itemId: number, count = 1, landIds: number[] = []): Promise<any> {
     try {
-      const { data } = await this.client.invoke('gamepb.itempb.ItemService', 'Use', {
+      const { data } = await this.invokeWarehouseWrite('Use', {
         param: { item_id: itemId, count, land_ids: landIds }
-      })
+      }, 'use_item')
       return data ?? {}
     } catch (error: any) {
       const msg = String(error?.message || '')
       if (!msg.includes('code=1000020') && !msg.includes('请求参数错误'))
         throw error
-      const { data } = await this.client.invoke('gamepb.itempb.ItemService', 'Use', {
+      const { data } = await this.invokeWarehouseWrite('Use', {
         param: { item_id: itemId, count }
-      })
+      }, 'use_item')
       return data ?? {}
     }
   }
 
   async batchUseItems(items: { itemId: number, count: number, uid?: number }[]): Promise<any> {
     const payload = items.map(item => ({ id: item.itemId, count: item.count || 1, uid: item.uid || 0 }))
-    const { data } = await this.client.invoke('gamepb.itempb.ItemService', 'BatchUse', { items: payload })
+    const { data } = await this.invokeWarehouseWrite('BatchUse', { items: payload }, 'batch_use')
     return data ?? {}
   }
 
@@ -166,12 +184,7 @@ export class WarehouseActions {
             } catch {}
           }
         }
-
-        if (i + SELL_BATCH_SIZE < toSell.length)
-          await this.getDelay().action(this.accountId, 300)
       }
-
-      await this.getDelay().action(this.accountId, 500)
       const goldAfter = Number(this.client.userState?.gold || 0)
       const totalGoldEarned = Math.max(serverGoldTotal, goldAfter > goldBefore ? goldAfter - goldBefore : 0)
       this.log(`出售 ${names.join(', ')}${totalGoldEarned > 0 ? `，获得 ${totalGoldEarned} 金币` : ''}`, 'sell_success')
@@ -235,7 +248,6 @@ export class WarehouseActions {
         } catch (e: any) {
           this.logger.warn(`开启化肥礼包 ${pack.itemId} 失败: ${e?.message}`)
         }
-        await this.getDelay().rapidFire(this.accountId, 100)
       }
 
       for (const stack of fertilizerStacks) {
@@ -258,7 +270,6 @@ export class WarehouseActions {
         } catch (e: any) {
           this.logger.warn(`使用化肥 ${stack.itemId} x${useCount} 失败: ${e?.message}`)
         }
-        await this.getDelay().rapidFire(this.accountId, 100)
       }
 
       if (opened > 0) {

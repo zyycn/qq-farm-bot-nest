@@ -1,4 +1,3 @@
-import type { DelayService } from '../../behavior/delay.service'
 import type { RhythmService } from '../../behavior/rhythm.service'
 import type { GameConfigService } from '../../game/game-config.service'
 import type { GameLogEntry } from '../../game/types'
@@ -12,7 +11,6 @@ export interface AccountRunnerWorkersDeps {
   transport: IGameTransport
   gameConfig: GameConfigService
   store: StoreService
-  delay: DelayService
   rhythm: RhythmService
   onLog: (entry: GameLogEntry) => void
   onLandsUpdate: (data: unknown) => void
@@ -31,7 +29,6 @@ export class AccountRunnerWorkers {
       gameConfig: this.deps.gameConfig,
       store: this.deps.store,
       platform,
-      delay: this.deps.delay,
       rhythm: this.deps.rhythm,
       onLog: this.deps.onLog,
       onLandsUpdate: this.deps.onLandsUpdate,

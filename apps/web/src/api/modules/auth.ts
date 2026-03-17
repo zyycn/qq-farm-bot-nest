@@ -1,7 +1,11 @@
 import api from '../services/request'
 
+interface LoginResponse {
+  token: string
+}
+
 export function login(password: string) {
-  return api.post('/api/auth/login', { password })
+  return api.post<LoginResponse>('/api/auth/login', { password })
 }
 
 export function validate() {

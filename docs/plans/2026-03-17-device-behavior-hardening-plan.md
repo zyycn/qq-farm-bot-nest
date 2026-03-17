@@ -334,3 +334,20 @@ Link 可以保留协议层默认值，但不能继续持有会与上层设备模
 
 - `AccountRunner` 启动时已增加结构化行为摘要日志，包含模式、快速回退、热身脚本、背景请求频率、activeHours 状态
 - `/behavior` 页面已接入 `behavior.inspect` 摘要卡，前端可直接看到最终设备来源与脚本边界
+## 2026-03-17 Coordination Update
+
+This document stays focused on device / behavior hardening, but its runtime boundary must now align with the unified pacing migration.
+
+Alignment rules:
+
+- request-time behavior control belongs to `RequestPacingGateway`
+- non-request runtime timing belongs to `RuntimePolicyCoordinator`
+- business modules must not directly carry `delay`, `rhythm`, `session`, `backgroundRequests`, `activeHours`, or `multiAccount` semantics
+- `/behavior` page configuration remains the only user-facing strategy input, but those inputs are mapped into unified request/runtime policy layers rather than scattered service calls
+
+For this document, that means:
+
+- built-in script observability still lives here
+- device identity hardening still lives here
+- request pacing implementation details should move to `2026-03-17-unified-request-pacing-design.md`
+- session and multi-account hardening must be implemented through the runtime coordination layer instead of business workers

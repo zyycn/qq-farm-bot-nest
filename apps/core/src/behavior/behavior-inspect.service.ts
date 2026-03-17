@@ -87,6 +87,47 @@ export class BehaviorInspectService {
           quietMode: effective.activeHours.quietMode,
           independentFromMasterSwitch: true
         }
+      },
+      requestPacing: {
+        unifiedGatewayEnabled: true,
+        queues: ['system', 'interactive', 'automation', 'script'],
+        categoryPolicyRanges: {
+          farmRead: { min: effective.delay.rapidBatchMin, max: effective.delay.rapidBatchMax },
+          farmWrite: { min: effective.delay.actionMin, max: effective.delay.actionMax },
+          friendVisit: { min: effective.delay.friendSwitchMin, max: effective.delay.friendSwitchMax },
+          friendWrite: { min: effective.delay.actionMin, max: effective.delay.actionMax },
+          warehouseWrite: { min: effective.delay.actionMin, max: effective.delay.actionMax },
+          taskClaim: { min: effective.delay.taskSwitchMin, max: effective.delay.taskSwitchMax },
+          dailyReward: { min: effective.delay.taskSwitchMin, max: effective.delay.taskSwitchMax },
+          bootstrap: {
+            min: Math.min(effective.delay.rapidBatchMin, BUILT_IN_SCRIPT_LEGACY_STEP_MS),
+            max: Math.max(Math.min(effective.delay.rapidBatchMin, BUILT_IN_SCRIPT_LEGACY_STEP_MS), Math.min(effective.delay.actionMin, BUILT_IN_SCRIPT_MAX_STEP_MS))
+          },
+          background: {
+            min: Math.min(effective.delay.rapidBatchMin, BUILT_IN_SCRIPT_LEGACY_STEP_MS),
+            max: Math.max(Math.min(effective.delay.rapidBatchMin, BUILT_IN_SCRIPT_LEGACY_STEP_MS), Math.min(effective.delay.actionMin, BUILT_IN_SCRIPT_MAX_STEP_MS))
+          }
+        },
+        quietHoursGateAppliesToBusinessTraffic: true,
+        dropLowPriorityScriptRequestsWhenBusy: true
+      },
+      runtimeCoordination: {
+        unifiedCoordinatorEnabled: true,
+        session: {
+          coldStartEnabled: effective.session.enableColdStart,
+          coldStartRange: { min: effective.session.coldStartMin, max: effective.session.coldStartMax },
+          lingerEnabled: effective.session.enableLingerAfterOps,
+          lingerRange: { min: effective.session.lingerMin, max: effective.session.lingerMax },
+          idleDisconnectEnabled: effective.session.enableIdleDisconnect,
+          idleDisconnectRange: { min: effective.session.idleDisconnectMin, max: effective.session.idleDisconnectMax },
+          bootstrapEnabled: effective.session.enableSessionBootstrap
+        },
+        multiAccount: {
+          startJitterEnabled: effective.multiAccount.enableStartJitter,
+          startJitterRange: { min: effective.multiAccount.startJitterMin, max: effective.multiAccount.startJitterMax },
+          scheduleOffsetEnabled: effective.multiAccount.enableScheduleOffset,
+          scheduleOffsetRange: { min: effective.multiAccount.scheduleOffsetMin, max: effective.multiAccount.scheduleOffsetMax }
+        }
       }
     }
   }

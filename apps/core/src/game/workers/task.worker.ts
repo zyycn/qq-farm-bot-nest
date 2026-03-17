@@ -1,4 +1,3 @@
-import type { DelayService } from '../../behavior/delay.service'
 import type { StoreService } from '../../store/store.service'
 import type { GameConfigService } from '../game-config.service'
 import type { IGameTransport } from '../interfaces/game-transport.interface'
@@ -13,7 +12,6 @@ export class TaskWorker {
   private taskClaimDoneDateKey = ''
   private taskClaimLastAt = 0
   private scheduler: Scheduler
-  delay?: DelayService
   onLog: ((entry: { msg: string, tag?: string, meta?: Record<string, string>, isWarn?: boolean }) => void) | null = null
 
   constructor(
@@ -28,12 +26,6 @@ export class TaskWorker {
     this.scheduler = new Scheduler(`task-${accountId}`, this.logger)
   }
 
-  private getDelay(): DelayService {
-    if (!this.delay)
-      throw new Error(`任务模块未绑定延迟服务 [${this.accountId}]`)
-    return this.delay
-  }
-
   private log(msg: string, event?: string) {
     this.logger.log(msg)
     this.onLog?.({ msg, tag: '任务', meta: { module: 'task', ...(event && { event }) }, isWarn: false })
@@ -44,30 +36,82 @@ export class TaskWorker {
     this.onLog?.({ msg, tag: '任务', meta: { module: 'task', ...(event && { event }) }, isWarn: true })
   }
 
+  private invokeTaskRead<T = unknown>(method: string, params: Record<string, unknown>) {
+    return this.client.invokeWithPolicy<T>({
+      service: 'gamepb.taskpb.TaskService',
+      method,
+      params,
+      policy: {
+        category: 'task_claim',
+        risk: 'low',
+        source: 'business'
+      }
+    })
+  }
+
+  private invokeTaskWrite<T = unknown>(method: string, params: Record<string, unknown>) {
+    return this.client.invokeWithPolicy<T>({
+      service: 'gamepb.taskpb.TaskService',
+      method,
+      params,
+      policy: {
+        category: 'task_claim',
+        risk: 'high',
+        source: 'business'
+      }
+    })
+  }
+
+  private invokeIllustratedRead<T = unknown>(method: string, params: Record<string, unknown>) {
+    return this.client.invokeWithPolicy<T>({
+      service: 'gamepb.illustratedpb.IllustratedService',
+      method,
+      params,
+      policy: {
+        category: 'task_claim',
+        risk: 'low',
+        source: 'business'
+      }
+    })
+  }
+
+  private invokeIllustratedWrite<T = unknown>(method: string, params: Record<string, unknown>) {
+    return this.client.invokeWithPolicy<T>({
+      service: 'gamepb.illustratedpb.IllustratedService',
+      method,
+      params,
+      policy: {
+        category: 'task_claim',
+        risk: 'high',
+        source: 'business'
+      }
+    })
+  }
+
   // ========== API ==========
 
   async getTaskInfo(): Promise<any> {
-    const { data } = await this.client.invoke('gamepb.taskpb.TaskService', 'TaskInfo', {})
+    const { data } = await this.invokeTaskRead('TaskInfo', {})
     return data ?? {}
   }
 
   async claimTaskReward(taskId: number, doShared = false): Promise<any> {
-    const { data } = await this.client.invoke('gamepb.taskpb.TaskService', 'ClaimTaskReward', { id: taskId, do_shared: doShared })
+    const { data } = await this.invokeTaskWrite('ClaimTaskReward', { id: taskId, do_shared: doShared })
     return data ?? {}
   }
 
   async claimDailyReward(type: number, pointIds: number[]): Promise<any> {
-    const { data } = await this.client.invoke('gamepb.taskpb.TaskService', 'ClaimDailyReward', { type: Number(type) || 0, point_ids: pointIds })
+    const { data } = await this.invokeTaskWrite('ClaimDailyReward', { type: Number(type) || 0, point_ids: pointIds })
     return data ?? { items: [] }
   }
 
   async claimAllIllustratedRewards(): Promise<any> {
-    const { data } = await this.client.invoke('gamepb.illustratedpb.IllustratedService', 'ClaimAllRewardsV2', { only_claimable: true })
+    const { data } = await this.invokeIllustratedWrite('ClaimAllRewardsV2', { only_claimable: true })
     return data ?? { items: [], bonus_items: [] }
   }
 
   async getIllustratedState(): Promise<any> {
-    const { data } = await this.client.invoke('gamepb.illustratedpb.IllustratedService', 'GetIllustratedListV2', {
+    const { data } = await this.invokeIllustratedRead('GetIllustratedListV2', {
       // refresh=true currently returns only 101 normal entries and hides the
       // 7 treasure entries, so use the stable full response here as well.
       refresh: false,
@@ -130,7 +174,6 @@ export class TaskWorker {
       this.taskClaimDoneDateKey = getServerDateKey()
       this.taskClaimLastAt = Date.now()
       this.stats.recordOperation('taskClaim', 1)
-      await this.getDelay().action(this.accountId, 300)
       return true
     } catch { return false }
   }
@@ -153,7 +196,6 @@ export class TaskWorker {
         if (items.length > 0)
           this.log(`${typeName} 领取: ${getRewardSummary(items, id => this.gameConfig.getItemById(id)?.name ?? `物品#${id}`)}`, 'task_claim')
         claimed += pointIds.length
-        await this.getDelay().action(this.accountId, 300)
       } catch (e: any) { this.warn(`${typeName} 领取失败: ${e?.message}`, 'task_claim') }
     }
     return claimed

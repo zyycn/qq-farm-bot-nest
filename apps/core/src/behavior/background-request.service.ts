@@ -1,6 +1,5 @@
 import type { IGameTransport } from '../transport/interfaces/game-transport.interface'
 import { Injectable, Logger } from '@nestjs/common'
-import { ActionPacerService } from './action-pacer.service'
 import { BehaviorResolverService } from './behavior-resolver.service'
 import { BACKGROUND_COSMETIC_REQUESTS, BACKGROUND_REQUEST_SAMPLE_RANGE } from './behavior-script.constants'
 
@@ -15,10 +14,7 @@ export class BackgroundRequestService {
   private readonly logger = new Logger(BackgroundRequestService.name)
   private readonly opCounters = new Map<string, number>()
 
-  constructor(
-    private readonly resolver: BehaviorResolverService,
-    private readonly pacer: ActionPacerService
-  ) {}
+  constructor(private readonly resolver: BehaviorResolverService) {}
 
   async sprinkle(accountId: string, transport: IGameTransport): Promise<void> {
     const cfg = this.resolver.getEffectiveConfig(accountId)
@@ -38,8 +34,18 @@ export class BackgroundRequestService {
     this.logger.debug(`[${accountId}] 正在穿插 ${selected.length} 个背景装饰请求`)
 
     for (const req of selected) {
-      transport.invoke(req.service, req.method, {}).catch(() => {})
-      await this.pacer.backgroundRequestStep(accountId)
+      transport.invokeWithPolicy({
+        service: req.service,
+        method: req.method,
+        params: {},
+        queue: 'script',
+        dropIfQueueBusy: true,
+        policy: {
+          category: 'background',
+          risk: 'low',
+          source: 'background'
+        }
+      }).catch(() => {})
     }
   }
 
