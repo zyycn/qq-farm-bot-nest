@@ -1,4 +1,4 @@
-import type { RhythmService } from '../../behavior/rhythm.service'
+import type { RequestIntentContext } from '../../common/request-intent/request-intent-context.service'
 import type { StoreService } from '../../store/store.service'
 import type { GameConfigService } from '../game-config.service'
 import type { IGameTransport } from '../interfaces/game-transport.interface'
@@ -6,6 +6,7 @@ import type { AnalyticsWorker } from '../workers/analytics.worker'
 import type { StatsTracker } from '../workers/stats.worker'
 import { Logger } from '@nestjs/common'
 import { Scheduler } from '@qq-farm/shared'
+import { RequestIntentContextService } from '../../common/request-intent/request-intent-context.service'
 import { isInteractiveRequest } from '../interfaces/request-context.interface'
 import { getServerTimeSec, toNum } from '../utils'
 import { FarmActions } from './farm-actions'
@@ -24,6 +25,7 @@ interface SessionTask<T = unknown> {
   label: string
   order: number
   priority: number
+  requestContext?: RequestIntentContext
   task: () => Promise<T>
   resolve: (value: T | PromiseLike<T>) => void
   reject: (reason?: unknown) => void
@@ -95,10 +97,6 @@ export class GameSession {
     this.scheduler.clearAll()
   }
 
-  setBehaviorServices(services: { rhythm?: RhythmService }) {
-    this.farmActions.rhythm = services.rhythm
-  }
-
   onConfigChanged() {
     this.rescheduleLandTimers()
     this.kickStartFarmAutomation()
@@ -148,11 +146,16 @@ export class GameSession {
   }
 
   async runScheduledAutomationPass(): Promise<boolean> {
-    return await this.enqueue('scheduled-farm-pass', async () => {
-      await this.calibrateIfNeeded()
-      const result = await this.runFarmOperationUnsafe('all')
-      return !!result.hadWork
-    }) as boolean
+    let hadWork = false
+    for (const stage of this.getScheduledAutomationStages()) {
+      const stageHadWork = await this.enqueue(`scheduled-farm-pass:${stage}`, async () => {
+        await this.calibrateIfNeeded()
+        const result = await this.runFarmOperationUnsafe(stage)
+        return !!result.hadWork
+      }) as boolean
+      hadWork = hadWork || stageHadWork
+    }
+    return hadWork
   }
 
   async runFarmOperation(opType: string) {
@@ -160,18 +163,18 @@ export class GameSession {
   }
 
   async runHarvestThenPlant() {
-    return await this.enqueue('timer-harvest-then-plant', async () => {
+    await this.enqueue('timer-harvest', async () => {
       await this.calibrateIfNeeded()
-      await this.runFarmOperationUnsafe('harvest')
-      return await this.runFarmOperationUnsafe('plant')
+      return await this.runFarmOperationUnsafe('harvest')
     })
+    return await this.enqueue('timer-plant', async () => await this.runFarmOperationUnsafe('plant'))
   }
 
   async runSingleLandOperation(payload: { action: string, landId: number, seedId: number }) {
     return await this.enqueue(`single-land:${payload.action}:${payload.landId}`, async () => {
       await this.ensureLandsReady()
       const result = await this.farmActions.runSingleLandOperation(payload)
-      await this.followAfterSingleLandOperation(payload)
+      this.scheduleFollowAfterSingleLandOperation(payload)
       return result
     })
   }
@@ -249,12 +252,16 @@ export class GameSession {
     return result
   }
 
-  private async followAfterSingleLandOperation(payload: { action: string, landId: number }) {
+  private scheduleFollowAfterSingleLandOperation(payload: { action: string, landId: number }) {
     if (payload.action !== 'remove')
       return
     if (!this.store.isAutomationOn('farm', this.accountId))
       return
-    await this.runFarmOperationUnsafe('plant')
+
+    void this.enqueue(`single-land-followup:plant:${payload.landId}`, async () => {
+      await this.runFarmOperationUnsafe('plant')
+      return null
+    })
   }
 
   private async sellAllFruitsUnsafe() {
@@ -377,12 +384,20 @@ export class GameSession {
     void this.runScheduledAutomationPass()
   }
 
+  private getScheduledAutomationStages(): string[] {
+    const stages = ['clear', 'harvest', 'plant']
+    if (this.store.isAutomationOn('land_upgrade', this.accountId))
+      stages.push('upgrade')
+    return stages
+  }
+
   private enqueue<T>(label: string, task: () => Promise<T>): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       this.pendingTasks.push({
         label,
         order: this.taskOrder++,
         priority: isInteractiveRequest() ? 1 : 0,
+        requestContext: RequestIntentContextService.getCurrent(),
         task,
         resolve,
         reject
@@ -404,7 +419,9 @@ export class GameSession {
           continue
 
         try {
-          const result = await nextTask.task()
+          const result = nextTask.requestContext
+            ? await RequestIntentContextService.runWith(nextTask.requestContext, () => nextTask.task())
+            : await nextTask.task()
           nextTask.resolve(result)
         } catch (error) {
           this.warn(this.formatSessionErrorMessage(error), 'session_error', { action: nextTask.label })

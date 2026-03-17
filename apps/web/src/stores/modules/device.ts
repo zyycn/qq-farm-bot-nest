@@ -8,116 +8,114 @@ import type {
   UpdateDeviceProfilePayload
 } from '@/api/types'
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
 import * as deviceApi from '../../api/modules/device'
 
-export const useDeviceStore = defineStore('device', () => {
-  const presets = ref<DevicePreset[]>([])
-  const customProfiles = ref<StoredDeviceProfile[]>([])
-  const defaultDeviceProfileId = ref<string | null>(null)
-  const loading = ref(false)
+const GLOBAL_DEVICE_VALUE = '__global_default_device__'
 
-  const selectionOptions = computed<DeviceSelectionOption[]>(() => {
-    const options: DeviceSelectionOption[] = []
+function normalizeDeviceProfileId(value: string | null | undefined): string | null {
+  const normalized = String(value || '').trim()
+  return normalized && normalized !== GLOBAL_DEVICE_VALUE ? normalized : null
+}
 
-    for (const preset of presets.value)
-      options.push({ label: `[预设] ${preset.name}`, value: `preset:${preset.id}` })
+export interface DeviceState {
+  presets: DevicePreset[]
+  customProfiles: StoredDeviceProfile[]
+  defaultDeviceProfileId: string | null
+  loading: boolean
+}
 
-    for (const profile of customProfiles.value)
-      options.push({ label: `[自定义] ${profile.name}`, value: profile.id })
+export const useDeviceStore = defineStore('device', {
+  state: (): DeviceState => ({
+    presets: [],
+    customProfiles: [],
+    defaultDeviceProfileId: null,
+    loading: false
+  }),
+  getters: {
+    selectionOptions(state): DeviceSelectionOption[] {
+      const options: DeviceSelectionOption[] = []
 
-    return options
-  })
+      for (const preset of state.presets)
+        options.push({ label: `[预设] ${preset.name}`, value: `preset:${preset.id}` })
 
-  async function loadPresets(): Promise<void> {
-    const res = await deviceApi.getPresets()
-    presets.value = Array.isArray(res) ? res : []
-  }
+      for (const profile of state.customProfiles)
+        options.push({ label: `[自定义] ${profile.name}`, value: profile.id })
 
-  async function loadCustomProfiles(): Promise<void> {
-    const res = await deviceApi.listDeviceProfiles()
-    customProfiles.value = Array.isArray(res) ? res : []
-  }
-
-  async function loadDefaultProfileId(): Promise<void> {
-    const res: DefaultDeviceProfileResponse = await deviceApi.getDefaultDeviceProfile()
-    defaultDeviceProfileId.value = res?.deviceProfileId ?? null
-  }
-
-  async function loadAll(): Promise<void> {
-    loading.value = true
-    try {
-      await Promise.all([loadPresets(), loadCustomProfiles(), loadDefaultProfileId()])
-    } finally {
-      loading.value = false
+      return options
     }
-  }
+  },
+  actions: {
+    async loadPresets(): Promise<void> {
+      const res = await deviceApi.getPresets()
+      this.presets = Array.isArray(res) ? res : []
+    },
 
-  function findPresetById(id: string): DevicePreset | undefined {
-    return presets.value.find(item => item.id === id)
-  }
+    async loadCustomProfiles(): Promise<void> {
+      const res = await deviceApi.listDeviceProfiles()
+      this.customProfiles = Array.isArray(res) ? res : []
+    },
 
-  function findCustomProfileById(id: string): StoredDeviceProfile | undefined {
-    return customProfiles.value.find(item => item.id === id)
-  }
+    async loadDefaultProfileId(): Promise<void> {
+      const res: DefaultDeviceProfileResponse = await deviceApi.getDefaultDeviceProfile()
+      this.defaultDeviceProfileId = normalizeDeviceProfileId(res?.deviceProfileId)
+    },
 
-  function resolveSelection(deviceProfileId: string | null | undefined): ResolvedDeviceSelection | null {
-    const value = String(deviceProfileId || '')
-    if (!value)
-      return null
+    async loadAll(): Promise<void> {
+      this.loading = true
+      try {
+        await Promise.all([this.loadPresets(), this.loadCustomProfiles(), this.loadDefaultProfileId()])
+      } finally {
+        this.loading = false
+      }
+    },
 
-    if (value.startsWith('preset:')) {
-      const preset = findPresetById(value.slice(7))
-      return preset
-        ? { source: 'preset', id: preset.id, name: preset.name, profile: preset.profile }
+    findPresetById(id: string): DevicePreset | undefined {
+      return this.presets.find(item => item.id === id)
+    },
+
+    findCustomProfileById(id: string): StoredDeviceProfile | undefined {
+      return this.customProfiles.find(item => item.id === id)
+    },
+
+    resolveSelection(deviceProfileId: string | null | undefined): ResolvedDeviceSelection | null {
+      const value = normalizeDeviceProfileId(deviceProfileId)
+      if (!value)
+        return null
+
+      if (value.startsWith('preset:')) {
+        const preset = this.findPresetById(value.slice(7))
+        return preset
+          ? { source: 'preset', id: preset.id, name: preset.name, profile: preset.profile }
+          : null
+      }
+
+      const profile = this.findCustomProfileById(value)
+      return profile
+        ? { source: 'custom', id: profile.id, name: profile.name, profile: profile.profile }
         : null
+    },
+
+    async createProfile(data: CreateDeviceProfilePayload): Promise<StoredDeviceProfile> {
+      const created = await deviceApi.createDeviceProfile(data)
+      await this.loadCustomProfiles()
+      return created
+    },
+
+    async updateProfile(id: string, data: UpdateDeviceProfilePayload): Promise<StoredDeviceProfile> {
+      const updated = await deviceApi.updateDeviceProfile(id, data)
+      await this.loadCustomProfiles()
+      return updated
+    },
+
+    async deleteProfile(id: string): Promise<void> {
+      await deviceApi.deleteDeviceProfile(id)
+      await Promise.all([this.loadCustomProfiles(), this.loadDefaultProfileId()])
+    },
+
+    async setDefaultProfileId(deviceProfileId: string | null): Promise<string | null> {
+      const result = await deviceApi.setDefaultDeviceProfile(normalizeDeviceProfileId(deviceProfileId))
+      this.defaultDeviceProfileId = normalizeDeviceProfileId(result?.deviceProfileId)
+      return this.defaultDeviceProfileId
     }
-
-    const profile = findCustomProfileById(value)
-    return profile
-      ? { source: 'custom', id: profile.id, name: profile.name, profile: profile.profile }
-      : null
-  }
-
-  async function createProfile(data: CreateDeviceProfilePayload): Promise<StoredDeviceProfile> {
-    const created = await deviceApi.createDeviceProfile(data)
-    await loadCustomProfiles()
-    return created
-  }
-
-  async function updateProfile(id: string, data: UpdateDeviceProfilePayload): Promise<StoredDeviceProfile> {
-    const updated = await deviceApi.updateDeviceProfile(id, data)
-    await loadCustomProfiles()
-    return updated
-  }
-
-  async function deleteProfile(id: string): Promise<void> {
-    await deviceApi.deleteDeviceProfile(id)
-    await Promise.all([loadCustomProfiles(), loadDefaultProfileId()])
-  }
-
-  async function setDefaultProfileId(deviceProfileId: string | null): Promise<string | null> {
-    const result = await deviceApi.setDefaultDeviceProfile(deviceProfileId)
-    defaultDeviceProfileId.value = result?.deviceProfileId ?? null
-    return defaultDeviceProfileId.value
-  }
-
-  return {
-    presets,
-    customProfiles,
-    defaultDeviceProfileId,
-    loading,
-    selectionOptions,
-    loadAll,
-    loadPresets,
-    loadCustomProfiles,
-    loadDefaultProfileId,
-    findPresetById,
-    findCustomProfileById,
-    resolveSelection,
-    createProfile,
-    updateProfile,
-    deleteProfile,
-    setDefaultProfileId
   }
 })

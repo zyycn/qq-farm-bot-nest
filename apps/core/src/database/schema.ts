@@ -30,7 +30,6 @@ export const accountConfigs = sqliteTable('account_configs', {
   fertilizerMultiSeason: integer('fertilizer_multi_season', { mode: 'boolean' }).default(false),
   fertilizerBuy: text('fertilizer_buy', { mode: 'json' }).$type<Record<string, any>>().default({}),
   deviceProfileId: text('device_profile_id'),
-  behavior: text('behavior', { mode: 'json' }).$type<Record<string, any>>().default({}),
   createdAt: integer('created_at', { mode: 'number' }).default(0),
   updatedAt: integer('updated_at', { mode: 'number' }).default(0)
 })

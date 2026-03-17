@@ -1,12 +1,6 @@
 import type { ResolvedDeviceConfig } from '../../device/device-fingerprint'
 import { Injectable } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
-import { ActiveHoursService } from '../../behavior/active-hours.service'
-import { BackgroundRequestService } from '../../behavior/background-request.service'
-import { BehaviorResolverService } from '../../behavior/behavior-resolver.service'
-import { RhythmService } from '../../behavior/rhythm.service'
-import { RuntimePolicyCoordinator } from '../../behavior/runtime-policy.coordinator'
-import { SessionBootstrapService } from '../../behavior/session-bootstrap.service'
 import { DeviceFingerprintService } from '../../device/device-fingerprint'
 import { GameConfigService } from '../../game/game-config.service'
 import { StoreService } from '../../store/store.service'
@@ -20,13 +14,7 @@ export class AccountRunnerFactory {
     private readonly gameConfig: GameConfigService,
     private readonly store: StoreService,
     private readonly eventEmitter: EventEmitter2,
-    private readonly deviceFingerprint: DeviceFingerprintService,
-    private readonly rhythm: RhythmService,
-    private readonly runtimePolicy: RuntimePolicyCoordinator,
-    private readonly sessionBootstrap: SessionBootstrapService,
-    private readonly backgroundRequest: BackgroundRequestService,
-    private readonly activeHours: ActiveHoursService,
-    private readonly behaviorResolver: BehaviorResolverService
+    private readonly deviceFingerprint: DeviceFingerprintService
   ) {}
 
   create(accountId: string) {
@@ -35,13 +23,7 @@ export class AccountRunnerFactory {
       gameConfig: this.gameConfig,
       store: this.store,
       eventEmitter: this.eventEmitter,
-      deviceFingerprint: this.deviceFingerprint,
-      rhythm: this.rhythm,
-      runtimePolicy: this.runtimePolicy,
-      sessionBootstrap: this.sessionBootstrap,
-      backgroundRequest: this.backgroundRequest,
-      activeHours: this.activeHours,
-      behaviorResolver: this.behaviorResolver
+      deviceFingerprint: this.deviceFingerprint
     })
   }
 
@@ -52,8 +34,8 @@ export class AccountRunnerFactory {
       platform: String(account.platform || 'qq'),
       clientConfig: deviceResolution.clientConfig,
       deviceResolution,
-      startJitterMs: this.runtimePolicy.getStartJitter(accountId),
-      scheduleOffsetMs: this.runtimePolicy.getScheduleOffset(accountId)
+      startJitterMs: 0,
+      scheduleOffsetMs: 0
     }
   }
 

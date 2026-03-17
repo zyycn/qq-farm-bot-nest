@@ -1,7 +1,4 @@
-import type { BackgroundRequestService } from '../../behavior/background-request.service'
-import type { RuntimePolicyCoordinator } from '../../behavior/runtime-policy.coordinator'
 import type { StoreService } from '../../store/store.service'
-import type { IGameTransport } from '../../transport/interfaces/game-transport.interface'
 
 export interface TaskDailyOverview {
   key: string
@@ -41,9 +38,6 @@ export interface DailyRewardCheckState {
 export interface AccountRunnerOperationsDeps {
   accountId: string
   store: StoreService
-  transport: IGameTransport
-  backgroundRequest: BackgroundRequestService
-  runtimePolicy: RuntimePolicyCoordinator
   getTaskDailyState: () => Promise<TaskDailyOverview>
   getGrowthTaskState: () => Promise<GrowthTaskOverview>
   getEmailDailyState: () => DailyRewardCheckState
@@ -104,8 +98,6 @@ export class AccountRunnerOperations {
   }
 
   async afterOperation() {
-    await this.deps.backgroundRequest.sprinkle(this.deps.accountId, this.deps.transport).catch(() => {})
-    await this.deps.runtimePolicy.applyLinger(this.deps.accountId).catch(() => {})
     this.deps.refreshIdleDisconnectTimer()
   }
 }

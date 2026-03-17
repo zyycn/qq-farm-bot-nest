@@ -1,6 +1,5 @@
 export * from './account'
 export * from './analytics'
-export * from './behavior'
 export * from './device'
 export * from './farm'
 export * from './friend'

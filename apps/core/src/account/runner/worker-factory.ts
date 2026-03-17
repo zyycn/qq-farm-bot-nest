@@ -1,4 +1,3 @@
-import type { RhythmService } from '../../behavior/rhythm.service'
 import type { GameConfigService } from '../../game/game-config.service'
 import type { GameLogEntry } from '../../game/types'
 import type { StoreService } from '../../store/store.service'
@@ -29,7 +28,6 @@ export interface WorkerFactoryDeps {
   gameConfig: GameConfigService
   store: StoreService
   platform: string
-  rhythm?: RhythmService
   onLog: (entry: GameLogEntry) => void
   onLandsUpdate: (data: unknown) => void
   onBagUpdate: (data: unknown) => void
@@ -46,10 +44,8 @@ export function createWorkers(deps: WorkerFactoryDeps): WorkerSet {
     onLandsUpdate: deps.onLandsUpdate,
     onBagUpdate: deps.onBagUpdate
   })
-  session.setBehaviorServices({ rhythm: deps.rhythm })
 
   const friend = new FriendWorker(deps.accountId, deps.transport, deps.gameConfig, deps.store, deps.getSellAllFruits, deps.platform, stats)
-  friend.rhythm = deps.rhythm
   friend.onLog = deps.onLog
 
   const illustrated = new IllustratedWorker(deps.accountId, deps.transport, deps.gameConfig)

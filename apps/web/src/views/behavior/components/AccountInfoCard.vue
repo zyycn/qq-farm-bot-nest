@@ -27,7 +27,7 @@ defineProps<{
           未选择账号
         </div>
         <div class="a-color-text-tertiary text-sm">
-          请先在侧边栏选择一个账号，再配置行为模拟设置。
+          请先在侧边栏选择一个账号，再配置设备模拟设置。
         </div>
       </div>
     </div>

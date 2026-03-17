@@ -1,4 +1,3 @@
-import type { RhythmService } from '../../../behavior/rhythm.service'
 import type { StoreService } from '../../../store/store.service'
 import type { GameConfigService } from '../../game-config.service'
 import type { IGameTransport } from '../../interfaces/game-transport.interface'
@@ -34,7 +33,6 @@ export class FriendWorker {
   private publicApi: FriendPublicApi
   private serviceClient: FriendServiceClient
   private stealHandler: FriendStealHandler
-  rhythm?: RhythmService
   onLog: ((entry: { msg: string, tag?: string, meta?: Record<string, string>, isWarn?: boolean }) => void) | null = null
 
   constructor(
@@ -112,21 +110,15 @@ export class FriendWorker {
   }
 
   private shuffleOrder<T>(items: T[]): T[] {
-    return this.rhythm ? this.rhythm.shuffleOrder(this.accountId, items) : items
+    return items
   }
 
   private async* friendBatches<T>(items: T[]): AsyncGenerator<T[]> {
-    if (!this.rhythm) {
-      yield items
-      return
-    }
-
-    for await (const batch of this.rhythm.friendBatches(this.accountId, items))
-      yield batch
+    yield items
   }
 
   shouldSkipFriendVisit(): boolean {
-    return this.rhythm ? this.rhythm.shouldSkipFriend(this.accountId) : false
+    return false
   }
 
   private log(msg: string, event?: string) {

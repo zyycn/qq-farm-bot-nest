@@ -1,4 +1,3 @@
-import type { ActiveHoursService } from '../../behavior/active-hours.service'
 import type { StoreService } from '../../store/store.service'
 
 export interface DailyRoutineRunOptions {
@@ -9,11 +8,9 @@ export interface DailyRoutineRunOptions {
 export interface AccountRunnerTicksDeps {
   accountId: string
   store: StoreService
-  activeHours: ActiveHoursService
   getIsRunning: () => boolean
   getLoginReady: () => boolean
   ensureConnected: () => Promise<void>
-  disconnectForIdle: () => Promise<void>
   runScheduledAutomationPass: () => Promise<unknown>
   checkFriends: () => Promise<unknown>
   afterOperation: () => Promise<void>
@@ -112,12 +109,6 @@ export class AccountRunnerTicks {
   private async prepareAutomationTick() {
     if (!this.deps.getIsRunning())
       return false
-    if (!this.deps.activeHours.isInActiveWindow(this.deps.accountId)) {
-      if (this.deps.activeHours.getQuietMode(this.deps.accountId) === 'disconnect')
-        await this.deps.disconnectForIdle()
-      return false
-    }
-
     await this.deps.ensureConnected()
     return this.deps.getIsRunning() && this.deps.getLoginReady()
   }

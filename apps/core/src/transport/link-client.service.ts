@@ -9,7 +9,6 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { createEmptyUserState } from '@qq-farm/shared'
 import { encodeRequestFrame, FrameDecoder, TCP_HOST, TCP_PORT } from '@qq-farm/shared/node'
-import { RequestPacingGateway } from '../behavior/request-pacing.gateway'
 
 type TcpInbound = TcpResponse | TcpEvent
 
@@ -47,10 +46,7 @@ export class LinkClientService implements OnModuleInit, OnModuleDestroy {
   private _connected = false
   private _destroyed = false
 
-  constructor(
-    private readonly eventEmitter: EventEmitter2,
-    private readonly requestPacingGateway: RequestPacingGateway
-  ) {}
+  constructor(private readonly eventEmitter: EventEmitter2) {}
 
   get connected(): boolean { return this._connected }
 
@@ -202,7 +198,7 @@ export class LinkClientService implements OnModuleInit, OnModuleDestroy {
   }
 
   createTransport(accountId: string, getState?: () => UserState): IGameTransport {
-    return new AccountTransport(accountId, this, this.requestPacingGateway, getState)
+    return new AccountTransport(accountId, this, getState)
   }
 }
 
@@ -212,7 +208,6 @@ class AccountTransport extends EventEmitter implements IGameTransport {
   constructor(
     private readonly accountId: string,
     private readonly linkClient: LinkClientService,
-    private readonly requestPacingGateway: RequestPacingGateway,
     private readonly getState?: () => UserState
   ) {
     super()
@@ -232,16 +227,14 @@ class AccountTransport extends EventEmitter implements IGameTransport {
   }
 
   async invokeWithPolicy<T = unknown>(envelope: RequestEnvelope): Promise<RequestExecutionResult<T>> {
-    return this.requestPacingGateway.invoke<T>(this.accountId, envelope, async () => {
-      const res = await this.linkClient.invokeForAccount(
-        this.accountId,
-        envelope.service,
-        envelope.method,
-        envelope.params,
-        envelope.invokeTimeoutMs ?? 10000
-      )
-      return { data: (res.data ?? null) as T, meta: res.meta }
-    })
+    const res = await this.linkClient.invokeForAccount(
+      this.accountId,
+      envelope.service,
+      envelope.method,
+      envelope.params,
+      envelope.invokeTimeoutMs ?? 10000
+    )
+    return { data: (res.data ?? null) as T, meta: res.meta }
   }
 
   isConnected(): boolean {

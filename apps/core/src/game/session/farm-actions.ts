@@ -1,4 +1,3 @@
-import type { RhythmService } from '../../behavior/rhythm.service'
 import type { StoreService } from '../../store/store.service'
 import type { GameConfigService } from '../game-config.service'
 import type { IGameTransport } from '../interfaces/game-transport.interface'
@@ -26,7 +25,6 @@ export interface FarmActionsOptions {
 export class FarmActions {
   private readonly logger: Logger
   private readonly rpc: GameRpcExecutor
-  rhythm?: RhythmService
 
   constructor(
     private readonly accountId: string,
@@ -42,7 +40,7 @@ export class FarmActions {
   }
 
   private shuffleOrder<T>(items: T[]): T[] {
-    return this.rhythm ? this.rhythm.shuffleOrder(this.accountId, items) : items
+    return items
   }
 
   private log(msg: string, event?: string) {

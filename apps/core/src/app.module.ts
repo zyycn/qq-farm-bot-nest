@@ -6,7 +6,6 @@ import { ScheduleModule } from '@nestjs/schedule'
 import { ServeStaticModule } from '@nestjs/serve-static'
 import { AccountModule } from './account/account.module'
 import { AuthModule } from './auth/auth.module'
-import { BehaviorModule } from './behavior/behavior.module'
 import appConfig from './config/app.config'
 import { ASSETS_DIR, resolveWebDist } from './config/paths'
 import { DatabaseModule } from './database/database.module'
@@ -59,7 +58,6 @@ const serveStaticModules = [
     TransportModule,
     GameModule,
     DeviceModule,
-    BehaviorModule,
     AccountModule,
     AuthModule,
     QrModule,

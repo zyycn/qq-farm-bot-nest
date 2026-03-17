@@ -8,7 +8,6 @@ import { AccountPushBridge } from './account-push.bridge'
 import { AccountHandler } from './handlers/account.handler'
 import { AlmanacHandler } from './handlers/almanac.handler'
 import { AnalyticsHandler } from './handlers/analytics.handler'
-import { BehaviorHandler } from './handlers/behavior.handler'
 import { DeviceHandler } from './handlers/device.handler'
 import { FarmHandler } from './handlers/farm.handler'
 import { FriendHandler } from './handlers/friend.handler'
@@ -35,7 +34,6 @@ import { WsTopicsService } from './ws-topics.service'
     AccountHandler,
     AlmanacHandler,
     AnalyticsHandler,
-    BehaviorHandler,
     DeviceHandler,
     FarmHandler,
     FriendHandler,

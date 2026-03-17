@@ -151,7 +151,6 @@ export function createAccountRunnerHandlers(factoryDeps: AccountRunnerHandlerFac
   const lifecycleHandler = new AccountRunnerLifecycle({
     accountId: factoryDeps.accountId,
     scheduler: factoryDeps.scheduler,
-    runtimePolicy: factoryDeps.deps.runtimePolicy,
     linkClient: factoryDeps.deps.linkClient,
     getIsRunning: () => factoryDeps.getFlags().isRunning,
     getLoginReady: () => factoryDeps.getFlags().loginReady,
@@ -168,9 +167,6 @@ export function createAccountRunnerHandlers(factoryDeps: AccountRunnerHandlerFac
 
   const loginReadyHandler = new AccountRunnerLoginReady({
     accountId: factoryDeps.accountId,
-    transport: factoryDeps.transport,
-    runtimePolicy: factoryDeps.deps.runtimePolicy,
-    sessionBootstrap: factoryDeps.deps.sessionBootstrap,
     scheduler: factoryDeps.scheduleController,
     daily: factoryDeps.dailyController,
     getIsRunning: () => factoryDeps.getFlags().isRunning,
@@ -196,9 +192,6 @@ export function createAccountRunnerHandlers(factoryDeps: AccountRunnerHandlerFac
   const operationsHandler = new AccountRunnerOperations({
     accountId: factoryDeps.accountId,
     store: factoryDeps.deps.store,
-    transport: factoryDeps.transport,
-    backgroundRequest: factoryDeps.deps.backgroundRequest,
-    runtimePolicy: factoryDeps.deps.runtimePolicy,
     getTaskDailyState: () => factoryDeps.getWorkers().task.getTaskDailyStateLikeApp(),
     getGrowthTaskState: () => factoryDeps.getWorkers().task.getGrowthTaskStateLikeApp(),
     getEmailDailyState: () => factoryDeps.getWorkers().dailyRewards.getEmailDailyState(),
@@ -247,7 +240,6 @@ export function createAccountRunnerHandlers(factoryDeps: AccountRunnerHandlerFac
   const starterHandler = new AccountRunnerStarter({
     accountId: factoryDeps.accountId,
     store: factoryDeps.deps.store,
-    runtimePolicy: factoryDeps.deps.runtimePolicy,
     deviceFingerprint: factoryDeps.deps.deviceFingerprint,
     getAppliedConfigRevision: () => factoryDeps.getFlags().appliedConfigRevision
   })
@@ -255,11 +247,9 @@ export function createAccountRunnerHandlers(factoryDeps: AccountRunnerHandlerFac
   const ticksHandler = new AccountRunnerTicks({
     accountId: factoryDeps.accountId,
     store: factoryDeps.deps.store,
-    activeHours: factoryDeps.deps.activeHours,
     getIsRunning: () => factoryDeps.getFlags().isRunning,
     getLoginReady: () => factoryDeps.getFlags().loginReady,
     ensureConnected: () => factoryDeps.ensureConnected(),
-    disconnectForIdle: factoryDeps.disconnectForIdle,
     runScheduledAutomationPass: () => factoryDeps.getWorkers().session.runScheduledAutomationPass(),
     checkFriends: () => factoryDeps.getWorkers().friend.checkFriends(),
     afterOperation: factoryDeps.afterOperation,
@@ -283,7 +273,6 @@ export function createAccountRunnerHandlers(factoryDeps: AccountRunnerHandlerFac
     transport: factoryDeps.transport,
     gameConfig: factoryDeps.deps.gameConfig,
     store: factoryDeps.deps.store,
-    rhythm: factoryDeps.deps.rhythm,
     onLog: entry => emitter.forwardLog(entry),
     onLandsUpdate: data => factoryDeps.emitDataEvent(ACCOUNT_DATA_LANDS_EVENT, data),
     onBagUpdate: data => factoryDeps.emitDataEvent(ACCOUNT_DATA_BAG_EVENT, data),

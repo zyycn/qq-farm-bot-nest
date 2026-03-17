@@ -59,7 +59,6 @@ export const drizzleProvider = {
         fertilizer_multi_season INTEGER DEFAULT 0,
         fertilizer_buy TEXT DEFAULT '{}',
         device_profile_id TEXT,
-        behavior TEXT DEFAULT '{}',
         created_at INTEGER DEFAULT 0,
         updated_at INTEGER DEFAULT 0
       );

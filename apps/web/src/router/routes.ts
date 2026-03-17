@@ -64,7 +64,7 @@ const routes: RouteRecordRaw[] = [
         path: 'behavior',
         name: 'behavior',
         component: () => import('@/views/behavior/index.vue'),
-        meta: { label: '行为模拟', icon: 'i-streamline-emojis-face-with-monocle' }
+        meta: { label: '设备模拟', icon: 'i-streamline-emojis-face-with-monocle' }
       },
       {
         path: 'device',

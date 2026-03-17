@@ -1,11 +1,9 @@
-import type { RuntimePolicyCoordinator } from '../../behavior/runtime-policy.coordinator'
 import type { LinkClientService } from '../../transport/link-client.service'
 import { Scheduler } from '@qq-farm/shared'
 
 export interface AccountRunnerLifecycleDeps {
   accountId: string
   scheduler: Scheduler
-  runtimePolicy: RuntimePolicyCoordinator
   linkClient: LinkClientService
   getIsRunning: () => boolean
   getLoginReady: () => boolean
@@ -25,14 +23,6 @@ export class AccountRunnerLifecycle {
 
   refreshIdleDisconnectTimer() {
     this.deps.scheduler.clear('idle_disconnect')
-    if (!this.deps.getIsRunning() || !this.deps.getLoginReady())
-      return
-    if (!this.deps.runtimePolicy.shouldIdleDisconnect(this.deps.accountId))
-      return
-    const delay = this.deps.runtimePolicy.getIdleDisconnectDelay(this.deps.accountId)
-    this.deps.scheduler.setTimeoutTask('idle_disconnect', delay, () => {
-      void this.disconnectForIdle()
-    })
   }
 
   async disconnectForIdle() {

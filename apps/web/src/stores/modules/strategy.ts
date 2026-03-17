@@ -14,6 +14,12 @@ export type { AutomationConfig, FertilizerBuyConfig, FriendQuietHoursConfig, Int
 export type StrategyState = StrategySettings
 
 const STRATEGY_UPDATE_KEYS = ['intervals', 'plantingStrategy', 'preferredSeedId', 'bagSeedPriority', 'deviceProfileId', 'friendQuietHours', 'friendBlacklist', 'stealCropBlacklist', 'automation', 'fertilizer', 'fertilizerLandTypes', 'fertilizerMultiSeason', 'fertilizerBuy'] as const
+const GLOBAL_DEVICE_VALUE = '__global_default_device__'
+
+function normalizeDeviceProfileId(value: unknown): string | null {
+  const normalized = String(value || '').trim()
+  return normalized && normalized !== GLOBAL_DEVICE_VALUE ? normalized : null
+}
 
 function initialStrategy(): StrategyState {
   return {
@@ -49,6 +55,7 @@ export const useStrategyStore = defineStore('strategy', {
         if (payload[k] !== undefined)
           (this.settings as Record<string, unknown>)[k] = payload[k]
       }
+      this.settings.deviceProfileId = normalizeDeviceProfileId(this.settings.deviceProfileId)
     },
     async querySettings(): Promise<{ ok: boolean, error?: string }> {
       try {
@@ -69,7 +76,7 @@ export const useStrategyStore = defineStore('strategy', {
           plantingStrategy: s.plantingStrategy,
           preferredSeedId: s.preferredSeedId,
           bagSeedPriority: s.bagSeedPriority,
-          deviceProfileId: s.deviceProfileId,
+          deviceProfileId: normalizeDeviceProfileId(s.deviceProfileId),
           intervals: s.intervals,
           friendQuietHours: s.friendQuietHours,
           friendBlacklist: s.friendBlacklist,

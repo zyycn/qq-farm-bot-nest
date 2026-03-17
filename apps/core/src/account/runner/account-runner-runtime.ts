@@ -21,10 +21,6 @@ function formatDeviceSourceLabel(source: ResolvedDeviceConfig['source']): string
   }
 }
 
-function formatQuietModeLabel(quietMode: 'disconnect' | 'heartbeat-only'): string {
-  return quietMode === 'disconnect' ? '静默时断开' : '仅保留心跳'
-}
-
 export interface AccountRunnerRuntimeState {
   isRunning: boolean
   loginReady: boolean
@@ -46,16 +42,6 @@ export interface AccountRunnerRuntimeDeps {
   updateLoginState: (userState: LinkUserState) => void
   log: (msg: string, event?: string) => void
   warn: (msg: string, event?: string) => void
-  getStartupBehaviorSummary: () => {
-    effectiveMode: string
-    quickFallbackActive: boolean
-    sessionBootstrapEnabled: boolean
-    backgroundRequestsEnabled: boolean
-    backgroundRequestFrequency: number
-    activeHoursEnabled: boolean
-    activeHoursQuietMode: 'disconnect' | 'heartbeat-only'
-    currentlyInActiveWindow: boolean
-  }
   getDestroyableWorkers: () => {
     session: { destroy?: () => void } | undefined
     friend: { destroy?: () => void } | undefined
@@ -80,11 +66,6 @@ export class AccountRunnerRuntime {
     this.deps.log(
       `启动摘要[设备]: 来源=${formatDeviceSourceLabel(device.source)}; 选中=${device.selectedProfileId || 'preset:iphone-15-pro-max'}; 基底=${device.basePresetId || '-'}; fallback=${device.usedFallback ? '有' : '无'}; 字段=${device.fallbackFields.length ? device.fallbackFields.join('/') : '无'}`,
       'device_resolution'
-    )
-    const behavior = this.deps.getStartupBehaviorSummary()
-    this.deps.log(
-      `启动摘要[行为]: 模式=${behavior.effectiveMode}; 快速回退=${behavior.quickFallbackActive ? '开启' : '关闭'}; 热身脚本=${behavior.sessionBootstrapEnabled ? '开启' : '关闭'}; 背景请求=${behavior.backgroundRequestsEnabled ? `开启/每${behavior.backgroundRequestFrequency}次触发` : '关闭'}; 活跃时段=${behavior.activeHoursEnabled ? `${formatQuietModeLabel(behavior.activeHoursQuietMode)}/${behavior.currentlyInActiveWindow ? '当前在活跃窗' : '当前不在活跃窗'}` : '关闭'}`,
-      'behavior_summary'
     )
     this.deps.log('正在连接服务器...', 'connect')
 

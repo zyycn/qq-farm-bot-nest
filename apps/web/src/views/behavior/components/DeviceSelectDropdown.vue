@@ -30,7 +30,7 @@ const options = computed<DeviceSelectionOption[]>(() => {
 })
 
 const selectedValue = computed<string | undefined>({
-  get: () => props.modelValue ?? GLOBAL_DEVICE_VALUE,
+  get: () => props.modelValue ?? (props.includeGlobalOption ? GLOBAL_DEVICE_VALUE : undefined),
   set: value => emit('update:modelValue', !value || value === GLOBAL_DEVICE_VALUE ? null : value)
 })
 

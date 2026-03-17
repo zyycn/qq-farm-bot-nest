@@ -296,7 +296,7 @@ async function handleSaveDefault(): Promise<void> {
           自定义设备
         </legend>
         <div class="mb-3 a-color-text-tertiary text-sm">
-          内置预设用于快速建档，自定义设备可分配到具体账户。旧的面板运行时连接配置入口已移除，设备相关治理统一归到这里和 `behavior.inspect`。
+          内置预设用于快速建档，自定义设备可分配到具体账户。旧的面板运行时连接配置入口已移除，设备相关治理统一归到这里。
         </div>
         <div v-if="!customProfiles.length" class="py-6 text-center a-color-text-tertiary">
           暂无自定义设备配置

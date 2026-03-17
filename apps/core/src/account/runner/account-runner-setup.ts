@@ -11,17 +11,6 @@ import type { RunnerScheduler } from './runner-scheduler'
 import { createAccountRunnerHandlers } from './account-runner-handler-factory'
 import { AccountRunnerRuntime } from './account-runner-runtime'
 
-interface StartupBehaviorSummary {
-  effectiveMode: string
-  quickFallbackActive: boolean
-  sessionBootstrapEnabled: boolean
-  backgroundRequestsEnabled: boolean
-  backgroundRequestFrequency: number
-  activeHoursEnabled: boolean
-  activeHoursQuietMode: 'disconnect' | 'heartbeat-only'
-  currentlyInActiveWindow: boolean
-}
-
 export interface AccountRunnerSetupTarget {
   accountId: string
   deps: AccountRunnerDeps
@@ -234,19 +223,6 @@ export function setupAccountRunner(target: AccountRunnerSetupTarget) {
     },
     log: (msg, event) => target.log(msg, event),
     warn: (msg, event) => target.warn(msg, event),
-    getStartupBehaviorSummary: (): StartupBehaviorSummary => {
-      const effective = target.deps.behaviorResolver.getEffectiveConfig(target.accountId)
-      return {
-        effectiveMode: effective.effectiveMode,
-        quickFallbackActive: effective.quickFallbackActive,
-        sessionBootstrapEnabled: effective.session.enableSessionBootstrap,
-        backgroundRequestsEnabled: effective.backgroundRequests.enabled,
-        backgroundRequestFrequency: effective.backgroundRequests.frequency,
-        activeHoursEnabled: effective.activeHours.enabled,
-        activeHoursQuietMode: effective.activeHours.quietMode,
-        currentlyInActiveWindow: target.deps.activeHours.isInActiveWindow(target.accountId)
-      }
-    },
     getDestroyableWorkers: () => ({
       session: target.session,
       friend: target.friend,

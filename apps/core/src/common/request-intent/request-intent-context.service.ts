@@ -16,7 +16,7 @@ export class RequestIntentContextService {
   private static readonly storage = new AsyncLocalStorage<RequestIntentContext>()
 
   run<T>(context: RequestIntentContext, callback: () => T): T {
-    return RequestIntentContextService.storage.run(context, callback)
+    return RequestIntentContextService.runWith(context, callback)
   }
 
   get(): RequestIntentContext | undefined {
@@ -25,6 +25,10 @@ export class RequestIntentContextService {
 
   static getCurrent(): RequestIntentContext | undefined {
     return RequestIntentContextService.storage.getStore()
+  }
+
+  static runWith<T>(context: RequestIntentContext, callback: () => T): T {
+    return RequestIntentContextService.storage.run(context, callback)
   }
 }
 

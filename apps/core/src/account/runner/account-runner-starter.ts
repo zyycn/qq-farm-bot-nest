@@ -1,5 +1,4 @@
 import type { ClientConfig } from '@qq-farm/shared/node'
-import type { RuntimePolicyCoordinator } from '../../behavior/runtime-policy.coordinator'
 import type { DeviceFingerprintService, ResolvedDeviceConfig } from '../../device/device-fingerprint'
 import type { StoreService } from '../../store/store.service'
 import type { AccountRunnerConfig } from './account-runner'
@@ -24,7 +23,6 @@ export interface StartStateTarget {
 export interface AccountRunnerStarterDeps {
   accountId: string
   store: StoreService
-  runtimePolicy: RuntimePolicyCoordinator
   deviceFingerprint: DeviceFingerprintService
   getAppliedConfigRevision: () => number
 }
@@ -52,7 +50,7 @@ export class AccountRunnerStarter {
   }
 
   async applyStartJitter(startJitterMs: number) {
-    await this.deps.runtimePolicy.applyStartJitter(startJitterMs)
+    void startJitterMs
   }
 
   beginStart(target: StartStateTarget, prepared: PreparedRunnerStart) {
