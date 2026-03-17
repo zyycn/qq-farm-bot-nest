@@ -1,8 +1,10 @@
 import type { StoreService } from '../../../store/store.service'
 import type { GameConfigService } from '../../game-config.service'
 import type { IGameTransport } from '../../interfaces/game-transport.interface'
+import type { GameRequestContext } from '../../interfaces/request-context.interface'
 import type { StatsTracker } from '../stats.worker'
 import type { FriendWorker } from './friend.worker'
+import { resolveRequestSource } from '../../interfaces/request-context.interface'
 import { toNum } from '../../utils'
 
 export class FriendHelpHandler {
@@ -15,7 +17,7 @@ export class FriendHelpHandler {
     private owner: FriendWorker
   ) {}
 
-  private invokeFriendPlantWrite<T = unknown>(method: string, params: Record<string, unknown>) {
+  private invokeFriendPlantWrite<T = unknown>(method: string, params: Record<string, unknown>, requestContext?: GameRequestContext) {
     return this.client.invokeWithPolicy<T>({
       service: 'gamepb.plantpb.PlantService',
       method,
@@ -23,16 +25,16 @@ export class FriendHelpHandler {
       policy: {
         category: 'friend_write',
         risk: 'high',
-        source: 'business'
+        source: resolveRequestSource(requestContext)
       }
     })
   }
 
   // ========== Help Actions ==========
 
-  private async helpAction(gid: number, landIds: any[], method: string, stopWhenExpLimit = false) {
+  private async helpAction(gid: number, landIds: any[], method: string, stopWhenExpLimit = false, requestContext?: GameRequestContext) {
     const beforeExp = toNum(this.client.userState?.exp)
-    const { data: reply } = await this.invokeFriendPlantWrite<any>(method, { land_ids: landIds, host_gid: gid })
+    const { data: reply } = await this.invokeFriendPlantWrite<any>(method, { land_ids: landIds, host_gid: gid }, requestContext)
     if ((reply as any)?.operation_limits)
       this.owner.updateOperationLimits((reply as any).operation_limits)
     if (stopWhenExpLimit) {
@@ -43,25 +45,25 @@ export class FriendHelpHandler {
     return reply ?? {}
   }
 
-  async helpWater(gid: number, landIds: any[], stopWhenExpLimit = false) {
-    return this.helpAction(gid, landIds, 'WaterLand', stopWhenExpLimit)
+  async helpWater(gid: number, landIds: any[], stopWhenExpLimit = false, requestContext?: GameRequestContext) {
+    return this.helpAction(gid, landIds, 'WaterLand', stopWhenExpLimit, requestContext)
   }
 
-  async helpWeed(gid: number, landIds: any[], stopWhenExpLimit = false) {
-    return this.helpAction(gid, landIds, 'WeedOut', stopWhenExpLimit)
+  async helpWeed(gid: number, landIds: any[], stopWhenExpLimit = false, requestContext?: GameRequestContext) {
+    return this.helpAction(gid, landIds, 'WeedOut', stopWhenExpLimit, requestContext)
   }
 
-  async helpInsecticide(gid: number, landIds: any[], stopWhenExpLimit = false) {
-    return this.helpAction(gid, landIds, 'Insecticide', stopWhenExpLimit)
+  async helpInsecticide(gid: number, landIds: any[], stopWhenExpLimit = false, requestContext?: GameRequestContext) {
+    return this.helpAction(gid, landIds, 'Insecticide', stopWhenExpLimit, requestContext)
   }
 
   // ========== Put Items (Bad Actions) ==========
 
-  private async putPlantItems(friendGid: number, landIds: number[], method: string): Promise<number> {
+  private async putPlantItems(friendGid: number, landIds: number[], method: string, requestContext?: GameRequestContext): Promise<number> {
     let ok = 0
     for (const landId of landIds) {
       try {
-        const { data: reply } = await this.invokeFriendPlantWrite<any>(method, { land_ids: [landId], host_gid: friendGid })
+        const { data: reply } = await this.invokeFriendPlantWrite<any>(method, { land_ids: [landId], host_gid: friendGid }, requestContext)
         if ((reply as any)?.operation_limits)
           this.owner.updateOperationLimits((reply as any).operation_limits)
         ok++
@@ -70,12 +72,12 @@ export class FriendHelpHandler {
     return ok
   }
 
-  private async putPlantItemsDetailed(friendGid: number, landIds: number[], method: string) {
+  private async putPlantItemsDetailed(friendGid: number, landIds: number[], method: string, requestContext?: GameRequestContext) {
     let ok = 0
     const failed: { landId: number, reason: string }[] = []
     for (const landId of landIds) {
       try {
-        const { data: reply } = await this.invokeFriendPlantWrite<any>(method, { land_ids: [landId], host_gid: friendGid })
+        const { data: reply } = await this.invokeFriendPlantWrite<any>(method, { land_ids: [landId], host_gid: friendGid }, requestContext)
         if ((reply as any)?.operation_limits)
           this.owner.updateOperationLimits((reply as any).operation_limits)
         ok++
@@ -84,10 +86,10 @@ export class FriendHelpHandler {
     return { ok, failed }
   }
 
-  async putInsects(gid: number, landIds: number[]) { return this.putPlantItems(gid, landIds, 'PutInsects') }
-  async putWeeds(gid: number, landIds: number[]) { return this.putPlantItems(gid, landIds, 'PutWeeds') }
-  async putInsectsDetailed(gid: number, landIds: number[]) { return this.putPlantItemsDetailed(gid, landIds, 'PutInsects') }
-  async putWeedsDetailed(gid: number, landIds: number[]) { return this.putPlantItemsDetailed(gid, landIds, 'PutWeeds') }
+  async putInsects(gid: number, landIds: number[], requestContext?: GameRequestContext) { return this.putPlantItems(gid, landIds, 'PutInsects', requestContext) }
+  async putWeeds(gid: number, landIds: number[], requestContext?: GameRequestContext) { return this.putPlantItems(gid, landIds, 'PutWeeds', requestContext) }
+  async putInsectsDetailed(gid: number, landIds: number[], requestContext?: GameRequestContext) { return this.putPlantItemsDetailed(gid, landIds, 'PutInsects', requestContext) }
+  async putWeedsDetailed(gid: number, landIds: number[], requestContext?: GameRequestContext) { return this.putPlantItemsDetailed(gid, landIds, 'PutWeeds', requestContext) }
 
   // ========== Batch Helpers ==========
 
@@ -170,56 +172,56 @@ export class FriendHelpHandler {
 
   // ========== Manual Operation Handlers ==========
 
-  buildManualOpHandlers(): Record<string, (status: any, gid: number) => Promise<any>> {
+  buildManualOpHandlers(): Record<string, (status: any, gid: number, requestContext?: GameRequestContext) => Promise<any>> {
     return {
-      water: async (status, gid) => {
+      water: async (status, gid, requestContext) => {
         if (!status.needWater.length)
           return { ok: true, opType: 'water', count: 0, message: '没有可浇水土地' }
-        const pre = await this.owner.checkCanOperateRemote(gid, 10007)
+        const pre = await this.owner.checkCanOperateRemote(gid, 10007, requestContext)
         if (!pre.canOperate)
           return { ok: true, opType: 'water', count: 0, message: '今日浇水次数已用完' }
-        const count = await this.runBatchWithFallback(status.needWater, ids => this.helpWater(gid, ids), ids => this.helpWater(gid, ids))
+        const count = await this.runBatchWithFallback(status.needWater, ids => this.helpWater(gid, ids, false, requestContext), ids => this.helpWater(gid, ids, false, requestContext))
         if (count > 0)
           this.stats.recordOperation('helpWater', count)
         return { ok: true, opType: 'water', count, message: `浇水完成 ${count} 块` }
       },
-      weed: async (status, gid) => {
+      weed: async (status, gid, requestContext) => {
         if (!status.needWeed.length)
           return { ok: true, opType: 'weed', count: 0, message: '没有可除草土地' }
-        const pre = await this.owner.checkCanOperateRemote(gid, 10005)
+        const pre = await this.owner.checkCanOperateRemote(gid, 10005, requestContext)
         if (!pre.canOperate)
           return { ok: true, opType: 'weed', count: 0, message: '今日除草次数已用完' }
-        const count = await this.runBatchWithFallback(status.needWeed, ids => this.helpWeed(gid, ids), ids => this.helpWeed(gid, ids))
+        const count = await this.runBatchWithFallback(status.needWeed, ids => this.helpWeed(gid, ids, false, requestContext), ids => this.helpWeed(gid, ids, false, requestContext))
         if (count > 0)
           this.stats.recordOperation('helpWeed', count)
         return { ok: true, opType: 'weed', count, message: `除草完成 ${count} 块` }
       },
-      bug: async (status, gid) => {
+      bug: async (status, gid, requestContext) => {
         if (!status.needBug.length)
           return { ok: true, opType: 'bug', count: 0, message: '没有可除虫土地' }
-        const pre = await this.owner.checkCanOperateRemote(gid, 10006)
+        const pre = await this.owner.checkCanOperateRemote(gid, 10006, requestContext)
         if (!pre.canOperate)
           return { ok: true, opType: 'bug', count: 0, message: '今日除虫次数已用完' }
-        const count = await this.runBatchWithFallback(status.needBug, ids => this.helpInsecticide(gid, ids), ids => this.helpInsecticide(gid, ids))
+        const count = await this.runBatchWithFallback(status.needBug, ids => this.helpInsecticide(gid, ids, false, requestContext), ids => this.helpInsecticide(gid, ids, false, requestContext))
         if (count > 0)
           this.stats.recordOperation('helpBug', count)
         return { ok: true, opType: 'bug', count, message: `除虫完成 ${count} 块` }
       },
-      bad: async (status, gid) => {
+      bad: async (status, gid, requestContext) => {
         let bugCount = 0
         let weedCount = 0
         if (!status.canPutBug.length && !status.canPutWeed.length)
           return { ok: true, opType: 'bad', count: 0, bugCount: 0, weedCount: 0, message: '没有可捣乱土地' }
         const failDetails: string[] = []
         if (status.canPutBug.length) {
-          const r = await this.putInsectsDetailed(gid, status.canPutBug)
+          const r = await this.putInsectsDetailed(gid, status.canPutBug, requestContext)
           bugCount = r.ok
           failDetails.push(...(r.failed || []).map(f => `放虫#${f.landId}:${f.reason}`))
           if (bugCount > 0)
             this.stats.recordOperation('bug', bugCount)
         }
         if (status.canPutWeed.length) {
-          const r = await this.putWeedsDetailed(gid, status.canPutWeed)
+          const r = await this.putWeedsDetailed(gid, status.canPutWeed, requestContext)
           weedCount = r.ok
           failDetails.push(...(r.failed || []).map(f => `放草#${f.landId}:${f.reason}`))
           if (weedCount > 0)

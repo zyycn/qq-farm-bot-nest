@@ -675,36 +675,124 @@ await pacingTransport.invokeWithPolicy({
 - 节奏统一控制
 - 风控边界清晰
 - 可观测性可验收
-## 2026-03-17 Decision Update
+## 2026-03-17 决策更新
 
-The implementation will use the aggressive migration path.
+本次实现采用激进迁移路径。
 
-Final target:
+最终目标：
 
-- business code must not contain scattered delay semantics
-- business code must not directly express `delay`, `rhythm`, `session`, `backgroundRequests`, `activeHours`, or `multiAccount`
-- all request pacing for game-process interaction must be controlled at a single request exit
-- all non-request runtime timing policies must be controlled in one runtime coordination layer
-- page configuration remains the only user-facing source of pacing strategy inputs
+- 业务代码中不再保留分散的 delay 语义
+- 业务代码中不再直接表达 `delay`、`rhythm`、`session`、`backgroundRequests`、`activeHours`、`multiAccount`
+- 所有与游戏进程交互的请求节奏，统一由单一请求出口控制
+- 所有非单请求级别的运行时时序策略，统一由一个运行时协调层控制
+- 页面配置仍然是用户可见的唯一策略输入来源
 
-### Final layering
+### 下一阶段代码治理目标
 
-Two unified layers are required:
+除功能正确外，下一阶段还要同时满足以下代码治理目标：
+
+- 代码更少，重复更少，避免继续扩散 `invokeXxx`、`requestContext`、`source/category/risk` 样板代码
+- 代码更清晰，入口语义、业务顺序、请求执行、运行时调度四层边界明确
+- 代码更可维护，优先依赖 Nest 的 provider、interceptor、decorator、module 边界，而不是手工层层透传上下文
+- 代码更可阅读，业务文件应主要描述“做什么”，而不是混杂“请求怎么发、何时发、从哪条队列发”
+- 统一延时和优先级仍然只允许存在于统一出口 / 统一调度层，不回流到业务模块
+
+### Nest 高阶特性使用原则
+
+后续重构应尽量使用 Nest 的高阶能力来减少样板代码，但必须控制魔法边界。
+
+应优先使用：
+
+- provider 注入：收口 `GameRpcExecutor`、`OperationCatalog`、`RuntimePolicyCoordinator`
+- custom decorator：只在入口层声明请求意图，例如 `@InteractiveAction()`、`@AutomationAction()`、`@ScriptAction()`、`@SystemAction()`
+- interceptor：在 websocket / controller 入口建立触发上下文，并在出口记录结构化请求审计日志
+- AsyncLocalStorage 封装服务：承载当前触发上下文，替代手工透传 `requestContext`
+- module 边界：把“行为策略”“请求执行”“运行时调度”拆成清晰 provider，而不是继续堆在 worker / session 巨类中
+- exception filter / error mapping：统一将队列超时、quiet hours 抑制、策略丢弃转换为一致的业务错误语义
+
+不应使用：
+
+- 在深层业务方法上大量堆装饰器，导致真实控制流不可见
+- 用装饰器直接实现 delay、sleep、queue 等核心行为
+- 让业务模块依赖 service locator 或隐式全局单例来获取策略
+- 让 decorator / interceptor 隐式改写业务顺序
+
+### 推荐的目标形态
+
+为兼顾代码清洁、简洁与可维护性，推荐逐步收敛到以下结构：
+
+1. 入口层只声明触发意图
+   - websocket handler / controller / scheduler 入口通过 decorator 标记 `interactive / automation / script / system`
+   - 入口不再手写 `requestSource` 常量
+
+2. 上下文层只承载触发元信息
+   - 通过 AsyncLocalStorage 承载 `intent`、`trigger`、`requestId`
+   - runner、session、worker 不再层层传 `requestContext`
+
+3. 执行层只负责“操作别名 -> 请求出口”
+   - 引入注入式 `GameRpcExecutor`
+   - 业务层通过操作别名调用，例如 `executor.call('farm.plant', params)`
+   - `service/method/category/risk/queue` 等元信息由 `OperationCatalog` 统一提供
+
+4. 网关层只负责 pacing 和审计
+   - `RequestPacingGateway` 继续成为唯一的统一延时、队列、quiet-hours、drop、timeout 决策点
+   - 审计日志由这一层统一输出
+
+5. session 层只负责顺序与可抢占边界
+   - `GameSession` 仅表达“哪些任务可串行、哪些任务可插队、哪里允许重检”
+   - 不再承担 RPC 元信息拼装
+
+### 除当前关注点外，还应提前考虑的问题
+
+除了 interactive 与统一延时外，后续还需要一起考虑这些问题，避免后面返工：
+
+- 幂等与冲突控制
+  - 手动与自动可能同时命中同一业务动作
+  - 写操作需要在执行前增加状态重检点，避免“手动已完成，自动仍继续执行”
+
+- 读请求去重
+  - `AllLands`、`Bag`、`GetAllFriends` 这类短时间重复读取，可考虑在 executor 层做短窗口合并
+  - 减少无意义请求，也减少日志噪声
+
+- 审计字段标准化
+  - 不仅记录 `queue/source/category`，还应记录 `trigger`、`operation alias`、`requestId`
+  - 这样才能解释“同一个 Plant 为什么一次是 interactive，一次是 automation”
+
+- 路由级覆盖可视化
+  - inspect 不应只展示配置区间
+  - 还应展示哪些入口已经显式声明 intent，哪些请求仍在走默认分类
+
+- 模块边界收缩
+  - 继续避免形成新的 God class，例如不要把所有逻辑都堆到 `GameSession` 或 `RequestPacingGateway`
+  - `farm/friend/warehouse/task` 各模块仍应保留业务责任，只把共性抽到 executor/catalog/context
+
+- 错误语义分层
+  - “请求排队超时”“请求执行超时”“被 quiet hours 抑制”“被策略丢弃”需要继续保持可区分
+  - 但对前端展示要统一映射为更友好的中文业务语义
+
+- 测试边界
+  - executor 层要能独立单测 operation alias 到 envelope 的映射
+  - gateway 层要能测试 queue/source/timeout 规则
+  - handler 层要能验证 decorator 是否正确写入 intent
+
+### 最终分层
+
+需要两个统一层：
 
 1. `RequestPacingGateway`
-   - owns all request-time semantics for traffic to the game process
-   - maps behavior config into request policies
-   - applies queueing, quiet-hours gating, delay, jitter, batch pacing, timeout split, and request audit logging
-   - becomes the only place that decides when an RPC is actually sent
+   - 负责所有发往游戏进程请求的“请求时”语义
+   - 将行为配置映射为请求策略
+   - 负责队列、quiet hours gating、延迟、抖动、批量 pacing、双超时和请求审计日志
+   - 成为唯一决定 RPC 何时真正发出的地方
 
 2. `RuntimePolicyCoordinator`
-   - owns runtime lifecycle timing that is not reducible to a single RPC pacing decision
-   - covers session lifecycle and multi-account scheduling
-   - removes `session` and `multiAccount` semantics from workers, actions, and runner business flow
+   - 负责不能被简化为单次 RPC pacing 决策的运行时时序
+   - 覆盖 session 生命周期和多账号调度
+   - 将 `session` 和 `multiAccount` 语义从 worker、action、runner 业务流中移除
 
-### Config mapping boundary
+### 配置映射边界
 
-The following categories must stop appearing as direct business semantics:
+以下类别不应再以直接业务语义的形式出现：
 
 - `delay`
 - `rhythm`
@@ -713,80 +801,168 @@ The following categories must stop appearing as direct business semantics:
 - `activeHours`
 - `multiAccount`
 
-The business layer may still declare:
+业务层仍然可以声明：
 
-- operation order
-- batch grouping
-- request category / risk / source / queue intent
-- whether a request is allowed in quiet hours
+- 操作顺序
+- 批次分组
+- 请求类别 / 风险 / 来源 / 队列意图
+- 请求是否允许在 quiet hours 中发送
 
-The business layer must not declare:
+业务层不应再声明：
 
-- sleeps between requests
-- sleeps between batches
-- friend/task switching waits
-- bootstrap/background step waits
-- session linger / cold-start timing
-- multi-account start jitter / schedule offset
+- 请求之间 sleep 多久
+- 批次之间 sleep 多久
+- friend/task 切换等待
+- bootstrap/background 的 step 等待
+- session linger / cold-start 时序
+- multi-account 的启动抖动 / 调度偏移
 
-### Implementation path for plan 3
+### 方案 3 的实施路径
 
-Phase A: add unified request exit
+Phase A：接入统一请求出口
 
-- extend transport with policy-aware request entry
-- route plain `invoke()` through the gateway with default classification
-- add queue model, queue wait timeout, invoke timeout, and structured request audit logs
+- 扩展 transport，支持策略感知请求入口
+- 将普通 `invoke()` 也统一路由进 gateway，并赋予默认分类
+- 引入队列模型、queue wait timeout、invoke timeout 和结构化请求审计日志
 
-Phase B: migrate high-risk business paths
+Phase B：迁移高风险业务链路
 
-- migrate farm write paths
-- migrate friend visit/write paths
-- migrate warehouse write paths
-- migrate task claim and daily reward paths
-- remove direct delay semantics from these business modules
+- 迁移农场写操作
+- 迁移好友访问 / 写操作
+- 迁移仓库写操作
+- 迁移任务领取和每日奖励
+- 从这些业务模块中移除直接 delay 语义
 
-Phase C: migrate built-in scripts and system traffic
+Phase C：迁移内置脚本和系统流量
 
-- make `SessionBootstrapService` only describe request sequence
-- make `BackgroundRequestService` only describe request selection
-- move actual bootstrap/background pacing into the gateway
-- classify heartbeat / activity-report requests as system traffic
+- 让 `SessionBootstrapService` 只描述请求顺序
+- 让 `BackgroundRequestService` 只描述请求选择
+- 将真正的 bootstrap/background pacing 下沉到 gateway
+- 将 heartbeat / activity-report 归类为 system 流量
 
-Phase D: unify runtime timing outside request exit
+Phase D：统一请求出口之外的运行时时序
 
-- introduce `RuntimePolicyCoordinator`
-- move `session` and `multiAccount` timing ownership out of business modules
-- keep these concerns outside request business code even when they are not single-request pacing problems
+- 引入 `RuntimePolicyCoordinator`
+- 将 `session` 和 `multiAccount` 的时序所有权移出业务模块
+- 即使这些问题不是单请求 pacing，也必须保证它们不再留在请求业务代码中
 
-Phase E: remove legacy timing surface
+Phase E：移除旧时序表面
 
-- delete or shrink `DelayService` and `ActionPacerService` so they no longer define business-facing pacing semantics
-- remove remaining scattered timing calls from workers, session helpers, and runner flow
-- keep only policy mapping and unified orchestration surfaces
+- 删除或收缩 `DelayService` 和 `ActionPacerService`，使其不再承担业务侧 pacing 语义
+- 移除 worker、session helper、runner 流程中剩余的分散 timing 调用
+- 最终只保留策略映射层和统一协调层
 
-### Acceptance criteria update
+### 验收标准更新
 
-The migration is complete only when all of the following are true:
+只有满足以下全部条件，才算迁移真正完成：
 
-- every request to the game process passes through the unified request exit
-- business code no longer contains scattered delay semantics
-- business code no longer exposes behavior timing vocabulary directly
-- page configuration is mapped into unified request/runtime policy layers
-- request-level pacing is explainable from gateway logs and inspect output
-- session and multi-account timing are owned by a single runtime coordination layer instead of business modules
+- 所有发往游戏进程的请求都经过统一请求出口
+- 业务代码中不再存在分散的 delay 语义
+- 业务代码中不再直接暴露行为时序词汇
+- 页面配置已经映射到统一请求层 / 运行时层
+- 请求级 pacing 能通过 gateway 日志和 inspect 输出解释清楚
+- session 和 multi-account 时序由单一运行时协调层持有，而不是继续散落在业务模块中
 
-## 2026-03-17 Implementation Progress
+## 2026-03-17 实现进展
 
-Implemented in this round:
+本轮已经完成：
 
-- added `RequestPacingGateway` as the unified request exit behind transport
-- added request policy metadata and queue model to transport requests
-- migrated farm, warehouse, friend, task, daily-reward, bootstrap, and background-request traffic onto `invokeWithPolicy(...)`
-- moved runner-facing `session` and `multiAccount` timing ownership to `RuntimePolicyCoordinator`
-- updated account runner startup, login-ready flow, linger handling, idle-disconnect timing, start jitter, and schedule offset wiring to use runtime coordination instead of business-facing session timing APIs
+- 在 transport 背后加入 `RequestPacingGateway` 作为统一请求出口
+- 为 transport 请求加入请求策略元信息和队列模型
+- 将 farm、warehouse、friend、task、daily-reward、bootstrap、background-request 流量迁移到 `invokeWithPolicy(...)`
+- 将 runner 侧的 `session` 和 `multiAccount` 时序所有权迁移到 `RuntimePolicyCoordinator`
+- 将 account runner 的启动、login-ready、linger、idle-disconnect、start jitter、schedule offset 接线改为 runtime coordination，而不是业务侧 session timing API
 
-Still pending for full completion:
+初始迁移完成后又补齐的部分：
 
-- remove legacy `DelayService` / `SessionPatternService` shells that now remain mostly as compatibility residue
-- finish shrinking old worker-facing timing helpers so no dead timing surface remains in code
-- expose gateway/runtime policy summaries through inspect output with stronger observability
+- 删除了遗留的 `DelayService` 和 `SessionPatternService`
+- 移除了核心主路径里分散的业务侧 delay 语义
+- 通过 behavior inspect 和 web UI 暴露了 gateway / runtime 的摘要信息
+- 将 websocket 手动入口接到了显式 `interactive` 请求上下文，包括农场操作、单地块操作、好友详情、好友手动操作、访客记录、商店购买和仓库售卖
+- 将 `interactive` 请求上下文沿 `handler -> runner -> session / friend worker -> invokeWithPolicy(...)` 透传到真实请求出口
+- 将 `GameSession` 内部的待执行任务改为优先级队列，允许手动任务插到尚未开始的自动化任务前面
+
+## 2026-03-17 实现差异
+
+当前实现已经接近目标架构，但仍存在以下设计差异。
+
+### 差异 1：interactive 已接入手动入口，但不会中断已经在执行的长任务
+
+设计意图：
+
+- 用户主动触发的操作应高于 automation 优先级
+- 手动请求不应被 `automation` / `script` 流量阻塞
+
+当前状态：
+
+- `RequestPacingGateway` 已支持 `interactive` 队列
+- websocket 手动入口现在已经显式携带 `requestSource: 'interactive'`
+- `interactive` 请求上下文已经透传到 runner、session、friend worker 和最终的 `invokeWithPolicy(...)`
+- `GameSession` 对尚未开始的任务会按优先级出队，`interactive` 会先于 pending automation 任务
+- 但当前设计仍不会打断已经在执行中的 session 长任务；也就是说，手动请求可以抢到“下一棒”，不能中断“当前棒”
+
+实际影响：
+
+- 大多数手动操作已经不会再排在尚未开始的自动化 / script 请求后面
+- 但如果某个自动化 pass 已经进入执行中，手动请求仍要等它完成后才会真正进入出口
+- 若后续确认这仍会造成明显体感延迟，需要继续把长任务拆成更细检查点，或在 session 层引入更强的可抢占边界
+
+### 差异 2：请求审计日志仍是部分可观测，尚未达到完全可解释
+
+设计意图：
+
+- 审计日志应能解释 category、risk、source、queue、applied delay、queued time、timeout 设置，以及 suppression / drop 结果
+
+当前状态：
+
+- `RequestPacingGateway` 当前记录了 `accountId`、`service`、`method`、`category`、`risk`、`source`、`queue`、`queuedForMs`、`appliedDelayMs`
+- 但还没有完整记录本文前面设计的全部决策面
+- `queueWaitTimeoutMs`、`invokeTimeoutMs`、`policyName`、`droppedByPolicy`、`suppressedByQuietHours` 这些字段还未全部进入结构化审计记录
+
+实际影响：
+
+- gateway 已具备一定可观测性
+- 但在排查 pacing 问题时，还不能做到完全自解释
+
+### 差异 3：heartbeat / activity-report 类别已存在，但系统流量覆盖还未完全验证
+
+设计意图：
+
+- heartbeat 和 activity-report 流量应显式归类为 `system`
+- 这些请求应绕过业务 pacing 语义
+
+当前状态：
+
+- 分类模型里已经有 `heartbeat` 和 `activity_report`
+- gateway 也已经对这两类做了专门的最小间隔处理
+- 但从当前代码使用情况看，还不能证明所有真实系统流量都已经显式通过这两个分类进入出口
+
+实际影响：
+
+- 策略表面已经准备好
+- 但从实现验证角度看，system 流量的端到端分类覆盖仍未完全收口
+
+### 差异 4：inspect 当前反映的是配置区间，不是路由级覆盖证明
+
+设计意图：
+
+- inspect 不仅应展示配置区间，还应帮助解释实际覆盖和绕行规则
+
+当前状态：
+
+- behavior inspect 当前已经暴露队列名、分类区间、quiet-hours gating、script drop policy 和 runtime 区间
+- 但它还不能直接显示哪些具体请求入口仍然走默认分类，哪些已经显式归类
+
+实际影响：
+
+- inspect 适合作为配置摘要
+- 但还不足以证明所有关键路由已经映射到预期的 queue/source 语义
+
+## 剩余工作优先级
+
+当前最高优先级剩余工作：
+
+1. 评估并收口“已经在执行中的长自动化任务”对 interactive 的阻塞边界，必要时把长任务拆成更细的可抢占检查点
+2. 增强 gateway 审计日志，使 timeout 和 suppression 原因可完整排查
+3. 验证并显式归类剩余 system 流量，例如 heartbeat / activity-report
+4. 让 inspect 能直接显示关键路由的显式 queue/source 覆盖情况，而不只是配置区间

@@ -19,7 +19,8 @@ export default antfu(
 
       'e18e/ban-dependencies': ['error', {
         allowed: ['axios']
-      }]
+      }],
+      'e18e/prefer-static-regex': 'off'
     }
   }
 )

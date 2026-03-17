@@ -1,8 +1,10 @@
 import type { StoreService } from '../../store/store.service'
 import type { GameConfigService } from '../game-config.service'
 import type { IGameTransport } from '../interfaces/game-transport.interface'
+import type { GameRequestContext } from '../interfaces/request-context.interface'
 import type { StatsTracker } from '../workers/stats.worker'
 import { Logger } from '@nestjs/common'
+import { resolveRequestSource } from '../interfaces/request-context.interface'
 import { getDateKey, toNum } from '../utils'
 
 const SELL_BATCH_SIZE = 15
@@ -34,7 +36,7 @@ export class WarehouseActions {
     this.logger = new Logger(`WarehouseActions:${accountId}`)
   }
 
-  private invokeWarehouseRead<T = unknown>(method: string, params: Record<string, unknown>) {
+  private invokeWarehouseRead<T = unknown>(method: string, params: Record<string, unknown>, requestContext?: GameRequestContext) {
     return this.client.invokeWithPolicy<T>({
       service: 'gamepb.itempb.ItemService',
       method,
@@ -42,12 +44,12 @@ export class WarehouseActions {
       policy: {
         category: 'warehouse_read',
         risk: 'low',
-        source: 'business'
+        source: resolveRequestSource(requestContext)
       }
     })
   }
 
-  private invokeWarehouseWrite<T = unknown>(method: string, params: Record<string, unknown>, batchKey?: string) {
+  private invokeWarehouseWrite<T = unknown>(method: string, params: Record<string, unknown>, batchKey?: string, requestContext?: GameRequestContext) {
     return this.client.invokeWithPolicy<T>({
       service: 'gamepb.itempb.ItemService',
       method,
@@ -55,7 +57,7 @@ export class WarehouseActions {
       policy: {
         category: 'warehouse_write',
         risk: 'high',
-        source: 'business',
+        source: resolveRequestSource(requestContext),
         batchKey
       }
     })
@@ -71,12 +73,12 @@ export class WarehouseActions {
     this.options.onLog?.({ msg, tag: '仓库', meta: { module: 'warehouse', ...(event && { event }) }, isWarn: true })
   }
 
-  async syncBag(): Promise<any> {
-    const { data } = await this.invokeWarehouseRead('Bag', {})
+  async syncBag(requestContext?: GameRequestContext): Promise<any> {
+    const { data } = await this.invokeWarehouseRead('Bag', {}, requestContext)
     return data ?? {}
   }
 
-  async sellItems(items: any[]): Promise<any> {
+  async sellItems(items: any[], requestContext?: GameRequestContext): Promise<any> {
     const payload = items.map((item: any) => {
       const next: any = { id: toNum(item?.id), count: toNum(item?.count) }
       const uid = toNum(item?.uid)
@@ -84,11 +86,11 @@ export class WarehouseActions {
         next.uid = uid
       return next
     })
-    const { data } = await this.invokeWarehouseWrite('Sell', { items: payload }, 'sell')
+    const { data } = await this.invokeWarehouseWrite('Sell', { items: payload }, 'sell', requestContext)
     return data ?? {}
   }
 
-  async sellItemByIdAndCount(itemId: number, count: number): Promise<any> {
+  async sellItemByIdAndCount(itemId: number, count: number, requestContext?: GameRequestContext): Promise<any> {
     if (count < 1)
       throw new Error('售卖数量必须大于 0')
 
@@ -114,7 +116,7 @@ export class WarehouseActions {
     if (remaining > 0)
       throw new Error('背包中该物品数量不足')
 
-    const result = await this.sellItems(toSell)
+    const result = await this.sellItems(toSell, requestContext)
     const earned = this.getGoldFromItems(result?.get_items || [])
     const totalCount = toSell.reduce((sum, item) => sum + (Number(item?.count) || 0), 0)
     const name = this.gameConfig.getItemName(idNum)

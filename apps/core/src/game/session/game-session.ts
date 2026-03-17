@@ -2,10 +2,12 @@ import type { RhythmService } from '../../behavior/rhythm.service'
 import type { StoreService } from '../../store/store.service'
 import type { GameConfigService } from '../game-config.service'
 import type { IGameTransport } from '../interfaces/game-transport.interface'
+import type { GameRequestContext } from '../interfaces/request-context.interface'
 import type { AnalyticsWorker } from '../workers/analytics.worker'
 import type { StatsTracker } from '../workers/stats.worker'
 import { Logger } from '@nestjs/common'
 import { Scheduler } from '@qq-farm/shared'
+import { isInteractiveRequest } from '../interfaces/request-context.interface'
 import { getServerTimeSec, toNum } from '../utils'
 import { FarmActions } from './farm-actions'
 import { BagState } from './state/bag-state'
@@ -17,6 +19,15 @@ export interface GameSessionCallbacks {
   onLog?: (entry: { msg: string, tag?: string, meta?: Record<string, string>, isWarn?: boolean }) => void
   onLandsUpdate?: (data: unknown) => void
   onBagUpdate?: (data: unknown) => void
+}
+
+interface SessionTask<T = unknown> {
+  label: string
+  order: number
+  priority: number
+  task: () => Promise<T>
+  resolve: (value: T | PromiseLike<T>) => void
+  reject: (reason?: unknown) => void
 }
 
 export class GameSession {
@@ -32,11 +43,13 @@ export class GameSession {
   private readonly farmActions: FarmActions
   private readonly warehouseActions: WarehouseActions
 
-  private chain: Promise<unknown> = Promise.resolve()
   private destroyed = false
   private lastLandsSyncAt = 0
   private lastBagSyncAt = 0
   private bootstrapped = false
+  private processing = false
+  private taskOrder = 0
+  private readonly pendingTasks: SessionTask[] = []
 
   constructor(
     private readonly accountId: string,
@@ -143,8 +156,8 @@ export class GameSession {
     }) as boolean
   }
 
-  async runFarmOperation(opType: string) {
-    return await this.enqueue(`farm-op:${opType}`, async () => this.runFarmOperationUnsafe(opType))
+  async runFarmOperation(opType: string, requestContext?: GameRequestContext) {
+    return await this.enqueue(`farm-op:${opType}`, async () => this.runFarmOperationUnsafe(opType, requestContext), requestContext)
   }
 
   async runHarvestThenPlant() {
@@ -155,25 +168,25 @@ export class GameSession {
     })
   }
 
-  async runSingleLandOperation(payload: { action: string, landId: number, seedId: number }) {
+  async runSingleLandOperation(payload: { action: string, landId: number, seedId: number }, requestContext?: GameRequestContext) {
     return await this.enqueue(`single-land:${payload.action}:${payload.landId}`, async () => {
-      await this.ensureLandsReady()
-      const result = await this.farmActions.runSingleLandOperation(payload)
-      await this.followAfterSingleLandOperation(payload)
+      await this.ensureLandsReady(requestContext)
+      const result = await this.farmActions.runSingleLandOperation(payload, requestContext)
+      await this.followAfterSingleLandOperation(payload, requestContext)
       return result
-    })
+    }, requestContext)
   }
 
-  async sellItem(itemId: number, count: number) {
+  async sellItem(itemId: number, count: number, requestContext?: GameRequestContext) {
     return await this.enqueue(`sell-item:${itemId}`, async () => {
-      await this.ensureBagReady()
-      return await this.warehouseActions.sellItemByIdAndCount(itemId, count)
-    })
+      await this.ensureBagReady(requestContext)
+      return await this.warehouseActions.sellItemByIdAndCount(itemId, count, requestContext)
+    }, requestContext)
   }
 
-  async buySeed(goodsId: number, count: number, price: number) {
+  async buySeed(goodsId: number, count: number, price: number, requestContext?: GameRequestContext) {
     return await this.enqueue(`buy-seed:${goodsId}`, async () => {
-      const result = await this.farmActions.buyGoods(goodsId, count, price)
+      const result = await this.farmActions.buyGoods(goodsId, count, price, requestContext)
       const items = result?.get_items || []
       if (items.length > 0) {
         const seedId = Number(items[0]?.id) || 0
@@ -181,7 +194,7 @@ export class GameSession {
         this.log(`手动购买 ${name} x${count}，花费 ${price * count} 金币`, 'seed_buy')
       }
       return result
-    })
+    }, requestContext)
   }
 
   async sellAllFruits() {
@@ -203,8 +216,8 @@ export class GameSession {
     return this.landsState.getDetailSnapshot(this.gameConfig)
   }
 
-  async getAvailableSeeds() {
-    return await this.farmActions.getAvailableSeeds()
+  async getAvailableSeeds(requestContext?: GameRequestContext) {
+    return await this.farmActions.getAvailableSeeds(requestContext)
   }
 
   async getBagDetail() {
@@ -212,8 +225,8 @@ export class GameSession {
     return this.bagState.getDetailSnapshot(this.gameConfig)
   }
 
-  async getBagSeeds() {
-    await this.ensureBagReady()
+  async getBagSeeds(requestContext?: GameRequestContext) {
+    await this.ensureBagReady(requestContext)
     return this.bagState.getSeedSnapshot(this.gameConfig)
   }
 
@@ -229,20 +242,20 @@ export class GameSession {
     return this.warehouseActions.getFertilizerGiftDailyState()
   }
 
-  private async runFarmOperationUnsafe(opType: string) {
-    await this.ensureLandsReady()
-    const result = await this.farmActions.runFarmOperation(opType)
+  private async runFarmOperationUnsafe(opType: string, requestContext?: GameRequestContext) {
+    await this.ensureLandsReady(requestContext)
+    const result = await this.farmActions.runFarmOperation(opType, requestContext)
     if ((opType === 'all' || opType === 'harvest') && result.hadWork)
       await this.sellAllFruitsUnsafe()
     return result
   }
 
-  private async followAfterSingleLandOperation(payload: { action: string, landId: number }) {
+  private async followAfterSingleLandOperation(payload: { action: string, landId: number }, requestContext?: GameRequestContext) {
     if (payload.action !== 'remove')
       return
     if (!this.store.isAutomationOn('farm', this.accountId))
       return
-    await this.runFarmOperationUnsafe('plant')
+    await this.runFarmOperationUnsafe('plant', requestContext)
   }
 
   private async sellAllFruitsUnsafe() {
@@ -250,25 +263,25 @@ export class GameSession {
     return await this.warehouseActions.sellAllFruits()
   }
 
-  private async syncLandsUnsafe() {
-    await this.farmActions.syncLands()
+  private async syncLandsUnsafe(requestContext?: GameRequestContext) {
+    await this.farmActions.syncLands(requestContext)
   }
 
-  private async syncBagUnsafe() {
-    const reply = await this.warehouseActions.syncBag()
+  private async syncBagUnsafe(requestContext?: GameRequestContext) {
+    const reply = await this.warehouseActions.syncBag(requestContext)
     this.bagState.applyFull(reply)
     this.lastBagSyncAt = Date.now()
     this.afterBagChanged()
   }
 
-  private async ensureLandsReady() {
+  private async ensureLandsReady(requestContext?: GameRequestContext) {
     if (!this.landsState.getAll().length)
-      await this.syncLandsUnsafe()
+      await this.syncLandsUnsafe(requestContext)
   }
 
-  private async ensureBagReady() {
+  private async ensureBagReady(requestContext?: GameRequestContext) {
     if (!this.bagState.getRawItems().length)
-      await this.syncBagUnsafe()
+      await this.syncBagUnsafe(requestContext)
   }
 
   private async calibrateIfNeeded() {
@@ -365,22 +378,61 @@ export class GameSession {
     void this.runScheduledAutomationPass()
   }
 
-  private enqueue<T>(label: string, task: () => Promise<T>): Promise<T> {
-    const run = this.chain.then(task, task)
-    this.chain = run.then(() => undefined, () => undefined)
-    return run.catch((error) => {
-      this.warn(`执行失败 [${label}]: ${(error as Error)?.message || error}`, 'session_error')
-      throw error
+  private enqueue<T>(label: string, task: () => Promise<T>, requestContext?: GameRequestContext): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      this.pendingTasks.push({
+        label,
+        order: this.taskOrder++,
+        priority: isInteractiveRequest(requestContext) ? 1 : 0,
+        task,
+        resolve,
+        reject
+      })
+      this.pendingTasks.sort((left, right) => (right.priority - left.priority) || (left.order - right.order))
+      void this.processPendingTasks()
     })
   }
 
-  private log(msg: string, event?: string) {
-    this.logger.log(msg)
-    this.callbacks.onLog?.({ msg, tag: '系统', meta: { module: 'system', ...(event && { event }) }, isWarn: false })
+  private async processPendingTasks(): Promise<void> {
+    if (this.processing || this.destroyed)
+      return
+
+    this.processing = true
+    try {
+      while (this.pendingTasks.length > 0) {
+        const nextTask = this.pendingTasks.shift()
+        if (!nextTask)
+          continue
+
+        try {
+          const result = await nextTask.task()
+          nextTask.resolve(result)
+        } catch (error) {
+          this.warn(this.formatSessionErrorMessage(error), 'session_error', { action: nextTask.label })
+          nextTask.reject(error)
+        }
+      }
+    } finally {
+      this.processing = false
+      if (this.pendingTasks.length > 0)
+        void this.processPendingTasks()
+    }
   }
 
-  private warn(msg: string, event?: string) {
+  private formatSessionErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message)
+      return error.message
+    const text = String(error || '').trim()
+    return text || '执行失败'
+  }
+
+  private log(msg: string, event?: string, extraMeta?: Record<string, string>) {
+    this.logger.log(msg)
+    this.callbacks.onLog?.({ msg, tag: '系统', meta: { module: 'system', ...(event && { event }), ...(extraMeta || {}) }, isWarn: false })
+  }
+
+  private warn(msg: string, event?: string, extraMeta?: Record<string, string>) {
     this.logger.warn(msg)
-    this.callbacks.onLog?.({ msg, tag: '系统', meta: { module: 'system', ...(event && { event }) }, isWarn: true })
+    this.callbacks.onLog?.({ msg, tag: '系统', meta: { module: 'system', ...(event && { event }), ...(extraMeta || {}) }, isWarn: true })
   }
 }

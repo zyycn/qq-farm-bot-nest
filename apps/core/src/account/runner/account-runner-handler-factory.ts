@@ -1,6 +1,7 @@
 import type { Logger } from '@nestjs/common'
 import type { Scheduler } from '@qq-farm/shared'
 import type { FertilizerBuyConfig } from '../../game/constants'
+import type { GameRequestContext } from '../../game/interfaces/request-context.interface'
 import type { LinkEventMap, LinkUserState } from '../../game/types'
 import type { IGameTransport } from '../../transport/interfaces/game-transport.interface'
 import type { AccountRunnerDeps } from './account-runner'
@@ -121,19 +122,19 @@ export function createAccountRunnerHandlers(factoryDeps: AccountRunnerHandlerFac
   const actionsHandler = new AccountRunnerActions({
     ensureReady: factoryDeps.ensureReady,
     getLands: () => factoryDeps.getWorkers().session.getLandsDetail(),
-    getSeeds: () => factoryDeps.getWorkers().session.getAvailableSeeds(),
-    getBagSeeds: () => factoryDeps.getWorkers().session.getBagSeeds(),
-    doFarmOp: opType => factoryDeps.getWorkers().session.runFarmOperation(opType),
-    doSingleLandOp: payload => factoryDeps.getWorkers().session.runSingleLandOperation(payload),
+    getSeeds: (requestContext?: GameRequestContext) => factoryDeps.getWorkers().session.getAvailableSeeds(requestContext),
+    getBagSeeds: (requestContext?: GameRequestContext) => factoryDeps.getWorkers().session.getBagSeeds(requestContext),
+    doFarmOp: (opType, requestContext?: GameRequestContext) => factoryDeps.getWorkers().session.runFarmOperation(opType, requestContext),
+    doSingleLandOp: (payload, requestContext?: GameRequestContext) => factoryDeps.getWorkers().session.runSingleLandOperation(payload, requestContext),
     getFriends: () => factoryDeps.getWorkers().friend.getFriendsList(),
-    getFriendLands: gid => factoryDeps.getWorkers().friend.getFriendLandsDetail(gid),
+    getFriendLands: (gid, requestContext?: GameRequestContext) => factoryDeps.getWorkers().friend.getFriendLandsDetail(gid, requestContext),
     getAlmanac: refresh => factoryDeps.getWorkers().illustrated.getOverview(refresh),
     claimAlmanacRewards: () => factoryDeps.getWorkers().illustrated.claimRewards(),
-    doFriendOp: (gid, opType) => factoryDeps.getWorkers().friend.doFriendOperation(gid, opType),
-    getInteractRecords: () => factoryDeps.getWorkers().friend.getInteractRecords(),
+    doFriendOp: (gid, opType, requestContext?: GameRequestContext) => factoryDeps.getWorkers().friend.doFriendOperation(gid, opType, requestContext),
+    getInteractRecords: (requestContext?: GameRequestContext) => factoryDeps.getWorkers().friend.getInteractRecords(requestContext),
     getBag: () => factoryDeps.getWorkers().session.getBagDetail(),
-    sellItem: (itemId, count) => factoryDeps.getWorkers().session.sellItem(itemId, count),
-    buySeed: (goodsId, count, price) => factoryDeps.getWorkers().session.buySeed(goodsId, count, price),
+    sellItem: (itemId, count, requestContext?: GameRequestContext) => factoryDeps.getWorkers().session.sellItem(itemId, count, requestContext),
+    buySeed: (goodsId, count, price, requestContext?: GameRequestContext) => factoryDeps.getWorkers().session.buySeed(goodsId, count, price, requestContext),
     getAnalytics: sortBy => factoryDeps.getWorkers().analytics.getPlantRankings(sortBy),
     recordSell: count => factoryDeps.getWorkers().stats.recordOperation('sell', count),
     afterOperation: factoryDeps.afterOperation,

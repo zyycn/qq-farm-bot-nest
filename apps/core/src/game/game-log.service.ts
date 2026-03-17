@@ -7,6 +7,7 @@ import { DRIZZLE_TOKEN } from '../database/drizzle.provider'
 import * as schema from '../database/schema'
 
 const RETENTION_MS = 7 * 24 * 60 * 60 * 1000
+const LOG_DEDUPE_WINDOW_MS = 3000
 
 @Injectable()
 export class GameLogService {
@@ -14,6 +15,7 @@ export class GameLogService {
   private globalLogs: PersistedLogEntry[] = []
   private perAccountLogs = new Map<string, PersistedLogEntry[]>()
   private accountLogs: AccountLogEntry[] = []
+  private lastAcceptedLogByAccount = new Map<string, { signature: string, createdAt: number }>()
 
   private onLogCallback: ((entry: PersistedLogEntry) => void) | null = null
   private onAccountLogCallback: ((entry: AccountLogEntry) => void) | null = null
@@ -29,13 +31,17 @@ export class GameLogService {
 
   /** 写入一条农场/运行日志（内存 + 持久化 + 实时回调） */
   appendLog(accountId: string, accountName: string, entry: GameLogEntry) {
+    const normalizedEntry = this.normalizeGameLogEntry(entry)
     const logEntry: PersistedLogEntry = {
-      ...entry,
+      ...normalizedEntry,
       accountId,
       accountName,
       createdAt: Date.now(),
-      _searchText: `${entry?.msg || ''} ${entry?.tag || ''} ${JSON.stringify(entry?.meta || {})}`.toLowerCase()
+      _searchText: `${normalizedEntry?.msg || ''} ${normalizedEntry?.tag || ''} ${JSON.stringify(normalizedEntry?.meta || {})}`.toLowerCase()
     }
+
+    if (this.shouldSuppressDuplicateLog(logEntry))
+      return
 
     let list = this.perAccountLogs.get(accountId)
     if (!list) {
@@ -113,8 +119,41 @@ export class GameLogService {
       this.logger.warn(`删除账号日志失败: ${e?.message}`)
     }
     this.perAccountLogs.delete(accountId)
+    this.lastAcceptedLogByAccount.delete(accountId)
     this.globalLogs = this.globalLogs.filter(l => l.accountId !== accountId)
     this.accountLogs = this.accountLogs.filter(l => l.accountId !== accountId)
+  }
+
+  private shouldSuppressDuplicateLog(entry: PersistedLogEntry): boolean {
+    const signature = [
+      entry.tag || '',
+      entry.meta?.module || '',
+      entry.meta?.event || '',
+      entry.isWarn ? 'warn' : 'info',
+      entry.msg || ''
+    ].join('|')
+
+    const last = this.lastAcceptedLogByAccount.get(entry.accountId)
+    this.lastAcceptedLogByAccount.set(entry.accountId, {
+      signature,
+      createdAt: entry.createdAt
+    })
+
+    return !!last
+      && last.signature === signature
+      && entry.createdAt - last.createdAt <= LOG_DEDUPE_WINDOW_MS
+  }
+
+  private normalizeGameLogEntry(entry: GameLogEntry): GameLogEntry {
+    const rawMsg = String(entry.msg || '')
+    const msg = rawMsg
+      .replace(/^执行失败 \[[^\]]+\]:\s*/, '')
+      .replace(/Request queue wait timeout:\s*(?:\S.*|[\t\v\f \xA0\u1680\u2000-\u200A\u202F\u205F\u3000\uFEFF])$/i, '请求排队超时')
+
+    return {
+      ...entry,
+      msg
+    }
   }
 
   private async persistLog(entry: PersistedLogEntry) {

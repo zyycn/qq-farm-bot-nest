@@ -1,4 +1,6 @@
 import type { IGameTransport } from '../../interfaces/game-transport.interface'
+import type { GameRequestContext } from '../../interfaces/request-context.interface'
+import { resolveRequestSource } from '../../interfaces/request-context.interface'
 import { toNum } from '../../utils'
 
 export class FriendServiceClient {
@@ -7,7 +9,7 @@ export class FriendServiceClient {
     private readonly platform: string
   ) {}
 
-  private invokeFriendRead<T = unknown>(service: string, method: string, params: Record<string, unknown>) {
+  private invokeFriendRead<T = unknown>(service: string, method: string, params: Record<string, unknown>, requestContext?: GameRequestContext) {
     return this.client.invokeWithPolicy<T>({
       service,
       method,
@@ -15,12 +17,12 @@ export class FriendServiceClient {
       policy: {
         category: 'friend_visit',
         risk: 'low',
-        source: 'business'
+        source: resolveRequestSource(requestContext)
       }
     })
   }
 
-  private invokeFriendWrite<T = unknown>(service: string, method: string, params: Record<string, unknown>) {
+  private invokeFriendWrite<T = unknown>(service: string, method: string, params: Record<string, unknown>, requestContext?: GameRequestContext) {
     return this.client.invokeWithPolicy<T>({
       service,
       method,
@@ -28,12 +30,12 @@ export class FriendServiceClient {
       policy: {
         category: 'friend_write',
         risk: 'high',
-        source: 'business'
+        source: resolveRequestSource(requestContext)
       }
     })
   }
 
-  private invokeFriendVisit<T = unknown>(service: string, method: string, params: Record<string, unknown>) {
+  private invokeFriendVisit<T = unknown>(service: string, method: string, params: Record<string, unknown>, requestContext?: GameRequestContext) {
     return this.client.invokeWithPolicy<T>({
       service,
       method,
@@ -41,44 +43,44 @@ export class FriendServiceClient {
       policy: {
         category: 'friend_visit',
         risk: 'high',
-        source: 'business'
+        source: resolveRequestSource(requestContext)
       }
     })
   }
 
-  async getAllFriends(): Promise<any> {
+  async getAllFriends(requestContext?: GameRequestContext): Promise<any> {
     if (this.platform === 'qq') {
-      const { data } = await this.invokeFriendRead('gamepb.friendpb.FriendService', 'SyncAll', { open_ids: [] })
+      const { data } = await this.invokeFriendRead('gamepb.friendpb.FriendService', 'SyncAll', { open_ids: [] }, requestContext)
       return data ?? {}
     }
-    const { data } = await this.invokeFriendRead('gamepb.friendpb.FriendService', 'GetAll', {})
+    const { data } = await this.invokeFriendRead('gamepb.friendpb.FriendService', 'GetAll', {}, requestContext)
     return data ?? {}
   }
 
-  async getApplications(): Promise<any> {
-    const { data } = await this.invokeFriendRead('gamepb.friendpb.FriendService', 'GetApplications', {})
+  async getApplications(requestContext?: GameRequestContext): Promise<any> {
+    const { data } = await this.invokeFriendRead('gamepb.friendpb.FriendService', 'GetApplications', {}, requestContext)
     return data ?? {}
   }
 
-  async acceptFriends(gids: number[]): Promise<any> {
-    const { data } = await this.invokeFriendWrite('gamepb.friendpb.FriendService', 'AcceptFriends', { friend_gids: gids })
+  async acceptFriends(gids: number[], requestContext?: GameRequestContext): Promise<any> {
+    const { data } = await this.invokeFriendWrite('gamepb.friendpb.FriendService', 'AcceptFriends', { friend_gids: gids }, requestContext)
     return data ?? {}
   }
 
-  async enterFriendFarm(friendGid: number): Promise<any> {
-    const { data } = await this.invokeFriendVisit('gamepb.visitpb.VisitService', 'Enter', { host_gid: friendGid, reason: 2 })
+  async enterFriendFarm(friendGid: number, requestContext?: GameRequestContext): Promise<any> {
+    const { data } = await this.invokeFriendVisit('gamepb.visitpb.VisitService', 'Enter', { host_gid: friendGid, reason: 2 }, requestContext)
     return data ?? {}
   }
 
-  async leaveFriendFarm(friendGid: number) {
+  async leaveFriendFarm(friendGid: number, requestContext?: GameRequestContext) {
     try {
-      await this.invokeFriendVisit('gamepb.visitpb.VisitService', 'Leave', { host_gid: friendGid })
+      await this.invokeFriendVisit('gamepb.visitpb.VisitService', 'Leave', { host_gid: friendGid }, requestContext)
     } catch {}
   }
 
-  async checkCanOperateRemote(friendGid: number, operationId: number) {
+  async checkCanOperateRemote(friendGid: number, operationId: number, requestContext?: GameRequestContext) {
     try {
-      const { data: reply } = await this.invokeFriendRead<any>('gamepb.plantpb.PlantService', 'CheckCanOperate', { host_gid: friendGid, operation_id: operationId })
+      const { data: reply } = await this.invokeFriendRead<any>('gamepb.plantpb.PlantService', 'CheckCanOperate', { host_gid: friendGid, operation_id: operationId }, requestContext)
       return { canOperate: !!(reply as any)?.can_operate, canStealNum: toNum((reply as any)?.can_steal_num) }
     } catch {
       return { canOperate: true, canStealNum: 0 }

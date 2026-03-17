@@ -6,6 +6,8 @@ import { WsRoute } from '../decorators/ws-route.decorator'
 
 @Injectable()
 export class WarehouseHandler {
+  private static readonly INTERACTIVE_REQUEST = { requestSource: 'interactive' as const }
+
   constructor(private readonly registry: AccountRegistryService) {}
 
   @WsRoute('warehouse.sell')
@@ -17,6 +19,6 @@ export class WarehouseHandler {
     const count = Number(data?.count ?? 1)
     if (!itemId || count < 1)
       throw new Error('缺少物品编号或数量')
-    return this.registry.getRunnerOrThrow(accountId).sellItem(itemId, count)
+    return this.registry.getRunnerOrThrow(accountId).sellItem(itemId, count, WarehouseHandler.INTERACTIVE_REQUEST)
   }
 }

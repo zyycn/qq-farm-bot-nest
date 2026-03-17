@@ -10,6 +10,8 @@ import { requireNumber, requireString } from '../ws-guards'
 
 @Injectable()
 export class FriendHandler {
+  private static readonly INTERACTIVE_REQUEST = { requestSource: 'interactive' as const }
+
   constructor(
     private readonly lifecycle: AccountLifecycleService,
     private readonly registry: AccountRegistryService,
@@ -25,7 +27,7 @@ export class FriendHandler {
     const gid = Number(data?.gid ?? data?.friendId)
     if (!gid)
       throw new Error('缺少好友编号')
-    return this.registry.getRunnerOrThrow(accountId).getFriendLands(gid)
+    return this.registry.getRunnerOrThrow(accountId).getFriendLands(gid, FriendHandler.INTERACTIVE_REQUEST)
   }
 
   @WsRoute('friends.execute')
@@ -35,7 +37,7 @@ export class FriendHandler {
   ): Promise<unknown> {
     const gid = requireNumber(data, 'gid', '缺少好友编号或操作类型')
     const opType = requireString(data, 'opType', '缺少好友编号或操作类型')
-    return this.registry.getRunnerOrThrow(accountId).doFriendOp(gid, opType)
+    return this.registry.getRunnerOrThrow(accountId).doFriendOp(gid, opType, FriendHandler.INTERACTIVE_REQUEST)
   }
 
   @WsRoute('friends.toggleBlacklist')
@@ -54,6 +56,6 @@ export class FriendHandler {
 
   @WsRoute('friends.interactRecords')
   interactRecords(@WsAccount() accountId: string): Promise<unknown> {
-    return this.registry.getRunnerOrThrow(accountId).getInteractRecords()
+    return this.registry.getRunnerOrThrow(accountId).getInteractRecords(FriendHandler.INTERACTIVE_REQUEST)
   }
 }

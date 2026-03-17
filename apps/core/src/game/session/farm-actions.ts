@@ -2,11 +2,13 @@ import type { RhythmService } from '../../behavior/rhythm.service'
 import type { StoreService } from '../../store/store.service'
 import type { GameConfigService } from '../game-config.service'
 import type { IGameTransport } from '../interfaces/game-transport.interface'
+import type { GameRequestContext } from '../interfaces/request-context.interface'
 import type { AnalyticsWorker } from '../workers/analytics.worker'
 import type { StatsTracker } from '../workers/stats.worker'
 import type { OwnedLandStatus } from './helpers/land.helpers'
 import { Logger } from '@nestjs/common'
 import { getLandTypeByLevel, PlantPhase } from '../constants'
+import { resolveRequestSource } from '../interfaces/request-context.interface'
 import { toNum } from '../utils'
 import { analyzeOwnedLands, getCurrentPhase, getMultiSeasonGrowingLandIds } from './helpers/land.helpers'
 
@@ -56,7 +58,7 @@ export class FarmActions {
     return new Error(message ? `${prefix}: ${message}` : prefix)
   }
 
-  private invokeRead<T = unknown>(service: string, method: string, params: Record<string, unknown>, timeout?: number) {
+  private invokeRead<T = unknown>(service: string, method: string, params: Record<string, unknown>, timeout?: number, requestContext?: GameRequestContext) {
     return this.client.invokeWithPolicy<T>({
       service,
       method,
@@ -65,12 +67,12 @@ export class FarmActions {
       policy: {
         category: 'farm_read',
         risk: 'low',
-        source: 'business'
+        source: resolveRequestSource(requestContext)
       }
     })
   }
 
-  private invokeFarmWrite<T = unknown>(method: string, params: Record<string, unknown>, batchKey?: string) {
+  private invokeFarmWrite<T = unknown>(method: string, params: Record<string, unknown>, batchKey?: string, requestContext?: GameRequestContext) {
     return this.client.invokeWithPolicy<T>({
       service: 'gamepb.plantpb.PlantService',
       method,
@@ -78,13 +80,13 @@ export class FarmActions {
       policy: {
         category: 'farm_write',
         risk: 'high',
-        source: 'business',
+        source: resolveRequestSource(requestContext),
         batchKey
       }
     })
   }
 
-  private invokeShopRead<T = unknown>(method: string, params: Record<string, unknown>) {
+  private invokeShopRead<T = unknown>(method: string, params: Record<string, unknown>, requestContext?: GameRequestContext) {
     return this.client.invokeWithPolicy<T>({
       service: 'gamepb.shoppb.ShopService',
       method,
@@ -92,12 +94,12 @@ export class FarmActions {
       policy: {
         category: 'farm_read',
         risk: 'low',
-        source: 'business'
+        source: resolveRequestSource(requestContext)
       }
     })
   }
 
-  private invokeShopWrite<T = unknown>(method: string, params: Record<string, unknown>) {
+  private invokeShopWrite<T = unknown>(method: string, params: Record<string, unknown>, requestContext?: GameRequestContext) {
     return this.client.invokeWithPolicy<T>({
       service: 'gamepb.shoppb.ShopService',
       method,
@@ -105,40 +107,40 @@ export class FarmActions {
       policy: {
         category: 'farm_write',
         risk: 'high',
-        source: 'business'
+        source: resolveRequestSource(requestContext)
       }
     })
   }
 
-  async syncLands(): Promise<any> {
-    const { data } = await this.invokeRead<any>('gamepb.plantpb.PlantService', 'AllLands', {})
+  async syncLands(requestContext?: GameRequestContext): Promise<any> {
+    const { data } = await this.invokeRead<any>('gamepb.plantpb.PlantService', 'AllLands', {}, undefined, requestContext)
     this.options.onFullSync((data?.lands || []) as any[])
     return data ?? {}
   }
 
-  async harvest(landIds: number[]): Promise<any> {
+  async harvest(landIds: number[], requestContext?: GameRequestContext): Promise<any> {
     const { data } = await this.invokeFarmWrite<any>('Harvest', {
       land_ids: landIds,
       host_gid: this.client.userState.gid,
       is_all: true
-    }, 'harvest')
+    }, 'harvest', requestContext)
     this.options.onLandDelta(data?.land || [])
     return data ?? {}
   }
 
-  async waterLand(landIds: number[]) {
-    return this.sendPlantRequest('WaterLand', landIds, this.client.userState.gid)
+  async waterLand(landIds: number[], requestContext?: GameRequestContext) {
+    return this.sendPlantRequest('WaterLand', landIds, this.client.userState.gid, requestContext)
   }
 
-  async weedOut(landIds: number[]) {
-    return this.sendPlantRequest('WeedOut', landIds, this.client.userState.gid)
+  async weedOut(landIds: number[], requestContext?: GameRequestContext) {
+    return this.sendPlantRequest('WeedOut', landIds, this.client.userState.gid, requestContext)
   }
 
-  async insecticide(landIds: number[]) {
-    return this.sendPlantRequest('Insecticide', landIds, this.client.userState.gid)
+  async insecticide(landIds: number[], requestContext?: GameRequestContext) {
+    return this.sendPlantRequest('Insecticide', landIds, this.client.userState.gid, requestContext)
   }
 
-  async fertilize(landIds: number[], fertilizerId = NORMAL_FERTILIZER_ID): Promise<number> {
+  async fertilize(landIds: number[], fertilizerId = NORMAL_FERTILIZER_ID, requestContext?: GameRequestContext): Promise<number> {
     const ids = this.shuffleOrder(landIds.map(toNum).filter(id => Number.isFinite(id) && id > 0))
     if (!ids.length)
       return 0
@@ -148,7 +150,7 @@ export class FarmActions {
         const { data } = await this.invokeFarmWrite<any>('Fertilize', {
           land_ids: ids,
           fertilizer_id: fertilizerId
-        }, 'fertilize')
+        }, 'fertilize', requestContext)
         this.options.onLandDelta(data?.land || [])
         return ids.length
       } catch {}
@@ -161,7 +163,7 @@ export class FarmActions {
         const { data } = await this.invokeFarmWrite<any>('Fertilize', {
           land_ids: [landId],
           fertilizer_id: fertilizerId
-        }, 'fertilize')
+        }, 'fertilize', requestContext)
         success++
         if (data?.land?.length)
           changed.push(...data.land)
@@ -173,35 +175,35 @@ export class FarmActions {
     return success
   }
 
-  async removePlant(landIds: number[]): Promise<any> {
-    const { data } = await this.invokeFarmWrite<any>('RemovePlant', { land_ids: landIds }, 'remove_plant')
+  async removePlant(landIds: number[], requestContext?: GameRequestContext): Promise<any> {
+    const { data } = await this.invokeFarmWrite<any>('RemovePlant', { land_ids: landIds }, 'remove_plant', requestContext)
     this.options.onLandDelta(data?.land || [])
     return data ?? {}
   }
 
-  async upgradeLand(landId: number): Promise<any> {
-    const { data } = await this.invokeFarmWrite<any>('UpgradeLand', { land_id: landId }, 'upgrade_land')
+  async upgradeLand(landId: number, requestContext?: GameRequestContext): Promise<any> {
+    const { data } = await this.invokeFarmWrite<any>('UpgradeLand', { land_id: landId }, 'upgrade_land', requestContext)
     this.options.onLandDelta(data?.land ? [data.land] : [])
     return data ?? {}
   }
 
-  async unlockLand(landId: number, doShared = false): Promise<any> {
-    const { data } = await this.invokeFarmWrite<any>('UnlockLand', { land_id: landId, do_shared: doShared }, 'unlock_land')
+  async unlockLand(landId: number, doShared = false, requestContext?: GameRequestContext): Promise<any> {
+    const { data } = await this.invokeFarmWrite<any>('UnlockLand', { land_id: landId, do_shared: doShared }, 'unlock_land', requestContext)
     this.options.onLandDelta(data?.land ? [data.land] : [])
     return data ?? {}
   }
 
-  async getShopInfo(shopId: number): Promise<any> {
-    const { data } = await this.invokeShopRead<any>('ShopInfo', { shop_id: shopId })
+  async getShopInfo(shopId: number, requestContext?: GameRequestContext): Promise<any> {
+    const { data } = await this.invokeShopRead<any>('ShopInfo', { shop_id: shopId }, requestContext)
     return data ?? {}
   }
 
-  async buyGoods(goodsId: number, num: number, price: number): Promise<any> {
-    const { data } = await this.invokeShopWrite<any>('BuyGoods', { goods_id: goodsId, num, price })
+  async buyGoods(goodsId: number, num: number, price: number, requestContext?: GameRequestContext): Promise<any> {
+    const { data } = await this.invokeShopWrite<any>('BuyGoods', { goods_id: goodsId, num, price }, requestContext)
     return data ?? {}
   }
 
-  async plantSeeds(seedId: number, landIds: number[], options?: { maxPlantCount?: number }): Promise<{ planted: number, plantedLandIds: number[], occupiedLandIds: number[] }> {
+  async plantSeeds(seedId: number, landIds: number[], options?: { maxPlantCount?: number }, requestContext?: GameRequestContext): Promise<{ planted: number, plantedLandIds: number[], occupiedLandIds: number[] }> {
     const ids = this.shuffleOrder((Array.isArray(landIds) ? landIds : []).map(id => toNum(id)).filter(Boolean))
     const maxCount = Math.max(0, toNum(options?.maxPlantCount) || Number.POSITIVE_INFINITY)
     const targetIds = ids.slice(0, maxCount > 0 && Number.isFinite(maxCount) ? maxCount : ids.length)
@@ -216,7 +218,7 @@ export class FarmActions {
       try {
         const { data } = await this.invokeFarmWrite<any>('Plant', {
           items: [{ seed_id: seedId, land_ids: [landId] }]
-        }, 'plant')
+        }, 'plant', requestContext)
         success++
         plantedLandIds.push(landId)
         occupiedLandIds.add(landId)
@@ -232,9 +234,9 @@ export class FarmActions {
     return { planted: success, plantedLandIds, occupiedLandIds: [...occupiedLandIds] }
   }
 
-  async getAvailableSeeds() {
+  async getAvailableSeeds(requestContext?: GameRequestContext) {
     try {
-      const shopReply = await this.getShopInfo(2)
+      const shopReply = await this.getShopInfo(2, requestContext)
       if (!shopReply?.goods_list?.length)
         return this.gameConfig.getAllSeeds()
       const state = this.client.userState
@@ -262,35 +264,35 @@ export class FarmActions {
     }
   }
 
-  private async sendPlantRequest(method: string, landIds: number[], hostGid: number): Promise<any> {
+  private async sendPlantRequest(method: string, landIds: number[], hostGid: number, requestContext?: GameRequestContext): Promise<any> {
     const { data } = await this.invokeFarmWrite<any>(method, {
       land_ids: landIds,
       host_gid: hostGid
-    }, method)
+    }, method, requestContext)
     this.options.onLandDelta(data?.land || [])
     return data ?? {}
   }
 
-  private buildClearOps(status: OwnedLandStatus, actions: string[]): Promise<any>[] {
+  private buildClearOps(status: OwnedLandStatus, actions: string[], requestContext?: GameRequestContext): Promise<any>[] {
     const cfg = this.store.getAccountConfig(this.accountId)
     const auto = cfg.automation as any
     const ops: Promise<any>[] = []
 
     if (auto.farm_manage) {
       if (auto.farm_weed && status.needWeed.length) {
-        ops.push(this.weedOut(status.needWeed).then(() => {
+        ops.push(this.weedOut(status.needWeed, requestContext).then(() => {
           actions.push(`除草${status.needWeed.length}`)
           this.stats.recordOperation('weed', status.needWeed.length)
         }).catch(() => {}))
       }
       if (auto.farm_bug && status.needBug.length) {
-        ops.push(this.insecticide(status.needBug).then(() => {
+        ops.push(this.insecticide(status.needBug, requestContext).then(() => {
           actions.push(`除虫${status.needBug.length}`)
           this.stats.recordOperation('bug', status.needBug.length)
         }).catch(() => {}))
       }
       if (auto.farm_water && status.needWater.length) {
-        ops.push(this.waterLand(status.needWater).then(() => {
+        ops.push(this.waterLand(status.needWater, requestContext).then(() => {
           actions.push(`浇水${status.needWater.length}`)
           this.stats.recordOperation('water', status.needWater.length)
         }).catch(() => {}))
@@ -318,10 +320,10 @@ export class FarmActions {
     return parts.join(' ')
   }
 
-  async runFarmOperation(opType: string): Promise<{ hadWork: boolean, actions: string[] }> {
+  async runFarmOperation(opType: string, requestContext?: GameRequestContext): Promise<{ hadWork: boolean, actions: string[] }> {
     let lands = this.options.getCurrentLands()
     if (!lands.length) {
-      const reply = await this.syncLands()
+      const reply = await this.syncLands(requestContext)
       lands = reply?.lands || []
     }
     if (!lands.length)
@@ -331,7 +333,7 @@ export class FarmActions {
     const actions: string[] = []
 
     if (opType === 'all' || opType === 'clear') {
-      const batchOps = this.buildClearOps(status, actions)
+      const batchOps = this.buildClearOps(status, actions, requestContext)
       if (batchOps.length)
         await Promise.all(batchOps)
     }
@@ -340,7 +342,7 @@ export class FarmActions {
     if (opType === 'all' || opType === 'harvest') {
       if (status.harvestable.length) {
         try {
-          await this.harvest(status.harvestable)
+          await this.harvest(status.harvestable, requestContext)
           actions.push(`收获${status.harvestable.length}`)
           this.stats.recordOperation('harvest', status.harvestable.length)
           harvestedIds = [...status.harvestable]
@@ -353,7 +355,7 @@ export class FarmActions {
       const currentLands = this.options.getCurrentLands()
       const multiSeasonGrowing = getMultiSeasonGrowingLandIds(currentLands, this.gameConfig)
       if (multiSeasonGrowing.length > 0)
-        await this.runFertilizerByConfig(multiSeasonGrowing, { reason: 'multi_season' })
+        await this.runFertilizerByConfig(multiSeasonGrowing, { reason: 'multi_season' }, requestContext)
     }
 
     if (opType === 'all' || opType === 'plant') {
@@ -363,7 +365,7 @@ export class FarmActions {
         allDead = [...new Set([...allDead, ...harvestedIds])]
       if (allDead.length || allEmpty.length) {
         try {
-          await this.autoPlantEmptyLands(allDead, allEmpty)
+          await this.autoPlantEmptyLands(allDead, allEmpty, requestContext)
           actions.push(`种植${allDead.length + allEmpty.length}`)
           this.stats.recordOperation('plant', allDead.length + allEmpty.length)
         } catch {}
@@ -375,7 +377,7 @@ export class FarmActions {
       let unlocked = 0
       for (const landId of this.shuffleOrder(status.unlockable)) {
         try {
-          await this.unlockLand(landId)
+          await this.unlockLand(landId, false, requestContext)
           actions.push('解锁1')
           unlocked++
         } catch {}
@@ -386,7 +388,7 @@ export class FarmActions {
       let upgraded = 0
       for (const landId of this.shuffleOrder(status.upgradable)) {
         try {
-          await this.upgradeLand(landId)
+          await this.upgradeLand(landId, requestContext)
           actions.push('升级1')
           this.stats.recordOperation('upgrade', 1)
           upgraded++
@@ -401,13 +403,13 @@ export class FarmActions {
     return { hadWork: actions.length > 0, actions }
   }
 
-  async runSingleLandOperation(payload: { action: string, landId: number, seedId: number }) {
+  async runSingleLandOperation(payload: { action: string, landId: number, seedId: number }, requestContext?: GameRequestContext) {
     const { action, landId, seedId } = payload
     if (!landId || !Number.isFinite(landId))
       throw new Error('无效地块编号')
 
     if (action === 'remove') {
-      await this.removePlant([landId])
+      await this.removePlant([landId], requestContext)
       return { action: 'remove', landId }
     }
 
@@ -421,7 +423,7 @@ export class FarmActions {
       try {
         const { data } = await this.invokeFarmWrite<any>('Plant', {
           items: [{ seed_id: seedId, land_ids: [landId] }]
-        }, 'plant')
+        }, 'plant', requestContext)
         this.options.onLandDelta(data?.land || [])
         return { action: 'plant', landId, seedId, planted: 1 }
       } catch (error) {
@@ -434,7 +436,7 @@ export class FarmActions {
         const { data } = await this.invokeFarmWrite<any>('Fertilize', {
           land_ids: [landId],
           fertilizer_id: ORGANIC_FERTILIZER_ID
-        }, 'fertilize')
+        }, 'fertilize', requestContext)
         this.options.onLandDelta(data?.land || [])
         return { action: 'organic_fertilize', landId, fertilized: 1 }
       } catch (error) {
@@ -445,7 +447,7 @@ export class FarmActions {
     throw new Error(`不支持的单地块操作: ${action || '未知操作'}`)
   }
 
-  async runFertilizerByConfig(plantedLands: number[] = [], options?: { reason?: 'multi_season' | 'normal' }): Promise<{ normal: number, organic: number }> {
+  async runFertilizerByConfig(plantedLands: number[] = [], options?: { reason?: 'multi_season' | 'normal' }, requestContext?: GameRequestContext): Promise<{ normal: number, organic: number }> {
     const cfg = this.store.getAccountConfig(this.accountId)
     const fertilizerConfig = cfg.fertilizer || 'both'
     const landTypes = (cfg.fertilizerLandTypes?.length ? cfg.fertilizerLandTypes : ['gold', 'black', 'red', 'normal']) as string[]
@@ -468,7 +470,7 @@ export class FarmActions {
     candidateIds = candidateIds.filter(id => allowedTypes.has(getLandTypeByLevel(idToLevel.get(id) ?? 0)))
 
     if ((fertilizerConfig === 'normal' || fertilizerConfig === 'both') && candidateIds.length > 0) {
-      fertilizedNormal = await this.fertilize(candidateIds, NORMAL_FERTILIZER_ID)
+      fertilizedNormal = await this.fertilize(candidateIds, NORMAL_FERTILIZER_ID, requestContext)
       if (fertilizedNormal > 0) {
         this.log(`已为 ${fertilizedNormal}/${candidateIds.length} 块地施无机化肥`, eventTag)
         this.stats.recordOperation('fertilize', fertilizedNormal)
@@ -482,7 +484,7 @@ export class FarmActions {
         return !!phase && toNum(phase?.phase) !== PlantPhase.MATURE && toNum(phase?.phase) !== PlantPhase.DEAD
       })
       if (organicCandidates.length > 0) {
-        fertilizedOrganic = await this.fertilize(organicCandidates, ORGANIC_FERTILIZER_ID)
+        fertilizedOrganic = await this.fertilize(organicCandidates, ORGANIC_FERTILIZER_ID, requestContext)
         if (fertilizedOrganic > 0) {
           this.log(`已为 ${fertilizedOrganic}/${organicCandidates.length} 块地施有机化肥`, eventTag)
           this.stats.recordOperation('fertilize', fertilizedOrganic)
@@ -493,11 +495,11 @@ export class FarmActions {
     return { normal: fertilizedNormal, organic: fertilizedOrganic }
   }
 
-  private async autoPlantEmptyLands(deadLandIds: number[], emptyLandIds: number[]) {
+  private async autoPlantEmptyLands(deadLandIds: number[], emptyLandIds: number[], requestContext?: GameRequestContext) {
     let landsToPlant = [...emptyLandIds]
     if (deadLandIds.length) {
       try {
-        await this.removePlant(deadLandIds)
+        await this.removePlant(deadLandIds, requestContext)
         landsToPlant.push(...deadLandIds)
       } catch {
         landsToPlant.push(...deadLandIds)
@@ -508,12 +510,12 @@ export class FarmActions {
 
     const strategy = this.store.getPlantingStrategy(this.accountId)
     if (strategy === 'bag_priority') {
-      const plantedByBag = await this.plantFromBagSeeds(landsToPlant)
+      const plantedByBag = await this.plantFromBagSeeds(landsToPlant, requestContext)
       if (plantedByBag)
         return
     }
 
-    const bestSeed = await this.findBestSeed()
+    const bestSeed = await this.findBestSeed(requestContext)
     if (!bestSeed)
       return
 
@@ -536,7 +538,7 @@ export class FarmActions {
 
     let actualSeedId = bestSeed.seedId
     try {
-      const buyReply = await this.buyGoods(bestSeed.goodsId, needCount, bestSeed.price)
+      const buyReply = await this.buyGoods(bestSeed.goodsId, needCount, bestSeed.price, requestContext)
       const seedName = this.gameConfig.getPlantNameBySeedId(bestSeed.seedId)
       this.log(`购买 ${seedName} x${needCount}，花费 ${bestSeed.price * needCount} 金币`, 'seed_buy')
       if (buyReply?.get_items?.[0])
@@ -545,9 +547,9 @@ export class FarmActions {
       return
     }
 
-    const { planted, plantedLandIds } = await this.plantSeeds(actualSeedId, landsToPlant, { maxPlantCount: needCount })
+    const { planted, plantedLandIds } = await this.plantSeeds(actualSeedId, landsToPlant, { maxPlantCount: needCount }, requestContext)
     if (planted > 0)
-      await this.runFertilizerByConfig(plantedLandIds)
+      await this.runFertilizerByConfig(plantedLandIds, undefined, requestContext)
   }
 
   private sortBagSeedsByPriority<T extends { seedId: number, requiredLevel: number }>(bagSeeds: T[], priority: number[]): T[] {
@@ -564,7 +566,7 @@ export class FarmActions {
     })
   }
 
-  private async plantFromBagSeeds(landsToPlant: number[]): Promise<boolean> {
+  private async plantFromBagSeeds(landsToPlant: number[], requestContext?: GameRequestContext): Promise<boolean> {
     const seeds = this.options.getBagSeeds()
     if (!seeds?.length)
       return false
@@ -580,10 +582,10 @@ export class FarmActions {
       return false
 
     try {
-      const { planted, plantedLandIds } = await this.plantSeeds(available.seedId, landsToPlant.slice(0, needCount), { maxPlantCount: needCount })
+      const { planted, plantedLandIds } = await this.plantSeeds(available.seedId, landsToPlant.slice(0, needCount), { maxPlantCount: needCount }, requestContext)
       if (planted <= 0)
         return false
-      await this.runFertilizerByConfig(plantedLandIds)
+      await this.runFertilizerByConfig(plantedLandIds, undefined, requestContext)
       this.stats.recordOperation('plant', planted)
       return true
     } catch {
@@ -591,8 +593,8 @@ export class FarmActions {
     }
   }
 
-  private async findBestSeed(): Promise<{ goodsId: number, seedId: number, price: number, requiredLevel: number } | null> {
-    const shopReply = await this.getShopInfo(2)
+  private async findBestSeed(requestContext?: GameRequestContext): Promise<{ goodsId: number, seedId: number, price: number, requiredLevel: number } | null> {
+    const shopReply = await this.getShopInfo(2, requestContext)
     if (!shopReply?.goods_list?.length)
       return null
 

@@ -62,7 +62,7 @@ function formatLogTime(timeStr: string): string {
   const parts = timeStr.split(' ')
   return (parts.length > 1 ? parts[1] : timeStr) ?? ''
 }
-
+  
 function onLogScroll(e: Event) {
   const el = e.target as HTMLElement
   if (!el)

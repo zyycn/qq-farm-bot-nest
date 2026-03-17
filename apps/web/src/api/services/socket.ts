@@ -4,7 +4,7 @@ import { createRequest } from '@qq-farm/shared'
 import { io } from 'socket.io-client'
 import { ref } from 'vue'
 
-const REQUEST_TIMEOUT_MS = 30_000
+const REQUEST_TIMEOUT_MS = 60_000
 
 interface PendingRequest {
   resolve: (value: unknown) => void

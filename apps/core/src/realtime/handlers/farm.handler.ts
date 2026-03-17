@@ -6,16 +6,18 @@ import { WsRoute } from '../decorators/ws-route.decorator'
 
 @Injectable()
 export class FarmHandler {
+  private static readonly INTERACTIVE_REQUEST = { requestSource: 'interactive' as const }
+
   constructor(private readonly registry: AccountRegistryService) {}
 
   @WsRoute('seeds.query')
   querySeeds(@WsAccount() accountId: string): unknown {
-    return this.registry.getRunnerOrThrow(accountId).getSeeds()
+    return this.registry.getRunnerOrThrow(accountId).getSeeds(FarmHandler.INTERACTIVE_REQUEST)
   }
 
   @WsRoute('bagSeeds.query')
   queryBagSeeds(@WsAccount() accountId: string): unknown {
-    return this.registry.getRunnerOrThrow(accountId).getBagSeeds()
+    return this.registry.getRunnerOrThrow(accountId).getBagSeeds(FarmHandler.INTERACTIVE_REQUEST)
   }
 
   @WsRoute('farm.execute')
@@ -23,7 +25,7 @@ export class FarmHandler {
     @WsAccount() accountId: string,
     @WsBody() data: Record<string, unknown>
   ): Promise<unknown> {
-    return this.registry.getRunnerOrThrow(accountId).doFarmOp(String(data?.opType ?? ''))
+    return this.registry.getRunnerOrThrow(accountId).doFarmOp(String(data?.opType ?? ''), FarmHandler.INTERACTIVE_REQUEST)
   }
 
   @WsRoute('farm.singleLandOp')
@@ -35,6 +37,6 @@ export class FarmHandler {
       action: String(data?.action ?? '').trim().toLowerCase(),
       landId: Number(data?.landId) || 0,
       seedId: Number(data?.seedId) || 0
-    })
+    }, FarmHandler.INTERACTIVE_REQUEST)
   }
 }

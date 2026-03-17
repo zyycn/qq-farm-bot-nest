@@ -1,5 +1,7 @@
 import type { GameConfigService } from '../../game-config.service'
 import type { IGameTransport } from '../../interfaces/game-transport.interface'
+import type { GameRequestContext } from '../../interfaces/request-context.interface'
+import { resolveRequestSource } from '../../interfaces/request-context.interface'
 import { toNum, toTimeSec } from '../../utils'
 
 export interface FriendInteractRecord {
@@ -37,7 +39,7 @@ export class FriendInteractHandler {
     private readonly warn: (msg: string, event?: string) => void
   ) {}
 
-  private invokeInteractRead<T = unknown>(serviceName: string, methodName: string, timeout?: number) {
+  private invokeInteractRead<T = unknown>(serviceName: string, methodName: string, timeout?: number, requestContext?: GameRequestContext) {
     return this.client.invokeWithPolicy<T>({
       service: serviceName,
       method: methodName,
@@ -46,16 +48,16 @@ export class FriendInteractHandler {
       policy: {
         category: 'friend_visit',
         risk: 'low',
-        source: 'business'
+        source: resolveRequestSource(requestContext)
       }
     })
   }
 
-  async getInteractRecords(): Promise<FriendInteractRecord[]> {
+  async getInteractRecords(requestContext?: GameRequestContext): Promise<FriendInteractRecord[]> {
     const errors: string[] = []
     for (const [serviceName, methodName] of this.interactRpcCandidates) {
       try {
-        const { data: reply } = await this.invokeInteractRead<any>(serviceName, methodName, 2500)
+        const { data: reply } = await this.invokeInteractRead<any>(serviceName, methodName, 2500, requestContext)
         const records = Array.isArray(reply?.records) ? reply.records : []
         return records
           .map((record, index) => this.normalizeInteractRecord(record, index))
