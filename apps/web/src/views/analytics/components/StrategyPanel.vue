@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AnalyticsCropRow } from '@/api/types'
+import type { AnalyticsCropRow } from '@/api/modules/analytics'
 import { useMediaQuery } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'

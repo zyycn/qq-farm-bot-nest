@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FarmLand } from '@/api/types'
+import type { FarmLand } from '@/api/modules/farm'
 import { computed } from 'vue'
 import QqAvatar from '@/components/QqAvatar.vue'
 import { OP_BUTTONS } from '../constants'

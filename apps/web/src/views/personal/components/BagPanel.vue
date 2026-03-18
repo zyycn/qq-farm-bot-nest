@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BagItem } from '@/api/types'
+import type { BagItem } from '@/api/modules/inventory'
 import { ref } from 'vue'
 import EmptyState from '@/components/EmptyState.vue'
 

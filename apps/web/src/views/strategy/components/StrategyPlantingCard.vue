@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { AnalyticsCropRow, SeedOption } from '@/api/types'
+import type { AnalyticsCropRow } from '@/api/modules/analytics'
+import type { SeedOption } from '@/api/modules/farm'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch, watchEffect } from 'vue'
 import { analyticsApi, farmApi } from '@/api'

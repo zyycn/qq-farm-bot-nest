@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { SeedOption } from '@/api/types'
+import type { SeedOption } from '@/api/modules/farm'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { shopApi } from '@/api'

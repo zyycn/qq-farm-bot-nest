@@ -5,7 +5,7 @@ import type {
   IntervalsConfig,
   StrategySettings,
   StrategySettingsPatch
-} from '@/api/types'
+} from '@/api/modules/strategy'
 import { defineStore } from 'pinia'
 import { strategyApi } from '@/api'
 import { AUTOMATION_DEFAULTS, DEFAULT_FRIEND_QUIET_HOURS, DEFAULT_INTERVALS } from '../constants'

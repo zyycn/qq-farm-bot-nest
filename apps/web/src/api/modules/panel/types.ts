@@ -16,10 +16,12 @@ export interface PanelState {
   ui: UIConfig
   offlineReminder: OfflineReminderConfig
   remoteLoginKey: string
+  defaultDeviceProfileId?: string | null
 }
 
 export interface PanelStatePatch {
   ui?: Partial<UIConfig>
   offlineReminder?: Partial<OfflineReminderConfig>
   remoteLoginKey?: string
+  defaultDeviceProfileId?: string | null
 }

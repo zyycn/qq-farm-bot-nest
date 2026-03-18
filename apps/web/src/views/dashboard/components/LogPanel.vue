@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { LogEntry, LogQueryOptions } from '@/api/types'
+import type { LogEntry, LogQueryOptions } from '@/api/modules/logs'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { EVENTS, LOG_LEVELS, MODULES } from '../constants'

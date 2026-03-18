@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DailyGift } from '@/api/types'
+import type { DailyGift } from '@/api/modules/status'
 import EmptyState from '@/components/EmptyState.vue'
 
 defineProps<{

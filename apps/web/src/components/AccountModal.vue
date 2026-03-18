@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AccountMutationPayload, QrCheckResponse, QrCreateResponse } from '@/api/types'
+import type { AccountMutationPayload, QrCheckResponse, QrCreateResponse } from '@/api/modules/account'
 import type { Account } from '@/stores'
 import { useIntervalFn } from '@vueuse/core'
 import { computed, reactive, ref, watch } from 'vue'

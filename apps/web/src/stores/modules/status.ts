@@ -5,7 +5,7 @@ import type {
   StatusConnectionPayload,
   StatusSchedulePayload,
   StatusUpdatePayload
-} from '@/api/types'
+} from '@/api/modules/status'
 import { defineStore } from 'pinia'
 import { socket } from '@/api'
 import { LOGS_MAX_LENGTH } from '../constants'

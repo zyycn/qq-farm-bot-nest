@@ -6,7 +6,7 @@ import type {
   ResolvedDeviceSelection,
   StoredDeviceProfile,
   UpdateDeviceProfilePayload
-} from '@/api/types'
+} from '@/api/modules/device'
 import { defineStore } from 'pinia'
 import * as deviceApi from '../../api/modules/device'
 

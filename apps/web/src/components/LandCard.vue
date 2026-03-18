@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FarmLand } from '@/api/types'
+import type { FarmLand } from '@/api/modules/farm'
 import { computed } from 'vue'
 
 const props = defineProps<{

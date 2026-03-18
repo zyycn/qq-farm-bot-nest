@@ -1,5 +1,3 @@
-import { socket } from '../services/socket'
-
 export type AlmanacCategory = 'normal' | 'treasure' | 'unknown'
 
 export interface AlmanacRewardItem {
@@ -68,12 +66,4 @@ export interface AlmanacClaimResult {
   items: AlmanacRewardItem[]
   bonusItems: AlmanacRewardItem[]
   summaryText: string
-}
-
-export function query(refresh = false): Promise<AlmanacOverview> {
-  return socket.request('almanac.query', { refresh })
-}
-
-export function claimRewards(): Promise<AlmanacClaimResult> {
-  return socket.request('almanac.claimRewards')
 }

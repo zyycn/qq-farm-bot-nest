@@ -1,4 +1,4 @@
-import type { LogEntry } from './logs'
+import type { LogEntry } from '../logs/types'
 
 export interface DailyGiftTask {
   desc?: string

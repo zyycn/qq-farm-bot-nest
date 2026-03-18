@@ -1,4 +1,4 @@
-import type { AnalyticsCropRow } from '@/api/types'
+import type { AnalyticsCropRow } from '@/api/modules/analytics'
 import { defineStore } from 'pinia'
 
 export const useAnalyticsStore = defineStore('analytics', {

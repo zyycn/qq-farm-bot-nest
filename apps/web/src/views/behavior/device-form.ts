@@ -4,7 +4,7 @@ import type {
   DeviceProfileInput,
   StoredDeviceProfile,
   UpdateDeviceProfilePayload
-} from '@/api/types'
+} from '@/api/modules/device'
 
 export interface DeviceFormState extends DeviceProfileInput {
   name: string

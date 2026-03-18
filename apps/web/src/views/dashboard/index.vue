@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { BagItem, LogQueryOptions } from '@/api/types'
+import type { BagItem } from '@/api/modules/inventory'
+import type { LogQueryOptions } from '@/api/modules/logs'
 import { useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, reactive, ref, watch } from 'vue'

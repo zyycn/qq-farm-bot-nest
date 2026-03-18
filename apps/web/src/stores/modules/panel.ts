@@ -1,4 +1,4 @@
-import type { PanelState, PanelStatePatch } from '@/api/types'
+import type { PanelState, PanelStatePatch } from '@/api/modules/panel'
 import { defineStore } from 'pinia'
 import { authApi, panelApi } from '@/api'
 import { DEFAULT_OFFLINE_REMINDER } from '../constants'

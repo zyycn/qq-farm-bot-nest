@@ -1,7 +1,9 @@
-import type { FriendInteractRecord, FriendLandDetailResponse } from '../types'
-import { socket } from '../services/socket'
+import type * as Friend from './types'
+import { socket } from '../../services/socket'
 
-export function getLands(gid: number): Promise<FriendLandDetailResponse> {
+export type * from './types'
+
+export function getLands(gid: number): Promise<Friend.FriendLandDetailResponse> {
   return socket.request('friends.lands', { gid })
 }
 
@@ -13,6 +15,6 @@ export function toggleBlacklist(gid: number): Promise<number[]> {
   return socket.request('friends.toggleBlacklist', { gid })
 }
 
-export function getInteractRecords(): Promise<FriendInteractRecord[]> {
+export function getInteractRecords(): Promise<Friend.FriendInteractRecord[]> {
   return socket.request('friends.interactRecords')
 }

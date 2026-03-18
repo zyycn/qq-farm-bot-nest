@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { StoredDeviceProfile } from '@/api/types'
+import type { StoredDeviceProfile } from '@/api/modules/device'
 import { computed } from 'vue'
 
 const props = defineProps<{

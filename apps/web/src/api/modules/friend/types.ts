@@ -1,4 +1,4 @@
-import type { FarmLand } from './farm'
+import type { FarmLand } from '../farm/types'
 
 export interface FriendPlantSummary {
   stealNum: number

@@ -1,3 +1,19 @@
+export interface AccountItem {
+  id: string
+  name: string
+  nick?: string
+  uin?: number | string
+  platform?: string
+  avatar?: string
+  running?: boolean
+  connected?: boolean
+  wsError?: unknown
+}
+
+export interface AccountsSnapshot {
+  accounts: AccountItem[]
+}
+
 export interface QrCreateResponse {
   image?: string
   code: string

@@ -1,4 +1,4 @@
-import type { FarmLand, FarmLandsResponse, FarmSummary, SeedOption, SingleLandOperationPayload } from '@/api/types'
+import type { FarmLand, FarmLandsResponse, FarmSummary, SeedOption, SingleLandOperationPayload } from '@/api/modules/farm'
 import { defineStore } from 'pinia'
 import { farmApi } from '@/api'
 

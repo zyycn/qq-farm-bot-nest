@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ModalProps } from 'antdv-next'
 import type { DeviceEditSubmitPayload } from '../device-form'
-import type { DevicePreset, StoredDeviceProfile } from '@/api/types'
+import type { DevicePreset, StoredDeviceProfile } from '@/api/modules/device'
 import { computed, reactive, watch } from 'vue'
 import {
   applyPresetToDeviceForm,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AnalyticsCropRow, AnalyticsSortKey } from '@/api/types'
+import type { AnalyticsCropRow, AnalyticsSortKey } from '@/api/modules/analytics'
 import { computed, ref, watch } from 'vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { COLUMNS, HIGHLIGHT_COLOR_MAP } from '../constants'

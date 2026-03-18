@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { DeviceEditSubmitPayload } from '../device-form'
-import type { DevicePreset, ResolvedDeviceSelection, StoredDeviceProfile } from '@/api/types'
+import type { DevicePreset, ResolvedDeviceSelection, StoredDeviceProfile } from '@/api/modules/device'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useDeviceStore } from '@/stores'

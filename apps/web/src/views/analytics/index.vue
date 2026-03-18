@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AnalyticsCropRow, AnalyticsSortKey } from '@/api/types'
+import type { AnalyticsCropRow, AnalyticsSortKey } from '@/api/modules/analytics'
 import { useResizeObserver } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'

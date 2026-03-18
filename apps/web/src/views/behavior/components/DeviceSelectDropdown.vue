@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DeviceSelectionOption } from '@/api/types'
+import type { DeviceSelectionOption } from '@/api/modules/device'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
 import { useDeviceStore } from '@/stores'

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { InteractFilterKey } from './constants'
-import type { FriendPlantSummary } from '@/api/types'
+import type { FriendPlantSummary } from '@/api/modules/friend'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import ConfirmModal from '@/components/ConfirmModal.vue'

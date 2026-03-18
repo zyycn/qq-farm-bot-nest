@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DevicePreset } from '@/api/types'
+import type { DevicePreset } from '@/api/modules/device'
 
 defineProps<{
   preset: DevicePreset

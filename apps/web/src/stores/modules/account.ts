@@ -1,4 +1,4 @@
-import type { AccountMutationPayload } from '@/api/types'
+import type { AccountMutationPayload } from '@/api/modules/account'
 import { defineStore } from 'pinia'
 import { accountApi } from '@/api'
 

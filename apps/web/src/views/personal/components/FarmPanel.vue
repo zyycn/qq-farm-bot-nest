@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { MenuItemType } from 'antdv-next'
 import type { SingleLandAction } from '../constants'
-import type { FarmLand, FarmSummary } from '@/api/types'
+import type { FarmLand, FarmSummary } from '@/api/modules/farm'
 import { storeToRefs } from 'pinia'
 import { h, ref } from 'vue'
 import EmptyState from '@/components/EmptyState.vue'

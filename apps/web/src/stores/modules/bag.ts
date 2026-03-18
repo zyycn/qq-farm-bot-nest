@@ -1,4 +1,4 @@
-import type { BagItem } from '@/api/types'
+import type { BagItem } from '@/api/modules/inventory'
 import { defineStore } from 'pinia'
 import { BAG_DASHBOARD_ITEM_IDS, BAG_HIDDEN_ITEM_IDS } from '../constants'
 

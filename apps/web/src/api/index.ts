@@ -12,4 +12,5 @@ export * as shopApi from './modules/shop'
 export * as statusApi from './modules/status'
 export * as strategyApi from './modules/strategy'
 export * as warehouseApi from './modules/warehouse'
+
 export { socket } from './services/socket'

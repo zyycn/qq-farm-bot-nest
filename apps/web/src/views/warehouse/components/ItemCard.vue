@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BagItem } from '@/api/types'
+import type { BagItem } from '@/api/modules/inventory'
 
 defineProps<{
   item: BagItem

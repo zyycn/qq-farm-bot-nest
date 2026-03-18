@@ -1,5 +1,5 @@
 import type { Store } from 'pinia'
-import type { OfflineReminderConfig, UIConfig } from '@/api/types'
+import type { OfflineReminderConfig, UIConfig } from '@/api/modules/panel'
 import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 

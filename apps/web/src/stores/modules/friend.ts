@@ -1,4 +1,5 @@
-import type { FarmLand, FriendInteractRecord, FriendLandDetailResponse, FriendLandSummary, FriendPlantSummary } from '@/api/types'
+import type { FarmLand } from '@/api/modules/farm'
+import type { FriendInteractRecord, FriendLandDetailResponse, FriendLandSummary, FriendPlantSummary } from '@/api/modules/friend'
 import { defineStore } from 'pinia'
 import { friendApi } from '@/api'
 

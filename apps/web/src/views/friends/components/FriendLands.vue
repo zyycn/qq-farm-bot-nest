@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FarmLand } from '@/api/types'
+import type { FarmLand } from '@/api/modules/farm'
 import EmptyState from '@/components/EmptyState.vue'
 import LandCard from '@/components/LandCard.vue'
 
