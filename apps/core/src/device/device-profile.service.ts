@@ -4,14 +4,18 @@ import { Inject, Injectable } from '@nestjs/common'
 import { eq } from 'drizzle-orm'
 import { DRIZZLE_TOKEN } from '../database/drizzle.provider'
 import { deviceProfiles } from '../database/schema'
-import { StoreService } from '../store/store.service'
+import { AccountConfigService } from '../store/account-config.service'
+import { AccountRepository } from '../store/account-repository'
+import { GlobalConfigService } from '../store/global-config.service'
 import { DEVICE_PRESETS } from './device-presets'
 
 @Injectable()
 export class DeviceProfileService {
   constructor(
     @Inject(DRIZZLE_TOKEN) private db: DrizzleDB,
-    private readonly store: StoreService
+    private readonly accountRepo: AccountRepository,
+    private readonly accountConfig: AccountConfigService,
+    private readonly globalConfig: GlobalConfigService
   ) {}
 
   /** 获取所有内置预设 */
@@ -56,7 +60,7 @@ export class DeviceProfileService {
 
   getAffectedAccountIdsForProfileUpdate(id: string): string[] {
     const affected = new Set(this.getAccountIdsUsingProfile(id))
-    if (this.store.getDefaultDeviceProfileId() === id) {
+    if (this.globalConfig.getDefaultDeviceProfileId() === id) {
       for (const accountId of this.getAccountIdsFollowingDefaultDevice())
         affected.add(accountId)
     }
@@ -64,28 +68,28 @@ export class DeviceProfileService {
   }
 
   getAccountIdsFollowingDefaultDevice(): string[] {
-    return this.store.getAllAccounts()
+    return this.accountRepo.getAllAccounts()
       .map(account => String(account.id))
-      .filter(accountId => !this.store.getAccountConfig(accountId).deviceProfileId)
+      .filter(accountId => !this.accountConfig.getAccountConfig(accountId).deviceProfileId)
   }
 
   /** 删除自定义设备配置 */
   delete(id: string): string[] {
-    const wasDefault = this.store.getDefaultDeviceProfileId() === id
+    const wasDefault = this.globalConfig.getDefaultDeviceProfileId() === id
     const affected = new Set(this.getAffectedAccountIdsForProfileUpdate(id))
 
     this.db.delete(deviceProfiles).where(eq(deviceProfiles.id, id)).run()
     if (wasDefault)
-      this.store.setDefaultDeviceProfileId(null)
+      this.globalConfig.setDefaultDeviceProfileId(null)
 
     for (const accountId of this.getAccountIdsUsingProfile(id))
-      this.store.setAccountConfig(accountId, { deviceProfileId: null })
+      this.accountConfig.setAccountConfig(accountId, { deviceProfileId: null })
 
     return [...affected]
   }
 
   getDefaultProfileId(): string | null {
-    const selected = this.store.getDefaultDeviceProfileId()
+    const selected = this.globalConfig.getDefaultDeviceProfileId()
     return this.isKnownProfileRef(selected) ? selected : null
   }
 
@@ -93,7 +97,7 @@ export class DeviceProfileService {
     const normalized = String(deviceProfileId ?? '').trim() || null
     if (normalized && !this.isKnownProfileRef(normalized))
       throw new Error('默认设备配置标识无效')
-    return this.store.setDefaultDeviceProfileId(normalized)
+    return this.globalConfig.setDefaultDeviceProfileId(normalized)
   }
 
   private isKnownProfileRef(deviceProfileId: string | null | undefined): boolean {
@@ -106,8 +110,8 @@ export class DeviceProfileService {
   }
 
   private getAccountIdsUsingProfile(deviceProfileId: string): string[] {
-    return this.store.getAllAccounts()
+    return this.accountRepo.getAllAccounts()
       .map(account => String(account.id))
-      .filter(accountId => this.store.getAccountConfig(accountId).deviceProfileId === deviceProfileId)
+      .filter(accountId => this.accountConfig.getAccountConfig(accountId).deviceProfileId === deviceProfileId)
   }
 }

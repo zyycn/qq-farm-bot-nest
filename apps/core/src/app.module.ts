@@ -11,7 +11,6 @@ import { ASSETS_DIR, resolveWebDist } from './config/paths'
 import { DatabaseModule } from './database/database.module'
 import { DeviceModule } from './device/device.module'
 import { GameModule } from './game/game.module'
-import { QrModule } from './qr/qr.module'
 import { RealtimeModule } from './realtime/realtime.module'
 import { StoreModule } from './store/store.module'
 import { TransportModule } from './transport/transport.module'
@@ -60,7 +59,6 @@ const serveStaticModules = [
     DeviceModule,
     AccountModule,
     AuthModule,
-    QrModule,
     RealtimeModule
   ]
 })

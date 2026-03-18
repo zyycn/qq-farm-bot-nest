@@ -16,13 +16,11 @@ export type RequestCategory
     | 'activity_report'
     | 'generic'
 
-export type RequestRisk = 'low' | 'medium' | 'high'
 export type RequestSource = 'business' | 'bootstrap' | 'background' | 'system' | 'interactive'
 export type RequestQueue = 'system' | 'interactive' | 'automation' | 'script'
 
 export interface RequestPolicy {
   category: RequestCategory
-  risk: RequestRisk
   source: RequestSource
   batchKey?: string
   immediate?: boolean

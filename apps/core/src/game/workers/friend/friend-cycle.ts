@@ -1,4 +1,4 @@
-import type { StoreService } from '../../../store/store.service'
+import type { AccountConfigService } from '../../../store/account-config.service'
 import type { GameConfigService } from '../../game-config.service'
 import type { FriendLandAnalysis } from './friend-land-analysis'
 import { RE_TIME_HH_MM } from '../../utils'
@@ -6,7 +6,7 @@ import { buildFriendVisitCandidates } from './friend-list'
 
 export interface FriendCycleHandlerDeps {
   accountId: string
-  store: StoreService
+  accountConfig: AccountConfigService
   gameConfig: GameConfigService
   getMyGid: () => number
   getAllFriends: () => Promise<any>
@@ -32,7 +32,7 @@ export class FriendCycleHandler {
   constructor(private readonly deps: FriendCycleHandlerDeps) {}
 
   inFriendQuietHours(): boolean {
-    const cfg = this.deps.store.getFriendQuietHours(this.deps.accountId)
+    const cfg = this.deps.accountConfig.getFriendQuietHours(this.deps.accountId)
     if (!cfg?.enabled)
       return false
     const parseTime = (s: string) => {
@@ -71,7 +71,7 @@ export class FriendCycleHandler {
 
     const status = this.deps.analyzeFriendLands(lands, this.deps.getMyGid())
 
-    const stealBlacklist = new Set(this.deps.store.getStealCropBlacklist(this.deps.accountId))
+    const stealBlacklist = new Set(this.deps.accountConfig.getStealCropBlacklist(this.deps.accountId))
     if (stealBlacklist.size > 0) {
       status.stealableInfo = status.stealableInfo.filter((info: any) => {
         const plant = this.deps.gameConfig.getPlantById(info.plantId)
@@ -83,8 +83,8 @@ export class FriendCycleHandler {
     }
 
     const actions: string[] = []
-    const helpEnabled = this.deps.store.isAutomationOn('friend_help', this.deps.accountId)
-    const stopWhenExpLimit = this.deps.store.isAutomationOn('friend_help_exp_limit', this.deps.accountId)
+    const helpEnabled = this.deps.accountConfig.isAutomationOn('friend_help', this.deps.accountId)
+    const stopWhenExpLimit = this.deps.accountConfig.isAutomationOn('friend_help_exp_limit', this.deps.accountId)
     if (!stopWhenExpLimit)
       this.deps.setCanGetHelpExp(true)
 
@@ -93,12 +93,12 @@ export class FriendCycleHandler {
       actions.push(...helpActions)
     }
 
-    if (this.deps.store.isAutomationOn('friend_steal', this.deps.accountId) && status.stealable.length > 0) {
+    if (this.deps.accountConfig.isAutomationOn('friend_steal', this.deps.accountId) && status.stealable.length > 0) {
       const stealActions = await this.deps.executeStealOps(gid, status, totalActions)
       actions.push(...stealActions)
     }
 
-    if (this.deps.store.isAutomationOn('friend_bad', this.deps.accountId)) {
+    if (this.deps.accountConfig.isAutomationOn('friend_bad', this.deps.accountId)) {
       const badActions = await this.deps.executeBadOps(gid, status, totalActions)
       actions.push(...badActions)
     }
@@ -109,11 +109,11 @@ export class FriendCycleHandler {
   }
 
   async checkFriends(): Promise<boolean> {
-    if (!this.deps.store.isAutomationOn('friend', this.deps.accountId))
+    if (!this.deps.accountConfig.isAutomationOn('friend', this.deps.accountId))
       return false
-    const helpOn = this.deps.store.isAutomationOn('friend_help', this.deps.accountId)
-    const stealOn = this.deps.store.isAutomationOn('friend_steal', this.deps.accountId)
-    const badOn = this.deps.store.isAutomationOn('friend_bad', this.deps.accountId)
+    const helpOn = this.deps.accountConfig.isAutomationOn('friend_help', this.deps.accountId)
+    const stealOn = this.deps.accountConfig.isAutomationOn('friend_steal', this.deps.accountId)
+    const badOn = this.deps.accountConfig.isAutomationOn('friend_bad', this.deps.accountId)
     if (!this.deps.getMyGid() || !(helpOn || stealOn || badOn))
       return false
     if (this.inFriendQuietHours())
@@ -130,7 +130,7 @@ export class FriendCycleHandler {
       }
 
       const myGid = this.deps.getMyGid()
-      const blacklist = new Set(this.deps.store.getFriendBlacklist(this.deps.accountId))
+      const blacklist = new Set(this.deps.accountConfig.getFriendBlacklist(this.deps.accountId))
       const canPutBugOrWeed = this.deps.canOperate(10004) || this.deps.canOperate(10003)
       const { priority, others } = buildFriendVisitCandidates(friends, {
         myGid,

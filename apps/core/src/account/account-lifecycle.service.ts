@@ -4,7 +4,8 @@ import type { RunningAccount } from './account-registry.service'
 import { Injectable, Logger } from '@nestjs/common'
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter'
 import { GameLogService } from '../game/game-log.service'
-import { StoreService } from '../store/store.service'
+import { AccountConfigService } from '../store/account-config.service'
+import { AccountRepository } from '../store/account-repository'
 import { LinkClientService } from '../transport/link-client.service'
 import { AccountLifecycleLinkOps } from './account-lifecycle-link'
 import { AccountRegistryService } from './account-registry.service'
@@ -20,7 +21,8 @@ export class AccountLifecycleService implements OnModuleInit, OnModuleDestroy {
   private readonly linkOps: AccountLifecycleLinkOps
 
   constructor(
-    private readonly store: StoreService,
+    private readonly accountRepo: AccountRepository,
+    private readonly accountConfig: AccountConfigService,
     private readonly gameLog: GameLogService,
     private readonly registry: AccountRegistryService,
     private readonly linkClient: LinkClientService,
@@ -29,7 +31,7 @@ export class AccountLifecycleService implements OnModuleInit, OnModuleDestroy {
   ) {
     this.linkOps = new AccountLifecycleLinkOps({
       logger: this.logger,
-      store: this.store,
+      accountRepo: this.accountRepo,
       gameLog: this.gameLog,
       registry: this.registry,
       linkClient: this.linkClient,
@@ -39,12 +41,12 @@ export class AccountLifecycleService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit() {
-    const autoStartIds = this.store.getAllAccounts()
+    const autoStartIds = this.accountRepo.getAllAccounts()
       .filter(account => !!account?.code && !!account?.running)
       .map(account => String(account.id))
 
-    for (const account of this.store.getAllAccounts())
-      this.store.setAccountRunning(String(account.id), false)
+    for (const account of this.accountRepo.getAllAccounts())
+      this.accountRepo.setAccountRunning(String(account.id), false)
 
     for (const accountId of autoStartIds) {
       try {
@@ -89,7 +91,7 @@ export class AccountLifecycleService implements OnModuleInit, OnModuleDestroy {
       this.registry.unregister(id)
     }
 
-    const account = this.store.getAccountById(id)
+    const account = this.accountRepo.getAccountById(id)
     if (!account?.code || String(account.code).trim() === '')
       return false
 
@@ -122,12 +124,12 @@ export class AccountLifecycleService implements OnModuleInit, OnModuleDestroy {
     }
 
     this.registry.register(id, record)
-    this.store.setAccountRunning(id, true)
+    this.accountRepo.setAccountRunning(id, true)
 
     runner.start(this.runnerFactory.createStartConfig(id, account)).catch((error: any) => {
       this.logger.error(`账号 ${account.name || id} 启动失败: ${error?.message || error}`)
       this.registry.unregister(id)
-      this.store.setAccountRunning(id, false)
+      this.accountRepo.setAccountRunning(id, false)
       this.eventEmitter.emit(ACCOUNT_STOPPED_EVENT, { accountId: id, accountName: account.name || '' })
     })
 
@@ -145,7 +147,7 @@ export class AccountLifecycleService implements OnModuleInit, OnModuleDestroy {
     const accountName = record.name
     await record.runner.stop()
     this.registry.unregister(id)
-    this.store.setAccountRunning(id, false)
+    this.accountRepo.setAccountRunning(id, false)
     this.gameLog.addAccountLog('stop', `停止账号: ${accountName}`, id, accountName)
     this.eventEmitter.emit(ACCOUNT_STOPPED_EVENT, { accountId: id, accountName })
     await this.syncGhostConnections()
@@ -195,7 +197,7 @@ export class AccountLifecycleService implements OnModuleInit, OnModuleDestroy {
     const ref = String(rawRef ?? '').trim()
     if (!ref)
       return ''
-    const found = this.store.getAllAccounts().find(account =>
+    const found = this.accountRepo.getAllAccounts().find(account =>
       String(account?.id) === ref
       || String(account?.uin) === ref
       || String(account?.qq) === ref
@@ -218,7 +220,7 @@ export class AccountLifecycleService implements OnModuleInit, OnModuleDestroy {
 
     const revision = Date.now()
     runner.applyConfig({
-      ...this.store.getConfigSnapshot(accountId),
+      ...this.accountConfig.getConfigSnapshot(accountId),
       __revision: revision
     })
   }

@@ -1,4 +1,4 @@
-import type { DailyRoutineRunOptions } from './account-runner-ticks'
+import type { DailyRoutineRunOptions } from './account-runner'
 import { Scheduler } from '@qq-farm/shared'
 
 export interface DailyRoutineCallbacks {

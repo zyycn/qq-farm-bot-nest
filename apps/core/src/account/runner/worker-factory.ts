@@ -1,6 +1,6 @@
 import type { GameConfigService } from '../../game/game-config.service'
 import type { GameLogEntry } from '../../game/types'
-import type { StoreService } from '../../store/store.service'
+import type { AccountConfigService } from '../../store/account-config.service'
 import type { IGameTransport } from '../../transport/interfaces/game-transport.interface'
 import { GameSession } from '../../game/session/game-session'
 import { AnalyticsWorker } from '../../game/workers/analytics.worker'
@@ -26,7 +26,7 @@ export interface WorkerFactoryDeps {
   accountId: string
   transport: IGameTransport
   gameConfig: GameConfigService
-  store: StoreService
+  accountConfig: AccountConfigService
   platform: string
   onLog: (entry: GameLogEntry) => void
   onLandsUpdate: (data: unknown) => void
@@ -39,22 +39,22 @@ export function createWorkers(deps: WorkerFactoryDeps): WorkerSet {
   const stats = new StatsTracker(deps.accountId)
   const analytics = new AnalyticsWorker(deps.gameConfig)
 
-  const session = new GameSession(deps.accountId, deps.transport, deps.gameConfig, deps.store, stats, analytics, {
+  const session = new GameSession(deps.accountId, deps.transport, deps.gameConfig, deps.accountConfig, stats, analytics, {
     onLog: deps.onLog,
     onLandsUpdate: deps.onLandsUpdate,
     onBagUpdate: deps.onBagUpdate
   })
 
-  const friend = new FriendWorker(deps.accountId, deps.transport, deps.gameConfig, deps.store, deps.getSellAllFruits, deps.platform, stats)
+  const friend = new FriendWorker(deps.accountId, deps.transport, deps.gameConfig, deps.accountConfig, deps.getSellAllFruits, deps.platform, stats)
   friend.onLog = deps.onLog
 
   const illustrated = new IllustratedWorker(deps.accountId, deps.transport, deps.gameConfig)
   illustrated.onLog = deps.onLog
 
-  const task = new TaskWorker(deps.accountId, deps.transport, deps.gameConfig, deps.store, stats, deps.getRawBagItems)
+  const task = new TaskWorker(deps.accountId, deps.transport, deps.gameConfig, deps.accountConfig, stats, deps.getRawBagItems)
   task.onLog = deps.onLog
 
-  const dailyRewards = new DailyRewardsWorker(deps.accountId, deps.transport, deps.gameConfig, deps.store, deps.platform)
+  const dailyRewards = new DailyRewardsWorker(deps.accountId, deps.transport, deps.gameConfig, deps.platform)
   dailyRewards.onLog = deps.onLog
 
   const invite = new InviteWorker(deps.accountId, deps.transport, deps.platform)

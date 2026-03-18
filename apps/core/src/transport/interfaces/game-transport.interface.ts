@@ -6,7 +6,6 @@ export type {
   RequestExecutionResult,
   RequestPolicy,
   RequestQueue,
-  RequestRisk,
   RequestSource
 } from './request-pacing.interface'
 export type { UserState } from '@qq-farm/shared'

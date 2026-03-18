@@ -1,9 +1,10 @@
-import { Global, Module } from '@nestjs/common'
-import { StoreService } from './store.service'
+import { Module } from '@nestjs/common'
+import { AccountConfigService } from './account-config.service'
+import { AccountRepository } from './account-repository'
+import { GlobalConfigService } from './global-config.service'
 
-@Global()
 @Module({
-  providers: [StoreService],
-  exports: [StoreService]
+  providers: [GlobalConfigService, AccountConfigService, AccountRepository],
+  exports: [GlobalConfigService, AccountConfigService, AccountRepository]
 })
 export class StoreModule {}

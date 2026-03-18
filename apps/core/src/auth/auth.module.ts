@@ -3,14 +3,17 @@ import { ConfigService } from '@nestjs/config'
 import { APP_GUARD } from '@nestjs/core'
 import { JwtModule } from '@nestjs/jwt'
 import { PassportModule } from '@nestjs/passport'
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard'
+import { GameModule } from '../game/game.module'
 import { AuthController } from './auth.controller'
 import { AuthService } from './auth.service'
+import { JwtAuthGuard } from './jwt-auth.guard'
 import { JwtStrategy } from './jwt.strategy'
+import { QrController } from './qr.controller'
 
 @Module({
   imports: [
     PassportModule,
+    GameModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -19,7 +22,7 @@ import { JwtStrategy } from './jwt.strategy'
       })
     })
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, QrController],
   providers: [
     AuthService,
     JwtStrategy,

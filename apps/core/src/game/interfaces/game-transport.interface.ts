@@ -5,6 +5,5 @@ export type {
   RequestExecutionResult,
   RequestPolicy,
   RequestQueue,
-  RequestRisk,
   RequestSource
 } from '../../transport/interfaces/game-transport.interface'

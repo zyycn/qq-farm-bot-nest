@@ -1,8 +1,10 @@
 import { Module } from '@nestjs/common'
 import { DiscoveryModule } from '@nestjs/core'
+import { AccountModule } from '../account/account.module'
 import { AuthModule } from '../auth/auth.module'
 import { RequestIntentContextService } from '../common/request-intent/request-intent-context.service'
 import { DeviceModule } from '../device/device.module'
+import { GameModule } from '../game/game.module'
 import { StoreModule } from '../store/store.module'
 import { AccountPushBridge } from './account-push.bridge'
 import { AccountHandler } from './handlers/account.handler'
@@ -23,7 +25,7 @@ import { WsRouterService } from './ws-router.service'
 import { WsTopicsService } from './ws-topics.service'
 
 @Module({
-  imports: [AuthModule, DeviceModule, DiscoveryModule, StoreModule],
+  imports: [AuthModule, DeviceModule, DiscoveryModule, StoreModule, AccountModule, GameModule],
   providers: [
     AccountPushBridge,
     RequestIntentContextService,

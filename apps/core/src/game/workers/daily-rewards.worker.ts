@@ -1,4 +1,4 @@
-import type { DailyRoutineRunOptions } from '../../account/runner/account-runner-ticks'
+import type { DailyRoutineRunOptions } from '../../account/runner/account-runner'
 import type { GameConfigService } from '../game-config.service'
 import type { IGameTransport } from '../interfaces/game-transport.interface'
 import { Logger } from '@nestjs/common'
@@ -33,14 +33,13 @@ export class DailyRewardsWorker {
   onLog: ((entry: { msg: string, tag?: string, meta?: Record<string, string>, isWarn?: boolean }) => void) | null = null
 
   constructor(
-    private accountId: string,
+    accountId: string,
     private client: IGameTransport,
     private gameConfig: GameConfigService,
-    private store?: any,
     private platform = 'qq'
   ) {
     this.logger = new Logger(`DailyRewards:${accountId}`)
-    this.rpc = new GameRpcExecutor(this.client)
+    this.rpc = new GameRpcExecutor(client)
   }
 
   private log(msg: string, event?: string) {
@@ -382,7 +381,6 @@ export class DailyRewardsWorker {
   private static readonly BUY_COOLDOWN_MS = 60_000
   private static readonly ORGANIC_FERTILIZER_MALL_GOODS_ID = 1002
   private static readonly NORMAL_FERTILIZER_MALL_GOODS_ID = 1003
-  private static readonly MAX_ROUNDS = 20
   private static readonly BUY_PER_ROUND = 10
   private lastBuyAt = 0
 

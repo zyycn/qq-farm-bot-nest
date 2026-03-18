@@ -1,4 +1,4 @@
-import type { StoreService } from '../../store/store.service'
+import type { AccountConfigService } from '../../store/account-config.service'
 import type { GameConfigService } from '../game-config.service'
 import type { IGameTransport } from '../interfaces/game-transport.interface'
 import type { StatsTracker } from './stats.worker'
@@ -20,13 +20,13 @@ export class TaskWorker {
     private accountId: string,
     private client: IGameTransport,
     private gameConfig: GameConfigService,
-    private store: StoreService,
+    private accountConfig: AccountConfigService,
     private stats: StatsTracker,
     private getBagItems: () => any[] | Promise<any[]>
   ) {
     this.logger = new Logger(`Task:${accountId}`)
     this.scheduler = new Scheduler(`task-${accountId}`, this.logger)
-    this.rpc = new GameRpcExecutor(this.client)
+    this.rpc = new GameRpcExecutor(client)
   }
 
   private log(msg: string, event?: string) {
@@ -186,7 +186,7 @@ export class TaskWorker {
   // ========== Main Check ==========
 
   async checkAndClaimTasks() {
-    if (this.checking || !this.store.isAutomationOn('task', this.accountId))
+    if (this.checking || !this.accountConfig.isAutomationOn('task', this.accountId))
       return
     this.checking = true
     try {
@@ -218,7 +218,7 @@ export class TaskWorker {
   // ========== Event Handling ==========
 
   private onTaskInfoNotify = (taskInfo: any) => {
-    if (!taskInfo || !this.store.isAutomationOn('task', this.accountId))
+    if (!taskInfo || !this.accountConfig.isAutomationOn('task', this.accountId))
       return
     const claimable = [
       ...this.analyzeTaskList(taskInfo.daily_tasks || [], 'daily'),

@@ -1,7 +1,7 @@
 import type { Logger } from '@nestjs/common'
 import type { GameLogService } from '../game/game-log.service'
 import type { LinkEventName, LinkUserState } from '../game/types'
-import type { StoreService } from '../store/store.service'
+import type { AccountRepository } from '../store/account-repository'
 import type { LinkClientService } from '../transport/link-client.service'
 import type { AccountRegistryService } from './account-registry.service'
 import type { AccountRunnerFactory } from './runner/account-runner.factory'
@@ -14,7 +14,7 @@ export interface LinkAccountEventPayload {
 
 interface AccountLifecycleLinkOpsDeps {
   logger: Logger
-  store: StoreService
+  accountRepo: AccountRepository
   gameLog: GameLogService
   registry: AccountRegistryService
   linkClient: LinkClientService
@@ -27,7 +27,7 @@ export class AccountLifecycleLinkOps {
 
   handleLinkAccountEvent(payload: LinkAccountEventPayload) {
     if (payload.event === 'connected') {
-      const account = this.deps.store.getAccountById(payload.accountId)
+      const account = this.deps.accountRepo.getAccountById(payload.accountId)
       if (account?.code != null)
         this.deps.registry.setLastCode(payload.accountId, String(account.code).trim())
     }
@@ -43,7 +43,7 @@ export class AccountLifecycleLinkOps {
 
     try {
       const list = await this.deps.linkClient.listConnections()
-      const storeIds = new Set(this.deps.store.getAllAccounts().map(account => String(account.id)))
+      const storeIds = new Set(this.deps.accountRepo.getAllAccounts().map(account => String(account.id)))
 
       for (const connection of list || []) {
         const accountId = String(connection.accountId ?? '').trim()
@@ -141,12 +141,12 @@ export class AccountLifecycleLinkOps {
     if (!id || !uin)
       return
 
-    const current = this.deps.store.getAccountById(id)
+    const current = this.deps.accountRepo.getAccountById(id)
     if (!current)
       return
 
     const platform = String(current.platform || 'qq')
-    const duplicates = this.deps.store.getAllAccounts().filter(account =>
+    const duplicates = this.deps.accountRepo.getAllAccounts().filter(account =>
       String(account.uin || '').trim() === uin
       && String(account.platform || 'qq') === platform
     )
@@ -162,7 +162,7 @@ export class AccountLifecycleLinkOps {
       this.deps.logger.log(`合并重复账号: ${duplicateId} -> ${id} (uin=${uin}, 平台=${platform})`)
       await this.deps.stopAccount(duplicateId).catch(error => this.deps.logger.warn(`停止重复账号失败 [${duplicateId}]: ${error?.message || error}`))
       await this.disconnectFromLink(duplicateId).catch(error => this.deps.logger.warn(`断开重复账号失败 [${duplicateId}]: ${error?.message || error}`))
-      this.deps.store.deleteAccount(duplicateId)
+      this.deps.accountRepo.deleteAccount(duplicateId)
       this.deps.gameLog.deleteAccountLogs(duplicateId)
     }
 

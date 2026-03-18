@@ -3,7 +3,8 @@ import { Injectable } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { DeviceFingerprintService } from '../../device/device-fingerprint'
 import { GameConfigService } from '../../game/game-config.service'
-import { StoreService } from '../../store/store.service'
+import { AccountConfigService } from '../../store/account-config.service'
+import { GlobalConfigService } from '../../store/global-config.service'
 import { LinkClientService } from '../../transport/link-client.service'
 import { AccountRunner } from './account-runner'
 
@@ -12,7 +13,8 @@ export class AccountRunnerFactory {
   constructor(
     private readonly linkClient: LinkClientService,
     private readonly gameConfig: GameConfigService,
-    private readonly store: StoreService,
+    private readonly accountConfig: AccountConfigService,
+    private readonly globalConfig: GlobalConfigService,
     private readonly eventEmitter: EventEmitter2,
     private readonly deviceFingerprint: DeviceFingerprintService
   ) {}
@@ -21,7 +23,8 @@ export class AccountRunnerFactory {
     return new AccountRunner(accountId, {
       linkClient: this.linkClient,
       gameConfig: this.gameConfig,
-      store: this.store,
+      accountConfig: this.accountConfig,
+      globalConfig: this.globalConfig,
       eventEmitter: this.eventEmitter,
       deviceFingerprint: this.deviceFingerprint
     })
@@ -44,14 +47,14 @@ export class AccountRunnerFactory {
   }
 
   resolveDeviceConfig(accountId: string): ResolvedDeviceConfig {
-    const accountConfig = this.store.getAccountConfig(accountId)
+    const accountConfig = this.accountConfig.getAccountConfig(accountId)
     return this.resolveDeviceConfigByProfileId(accountConfig.deviceProfileId)
   }
 
   private resolveDeviceConfigByProfileId(deviceProfileId?: string | null): ResolvedDeviceConfig {
     return this.deviceFingerprint.resolveAccountDeviceConfig(
       deviceProfileId,
-      this.store.getDefaultDeviceProfileId()
+      this.globalConfig.getDefaultDeviceProfileId()
     )
   }
 }

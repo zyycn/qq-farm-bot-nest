@@ -1,4 +1,4 @@
-import type { StoreService } from '../../store/store.service'
+import type { AccountConfigService } from '../../store/account-config.service'
 import type { GameConfigService } from '../game-config.service'
 import type { IGameTransport } from '../interfaces/game-transport.interface'
 import type { GameOperationKey } from '../rpc/operation-catalog'
@@ -30,7 +30,7 @@ export class FarmActions {
     private readonly accountId: string,
     private readonly client: IGameTransport,
     private readonly gameConfig: GameConfigService,
-    private readonly store: StoreService,
+    private readonly accountConfig: AccountConfigService,
     private readonly stats: StatsTracker,
     private readonly analytics: AnalyticsWorker,
     private readonly options: FarmActionsOptions
@@ -229,7 +229,7 @@ export class FarmActions {
   }
 
   private buildClearOps(status: OwnedLandStatus, actions: string[]): Promise<any>[] {
-    const cfg = this.store.getAccountConfig(this.accountId)
+    const cfg = this.accountConfig.getAccountConfig(this.accountId)
     const auto = cfg.automation as any
     const ops: Promise<any>[] = []
 
@@ -305,7 +305,7 @@ export class FarmActions {
       }
     }
 
-    const cfg = this.store.getAccountConfig(this.accountId)
+    const cfg = this.accountConfig.getAccountConfig(this.accountId)
     if ((opType === 'all' || opType === 'harvest') && harvestedIds.length > 0 && cfg.fertilizerMultiSeason) {
       const currentLands = this.options.getCurrentLands()
       const multiSeasonGrowing = getMultiSeasonGrowingLandIds(currentLands, this.gameConfig)
@@ -327,7 +327,7 @@ export class FarmActions {
       }
     }
 
-    const shouldAutoUpgrade = opType === 'all' && this.store.isAutomationOn('land_upgrade', this.accountId)
+    const shouldAutoUpgrade = opType === 'all' && this.accountConfig.isAutomationOn('land_upgrade', this.accountId)
     if (shouldAutoUpgrade || opType === 'upgrade') {
       let unlocked = 0
       for (const landId of this.shuffleOrder(status.unlockable)) {
@@ -403,7 +403,7 @@ export class FarmActions {
   }
 
   async runFertilizerByConfig(plantedLands: number[] = [], options?: { reason?: 'multi_season' | 'normal' }): Promise<{ normal: number, organic: number }> {
-    const cfg = this.store.getAccountConfig(this.accountId)
+    const cfg = this.accountConfig.getAccountConfig(this.accountId)
     const fertilizerConfig = cfg.fertilizer || 'both'
     const landTypes = (cfg.fertilizerLandTypes?.length ? cfg.fertilizerLandTypes : ['gold', 'black', 'red', 'normal']) as string[]
     const allowedTypes = new Set(landTypes)
@@ -463,7 +463,7 @@ export class FarmActions {
     if (!landsToPlant.length)
       return
 
-    const strategy = this.store.getPlantingStrategy(this.accountId)
+    const strategy = this.accountConfig.getPlantingStrategy(this.accountId)
     if (strategy === 'bag_priority') {
       const plantedByBag = await this.plantFromBagSeeds(landsToPlant)
       if (plantedByBag)
@@ -526,7 +526,7 @@ export class FarmActions {
     if (!seeds?.length)
       return false
 
-    const priority = this.store.getBagSeedPriority(this.accountId)
+    const priority = this.accountConfig.getBagSeedPriority(this.accountId)
     const sorted = this.sortBagSeedsByPriority(seeds, priority)
     const available = sorted.find(seed => seed.count > 0 && (seed.plantSize || 1) === 1)
     if (!available)
@@ -585,7 +585,7 @@ export class FarmActions {
     if (!available.length)
       return null
 
-    const strategy = this.store.getPlantingStrategy(this.accountId)
+    const strategy = this.accountConfig.getPlantingStrategy(this.accountId)
     const analyticsSortMap: Record<string, string> = {
       max_exp: 'exp',
       max_fert_exp: 'fert',
@@ -611,7 +611,7 @@ export class FarmActions {
     }
 
     if (strategy === 'preferred') {
-      const preferred = this.store.getPreferredSeed(this.accountId)
+      const preferred = this.accountConfig.getPreferredSeed(this.accountId)
       if (preferred > 0) {
         const found = available.find(item => item.seedId === preferred)
         if (found)

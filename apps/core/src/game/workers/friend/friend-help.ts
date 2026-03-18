@@ -1,4 +1,4 @@
-import type { StoreService } from '../../../store/store.service'
+import type { AccountConfigService } from '../../../store/account-config.service'
 import type { GameConfigService } from '../../game-config.service'
 import type { IGameTransport } from '../../interfaces/game-transport.interface'
 import type { GameOperationKey } from '../../rpc/operation-catalog'
@@ -14,7 +14,7 @@ export class FriendHelpHandler {
     private accountId: string,
     private client: IGameTransport,
     private gameConfig: GameConfigService,
-    private store: StoreService,
+    private accountConfig: AccountConfigService,
     private stats: StatsTracker,
     private owner: FriendWorker
   ) {

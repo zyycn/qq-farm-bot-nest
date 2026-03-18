@@ -26,7 +26,6 @@ export class GameRpcExecutor {
       invokeTimeoutMs: options.invokeTimeoutMs,
       policy: {
         category: spec.category,
-        risk: spec.risk,
         source: options.source ?? resolveRequestSource(),
         batchKey: options.batchKey ?? spec.batchKey,
         allowInQuietHours: options.allowInQuietHours ?? spec.allowInQuietHours ?? false

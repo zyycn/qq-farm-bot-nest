@@ -1,13 +1,13 @@
 import { Body, Controller, Headers, HttpCode, HttpStatus, Post, UnauthorizedException } from '@nestjs/common'
 import { Public } from '../common/decorators/public.decorator'
-import { StoreService } from '../store/store.service'
+import { GlobalConfigService } from '../store/global-config.service'
 import { AccountService } from './account.service'
 
 @Controller('account')
 export class AccountController {
   constructor(
     private readonly accountService: AccountService,
-    private readonly store: StoreService
+    private readonly globalConfig: GlobalConfigService
   ) {}
 
   @Public()
@@ -18,7 +18,7 @@ export class AccountController {
     @Headers('x-remote-login-key') remoteKey: string | undefined,
     @Headers('authorization') authorization: string | undefined
   ) {
-    const configured = this.store.getRemoteLoginKey()
+    const configured = this.globalConfig.getRemoteLoginKey()
     const headerKey = String(remoteKey || '').trim()
     const auth = String(authorization || '').trim()
     const bearer = auth.toLowerCase().startsWith('bearer ')

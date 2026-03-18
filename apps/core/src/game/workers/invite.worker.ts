@@ -18,12 +18,12 @@ export class InviteWorker {
   onLog: ((entry: { msg: string, tag?: string, meta?: Record<string, string>, isWarn?: boolean }) => void) | null = null
 
   constructor(
-    private accountId: string,
+    accountId: string,
     private client: IGameTransport,
     private platform: string
   ) {
     this.logger = new Logger(`Invite:${accountId}`)
-    this.rpc = new GameRpcExecutor(this.client)
+    this.rpc = new GameRpcExecutor(client)
   }
 
   private log(msg: string, event?: string) {

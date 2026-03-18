@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { StoreService } from '../store/store.service'
+import { GlobalConfigService } from '../store/global-config.service'
 import { PushWorker } from './workers/push.worker'
 
 @Injectable()
@@ -7,11 +7,11 @@ export class GamePushService {
   private readonly logger = new Logger(GamePushService.name)
   private readonly pushWorker = new PushWorker()
 
-  constructor(private store: StoreService) {}
+  constructor(private globalConfig: GlobalConfigService) {}
 
   /** 发送离线/下线提醒推送 */
   async triggerOfflineReminder(accountId: string, accountName: string, reason: string, offlineMs: number): Promise<void> {
-    const config = this.store.getOfflineReminder()
+    const config = this.globalConfig.getOfflineReminder()
     if (!config?.channel || !config?.token)
       return
     try {

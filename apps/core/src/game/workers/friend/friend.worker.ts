@@ -1,4 +1,4 @@
-import type { StoreService } from '../../../store/store.service'
+import type { AccountConfigService } from '../../../store/account-config.service'
 import type { GameConfigService } from '../../game-config.service'
 import type { IGameTransport } from '../../interfaces/game-transport.interface'
 import type { StatsTracker } from '../stats.worker'
@@ -39,7 +39,7 @@ export class FriendWorker {
     private accountId: string,
     private client: IGameTransport,
     private gameConfig: GameConfigService,
-    private store: StoreService,
+    private accountConfig: AccountConfigService,
     private sellAllFruits: () => Promise<number | void>,
     private platform: string,
     stats: StatsTracker
@@ -61,7 +61,7 @@ export class FriendWorker {
     })
     this.cycleHandler = new FriendCycleHandler({
       accountId: this.accountId,
-      store: this.store,
+      accountConfig: this.accountConfig,
       gameConfig: this.gameConfig,
       getMyGid: () => this.client.userState.gid,
       getAllFriends: () => this.getAllFriends(),
@@ -82,7 +82,7 @@ export class FriendWorker {
       log: (msg, event) => this.log(msg, event),
       warn: (msg, event) => this.warn(msg, event)
     })
-    this.helpHandler = new FriendHelpHandler(accountId, client, gameConfig, store, stats, this)
+    this.helpHandler = new FriendHelpHandler(accountId, client, gameConfig, accountConfig, stats, this)
     this.interactHandler = new FriendInteractHandler(client, gameConfig, (msg, event) => this.warn(msg, event))
     this.loopHandler = new FriendLoopHandler({
       scheduler: this.scheduler,
@@ -193,11 +193,11 @@ export class FriendWorker {
   // ========== Friend Loop ==========
 
   async checkFriends(): Promise<boolean> {
-    if (!this.store.isAutomationOn('friend', this.accountId))
+    if (!this.accountConfig.isAutomationOn('friend', this.accountId))
       return false
-    const helpOn = this.store.isAutomationOn('friend_help', this.accountId)
-    const stealOn = this.store.isAutomationOn('friend_steal', this.accountId)
-    const badOn = this.store.isAutomationOn('friend_bad', this.accountId)
+    const helpOn = this.accountConfig.isAutomationOn('friend_help', this.accountId)
+    const stealOn = this.accountConfig.isAutomationOn('friend_steal', this.accountId)
+    const badOn = this.accountConfig.isAutomationOn('friend_bad', this.accountId)
     if (this.isChecking || !this.client.userState.gid || !(helpOn || stealOn || badOn))
       return false
 

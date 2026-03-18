@@ -1,7 +1,7 @@
 import type { CreateAccountPayload, LinkUserState } from '../game/types'
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { GameLogService } from '../game/game-log.service'
-import { StoreService } from '../store/store.service'
+import { AccountRepository } from '../store/account-repository'
 import { AccountLifecycleService } from './account-lifecycle.service'
 import { AccountStatusService } from './account-status.service'
 
@@ -12,7 +12,7 @@ export class AccountService {
   constructor(
     private readonly lifecycle: AccountLifecycleService,
     private readonly status: AccountStatusService,
-    private readonly store: StoreService,
+    private readonly accountRepo: AccountRepository,
     private readonly gameLog: GameLogService
   ) {}
 
@@ -35,7 +35,7 @@ export class AccountService {
           ? beforeAccounts.find(account => String(account.uin) === String(payload.uin) && String(account.platform || 'qq') === String(payload.platform || 'qq'))
           : undefined
 
-    const data = this.store.addOrUpdateAccount(body)
+    const data = this.accountRepo.addOrUpdateAccount(body)
     const afterAccounts = data.accounts || []
 
     let targetAfter = (payload.uin && (payload.platform || 'qq') === 'qq')
@@ -87,7 +87,7 @@ export class AccountService {
 
     await this.lifecycle.stopAccount(resolvedId)
     await this.lifecycle.disconnectFromLink(resolvedId)
-    const data = this.store.deleteAccount(resolvedId)
+    const data = this.accountRepo.deleteAccount(resolvedId)
     this.gameLog.deleteAccountLogs(resolvedId)
     await this.lifecycle.syncGhostConnections()
 
@@ -101,7 +101,7 @@ export class AccountService {
     if (!resolvedId)
       throw new NotFoundException('账号未找到')
 
-    const account = this.store.getAccountById(resolvedId)
+    const account = this.accountRepo.getAccountById(resolvedId)
     if (!account)
       throw new NotFoundException('账号未找到')
     if (!account.code || String(account.code).trim() === '')
@@ -132,7 +132,7 @@ export class AccountService {
     if (!remark)
       throw new NotFoundException('缺少备注')
 
-    this.store.addOrUpdateAccount({ id: String(target.id), name: remark })
+    this.accountRepo.addOrUpdateAccount({ id: String(target.id), name: remark })
     this.lifecycle.setRuntimeAccountName(String(target.id), remark)
     this.gameLog.addAccountLog('update', `更新账号备注: ${remark}`, String(target.id), remark)
     this.status.notifyAccountsUpdate()

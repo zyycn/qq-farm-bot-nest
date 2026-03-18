@@ -17,7 +17,9 @@ import { GameConfigService } from '../game/game-config.service'
 import { GameLogService } from '../game/game-log.service'
 import { GamePushService } from '../game/game-push.service'
 import { AnalyticsWorker } from '../game/workers/analytics.worker'
-import { StoreService } from '../store/store.service'
+import { AccountConfigService } from '../store/account-config.service'
+import { AccountRepository } from '../store/account-repository'
+import { GlobalConfigService } from '../store/global-config.service'
 import { AccountLifecycleService } from './account-lifecycle.service'
 import { AccountRegistryService } from './account-registry.service'
 import { buildAccountStatusEventHandlers } from './account-status-handlers'
@@ -48,7 +50,9 @@ export class AccountStatusService implements OnModuleInit {
 
   constructor(
     private readonly gameConfig: GameConfigService,
-    private readonly store: StoreService,
+    private readonly accountRepo: AccountRepository,
+    private readonly accountConfig: AccountConfigService,
+    private readonly globalConfig: GlobalConfigService,
     private readonly gameLog: GameLogService,
     private readonly gamePush: GamePushService,
     private readonly registry: AccountRegistryService,
@@ -57,7 +61,8 @@ export class AccountStatusService implements OnModuleInit {
   ) {
     this.statusEventHandlers = buildAccountStatusEventHandlers({
       logger: this.logger,
-      store: this.store,
+      accountRepo: this.accountRepo,
+      globalConfig: this.globalConfig,
       gameLog: this.gameLog,
       gamePush: this.gamePush,
       lifecycle: this.lifecycle,
@@ -74,7 +79,7 @@ export class AccountStatusService implements OnModuleInit {
 
   getAccounts() {
     return {
-      accounts: this.store.getAllAccounts().map((account) => {
+      accounts: this.accountRepo.getAllAccounts().map((account) => {
         const record = this.registry.get(String(account.id))
         const { code, loginType, ...rest } = account
         return {
@@ -124,10 +129,10 @@ export class AccountStatusService implements OnModuleInit {
 
   notifyPanelUpdate() {
     this.eventEmitter.emit(ACCOUNT_DATA_PANEL_EVENT, {
-      ui: this.store.getUI(),
-      offlineReminder: this.store.getOfflineReminder(),
-      remoteLoginKey: this.store.getRemoteLoginKey(),
-      defaultDeviceProfileId: this.store.getDefaultDeviceProfileId()
+      ui: this.globalConfig.getUI(),
+      offlineReminder: this.globalConfig.getOfflineReminder(),
+      remoteLoginKey: this.globalConfig.getRemoteLoginKey(),
+      defaultDeviceProfileId: this.globalConfig.getDefaultDeviceProfileId()
     })
   }
 
@@ -251,7 +256,7 @@ export class AccountStatusService implements OnModuleInit {
   }
 
   private getStrategyPayload(accountId: string) {
-    const config = this.store.getAccountConfig(accountId)
+    const config = this.accountConfig.getAccountConfig(accountId)
     return {
       intervals: config.intervals,
       plantingStrategy: config.plantingStrategy,

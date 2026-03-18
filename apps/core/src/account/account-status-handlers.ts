@@ -2,7 +2,8 @@ import type { Logger } from '@nestjs/common'
 import type { GameLogService } from '../game/game-log.service'
 import type { GamePushService } from '../game/game-push.service'
 import type { ConnectionEventData, ProfileEventData, StatusEventData } from '../game/types'
-import type { StoreService } from '../store/store.service'
+import type { AccountRepository } from '../store/account-repository'
+import type { GlobalConfigService } from '../store/global-config.service'
 import type { AccountLifecycleService } from './account-lifecycle.service'
 import type { RunningAccount } from './account-registry.service'
 import type { AccountStatusEventPayload } from './account.events'
@@ -11,7 +12,8 @@ export type StatusHandler = (record: RunningAccount, accountId: string, data: St
 
 interface AccountStatusHandlerDeps {
   logger: Logger
-  store: StoreService
+  accountRepo: AccountRepository
+  globalConfig: GlobalConfigService
   gameLog: GameLogService
   gamePush: GamePushService
   lifecycle: AccountLifecycleService
@@ -40,7 +42,7 @@ export function buildAccountStatusEventHandlers(deps: AccountStatusHandlerDeps):
         record.disconnectedSince = now
 
       const offlineMs = now - record.disconnectedSince
-      const offlineReminder = deps.store.getOfflineReminder()
+      const offlineReminder = deps.globalConfig.getOfflineReminder()
       const autoDeleteMs = (offlineReminder?.offlineDeleteSec || 9_999_999_999) * 1000
 
       if (record.autoDeleteTriggered || offlineMs < autoDeleteMs)
@@ -53,7 +55,7 @@ export function buildAccountStatusEventHandlers(deps: AccountStatusHandlerDeps):
       deps.gameLog.addAccountLog('offline_delete', `账号 ${record.name} 持续离线 ${offlineMinutes} 分钟，已自动删除`, accountId, record.name)
       await deps.lifecycle.stopAccount(accountId).catch(error => deps.logger.warn(`自动删除离线账号失败 [${accountId}]: ${error?.message || error}`))
       await deps.lifecycle.disconnectFromLink(accountId).catch(error => deps.logger.warn(`断开离线账号失败 [${accountId}]: ${error?.message || error}`))
-      deps.store.deleteAccount(accountId)
+      deps.accountRepo.deleteAccount(accountId)
       deps.gameLog.deleteAccountLogs(accountId)
       deps.notifyAccountsUpdate()
     },
@@ -62,16 +64,16 @@ export function buildAccountStatusEventHandlers(deps: AccountStatusHandlerDeps):
       syncAccountNickname(deps, record, accountId, profile.name)
 
       if (profile.avatarUrl && profile.avatarUrl.trim() !== '') {
-        deps.store.addOrUpdateAccount({ id: accountId, avatar: profile.avatarUrl })
+        deps.accountRepo.addOrUpdateAccount({ id: accountId, avatar: profile.avatarUrl })
         deps.notifyAccountsUpdate()
       }
 
       if (!profile.openId || profile.openId.trim() === '')
         return
 
-      const existing = deps.store.getAccountById(accountId)
+      const existing = deps.accountRepo.getAccountById(accountId)
       if (!existing?.uin || String(existing.uin).trim() === '')
-        deps.store.addOrUpdateAccount({ id: accountId, uin: profile.openId })
+        deps.accountRepo.addOrUpdateAccount({ id: accountId, uin: profile.openId })
 
       deps.lifecycle
         .mergeDuplicateAccountsByUinPlatform(accountId, profile.openId)
@@ -88,7 +90,7 @@ function syncAccountNickname(deps: AccountStatusHandlerDeps, record: RunningAcco
   const oldName = record.name
   record.name = newName
   record.runner.name = newName
-  deps.store.addOrUpdateAccount({ id: accountId, nick: newName })
+  deps.accountRepo.addOrUpdateAccount({ id: accountId, nick: newName })
   deps.gameLog.appendLog(accountId, newName, {
     msg: `已同步账号昵称: ${oldName || 'None'} -> ${newName}`,
     tag: '系统',

@@ -115,12 +115,12 @@ export class IllustratedWorker {
   onLog: ((entry: { msg: string, tag?: string, meta?: Record<string, string>, isWarn?: boolean }) => void) | null = null
 
   constructor(
-    private readonly accountId: string,
+    accountId: string,
     private readonly client: IGameTransport,
     private readonly gameConfig: GameConfigService
   ) {
     this.logger = new Logger(`Illustrated:${accountId}`)
-    this.rpc = new GameRpcExecutor(this.client)
+    this.rpc = new GameRpcExecutor(client)
   }
 
   private log(msg: string, event?: string) {

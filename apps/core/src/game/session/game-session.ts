@@ -1,5 +1,5 @@
 import type { RequestIntentContext } from '../../common/request-intent/request-intent-context.service'
-import type { StoreService } from '../../store/store.service'
+import type { AccountConfigService } from '../../store/account-config.service'
 import type { GameConfigService } from '../game-config.service'
 import type { IGameTransport } from '../interfaces/game-transport.interface'
 import type { AnalyticsWorker } from '../workers/analytics.worker'
@@ -56,14 +56,14 @@ export class GameSession {
     private readonly accountId: string,
     private readonly transport: IGameTransport,
     private readonly gameConfig: GameConfigService,
-    private readonly store: StoreService,
+    private readonly accountConfig: AccountConfigService,
     private readonly stats: StatsTracker,
     analytics: AnalyticsWorker,
     private readonly callbacks: GameSessionCallbacks
   ) {
     this.logger = new Logger(`GameSession:${accountId}`)
     this.scheduler = new Scheduler(`game-session-${accountId}`, this.logger)
-    this.farmActions = new FarmActions(accountId, transport, gameConfig, store, stats, analytics, {
+    this.farmActions = new FarmActions(accountId, transport, gameConfig, accountConfig, stats, analytics, {
       onLog: callbacks.onLog,
       getCurrentLands: () => this.landsState.getAll(),
       getBagSeeds: () => this.bagState.getSeedSnapshot(this.gameConfig),
@@ -77,7 +77,7 @@ export class GameSession {
           this.afterLandsChanged()
       }
     })
-    this.warehouseActions = new WarehouseActions(accountId, transport, gameConfig, store, stats, {
+    this.warehouseActions = new WarehouseActions(accountId, transport, gameConfig, accountConfig, stats, {
       onLog: callbacks.onLog,
       getRawBagItems: () => this.bagState.getRawItems()
     })
@@ -114,7 +114,7 @@ export class GameSession {
     if (kind === 'item' && Array.isArray(decoded?.items)) {
       if (this.bagState.applyDelta(decoded.items))
         this.afterBagChanged()
-      if (this.store.isAutomationOn('sell', this.accountId)) {
+      if (this.accountConfig.isAutomationOn('sell', this.accountId)) {
         this.scheduler.setTimeoutTask('sell_after_item_notify', 1500, () => {
           void this.sellAllFruits()
         })
@@ -135,7 +135,7 @@ export class GameSession {
     if (kind === 'lands' && Array.isArray(decoded?.lands)) {
       if (this.landsState.applyDelta(decoded.lands)) {
         this.afterLandsChanged()
-        const auto = this.store.getAutomation(this.accountId)
+        const auto = this.accountConfig.getAutomation(this.accountId)
         if (auto.farm_manage && (auto.farm_water || auto.farm_weed || auto.farm_bug)) {
           this.scheduler.setTimeoutTask('clear_after_lands_notify', 500, () => {
             void this.runFarmOperation('clear')
@@ -255,7 +255,7 @@ export class GameSession {
   private scheduleFollowAfterSingleLandOperation(payload: { action: string, landId: number }) {
     if (payload.action !== 'remove')
       return
-    if (!this.store.isAutomationOn('farm', this.accountId))
+    if (!this.accountConfig.isAutomationOn('farm', this.accountId))
       return
 
     void this.enqueue(`single-land-followup:plant:${payload.landId}`, async () => {
@@ -329,7 +329,7 @@ export class GameSession {
         this.scheduler.clear(taskName)
     }
 
-    if (!this.store.isAutomationOn('farm', this.accountId))
+    if (!this.accountConfig.isAutomationOn('farm', this.accountId))
       return
 
     const nowSec = getServerTimeSec()
@@ -342,7 +342,7 @@ export class GameSession {
       })
     }
 
-    const automation = this.store.getAutomation(this.accountId)
+    const automation = this.accountConfig.getAutomation(this.accountId)
     const shouldManage = automation.farm_manage
     if (!shouldManage)
       return
@@ -372,12 +372,12 @@ export class GameSession {
   private kickStartFarmAutomation() {
     if (this.destroyed || !this.bootstrapped)
       return
-    if (!this.store.isAutomationOn('farm', this.accountId))
+    if (!this.accountConfig.isAutomationOn('farm', this.accountId))
       return
 
     const derived = this.landsState.getDerived(this.gameConfig)
     const hasWork = (derived.harvestable.length + derived.dead.length + derived.empty.length + derived.needWater.length + derived.needWeed.length + derived.needBug.length) > 0
-      || (this.store.isAutomationOn('land_upgrade', this.accountId) && (derived.unlockable.length + derived.upgradable.length) > 0)
+      || (this.accountConfig.isAutomationOn('land_upgrade', this.accountId) && (derived.unlockable.length + derived.upgradable.length) > 0)
     if (!hasWork)
       return
 
@@ -386,7 +386,7 @@ export class GameSession {
 
   private getScheduledAutomationStages(): string[] {
     const stages = ['clear', 'harvest', 'plant']
-    if (this.store.isAutomationOn('land_upgrade', this.accountId))
+    if (this.accountConfig.isAutomationOn('land_upgrade', this.accountId))
       stages.push('upgrade')
     return stages
   }

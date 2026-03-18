@@ -1,4 +1,4 @@
-import type { StoreService } from '../../store/store.service'
+import type { AccountConfigService } from '../../store/account-config.service'
 import type { GameConfigService } from '../game-config.service'
 import type { IGameTransport } from '../interfaces/game-transport.interface'
 import type { StatsTracker } from '../workers/stats.worker'
@@ -29,7 +29,7 @@ export class WarehouseActions {
     private readonly accountId: string,
     private readonly client: IGameTransport,
     private readonly gameConfig: GameConfigService,
-    private readonly store: StoreService,
+    private readonly accountConfig: AccountConfigService,
     private readonly stats: StatsTracker | null,
     private readonly options: WarehouseActionsOptions
   ) {
@@ -122,7 +122,7 @@ export class WarehouseActions {
   }
 
   async sellAllFruits(): Promise<number> {
-    if (!this.store.isAutomationOn('sell', this.accountId))
+    if (!this.accountConfig.isAutomationOn('sell', this.accountId))
       return 0
 
     try {
