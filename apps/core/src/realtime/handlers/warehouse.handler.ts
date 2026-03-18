@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common'
 import { AccountRegistryService } from '@/account/account-registry.service'
-import { InteractiveAction } from '../decorators/request-intent.decorator'
 import { WsAccount } from '../decorators/ws-account.decorator'
 import { WsBody } from '../decorators/ws-body.decorator'
 import { WsRoute } from '../decorators/ws-route.decorator'
@@ -9,7 +8,6 @@ import { WsRoute } from '../decorators/ws-route.decorator'
 export class WarehouseHandler {
   constructor(private readonly registry: AccountRegistryService) {}
 
-  @InteractiveAction()
   @WsRoute('warehouse.sell')
   sell(
     @WsAccount() accountId: string,

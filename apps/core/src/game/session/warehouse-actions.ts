@@ -60,7 +60,7 @@ export class WarehouseActions {
         next.uid = uid
       return next
     })
-    const { data } = await this.rpc.call('warehouse.sell', { items: payload }, { batchKey: 'sell' })
+    const { data } = await this.rpc.call('warehouse.sell', { items: payload })
     return data ?? {}
   }
 
@@ -102,7 +102,7 @@ export class WarehouseActions {
     try {
       const { data } = await this.rpc.call('warehouse.use', {
         param: { item_id: itemId, count, land_ids: landIds }
-      }, { batchKey: 'use_item' })
+      })
       return data ?? {}
     } catch (error: any) {
       const msg = String(error?.message || '')
@@ -110,14 +110,14 @@ export class WarehouseActions {
         throw error
       const { data } = await this.rpc.call('warehouse.use', {
         param: { item_id: itemId, count }
-      }, { batchKey: 'use_item' })
+      })
       return data ?? {}
     }
   }
 
   async batchUseItems(items: { itemId: number, count: number, uid?: number }[]): Promise<any> {
     const payload = items.map(item => ({ id: item.itemId, count: item.count || 1, uid: item.uid || 0 }))
-    const { data } = await this.rpc.call('warehouse.batchUse', { items: payload }, { batchKey: 'batch_use' })
+    const { data } = await this.rpc.call('warehouse.batchUse', { items: payload })
     return data ?? {}
   }
 

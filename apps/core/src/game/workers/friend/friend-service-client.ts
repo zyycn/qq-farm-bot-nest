@@ -1,5 +1,4 @@
 import type { IGameTransport } from '../../interfaces/game-transport.interface'
-import { resolveRequestSource } from '../../interfaces/request-context.interface'
 import { GameRpcExecutor } from '../../rpc/game-rpc-executor'
 import { toNum } from '../../utils'
 
@@ -15,43 +14,31 @@ export class FriendServiceClient {
 
   async getAllFriends(): Promise<any> {
     if (this.platform === 'qq') {
-      const { data } = await this.rpc.call<any>('friend.syncAll', { open_ids: [] }, {
-        source: resolveRequestSource()
-      })
+      const { data } = await this.rpc.call<any>('friend.syncAll', { open_ids: [] })
       return data ?? {}
     }
-    const { data } = await this.rpc.call<any>('friend.getAll', {}, {
-      source: resolveRequestSource()
-    })
+    const { data } = await this.rpc.call<any>('friend.getAll', {})
     return data ?? {}
   }
 
   async getApplications(): Promise<any> {
-    const { data } = await this.rpc.call<any>('friend.getApplications', {}, {
-      source: resolveRequestSource()
-    })
+    const { data } = await this.rpc.call<any>('friend.getApplications', {})
     return data ?? {}
   }
 
   async acceptFriends(gids: number[]): Promise<any> {
-    const { data } = await this.rpc.call<any>('friend.acceptFriends', { friend_gids: gids }, {
-      source: resolveRequestSource()
-    })
+    const { data } = await this.rpc.call<any>('friend.acceptFriends', { friend_gids: gids })
     return data ?? {}
   }
 
   async enterFriendFarm(friendGid: number): Promise<any> {
-    const { data } = await this.rpc.call<any>('friend.enter', { host_gid: friendGid, reason: 2 }, {
-      source: resolveRequestSource()
-    })
+    const { data } = await this.rpc.call<any>('friend.enter', { host_gid: friendGid, reason: 2 })
     return data ?? {}
   }
 
   async leaveFriendFarm(friendGid: number) {
     try {
-      await this.rpc.call('friend.leave', { host_gid: friendGid }, {
-        source: resolveRequestSource()
-      })
+      await this.rpc.call('friend.leave', { host_gid: friendGid })
     } catch {}
   }
 
@@ -60,8 +47,6 @@ export class FriendServiceClient {
       const { data: reply } = await this.rpc.call<any>('friend.checkCanOperate', {
         host_gid: friendGid,
         operation_id: operationId
-      }, {
-        source: resolveRequestSource()
       })
       return { canOperate: !!(reply as any)?.can_operate, canStealNum: toNum((reply as any)?.can_steal_num) }
     } catch {

@@ -3,7 +3,6 @@ import { AccountLifecycleService } from '@/account/account-lifecycle.service'
 import { AccountRegistryService } from '@/account/account-registry.service'
 import { AccountStatusService } from '@/account/account-status.service'
 import { AccountConfigService } from '@/store/account-config.service'
-import { InteractiveAction } from '../decorators/request-intent.decorator'
 import { WsAccount } from '../decorators/ws-account.decorator'
 import { WsBody } from '../decorators/ws-body.decorator'
 import { WsRoute } from '../decorators/ws-route.decorator'
@@ -18,7 +17,6 @@ export class FriendHandler {
     private readonly accountConfig: AccountConfigService
   ) {}
 
-  @InteractiveAction()
   @WsRoute('friends.lands')
   async lands(
     @WsAccount() accountId: string,
@@ -30,7 +28,6 @@ export class FriendHandler {
     return this.registry.getRunnerOrThrow(accountId).getFriendLands(gid)
   }
 
-  @InteractiveAction()
   @WsRoute('friends.execute')
   operate(
     @WsAccount() accountId: string,
@@ -55,7 +52,6 @@ export class FriendHandler {
     return saved
   }
 
-  @InteractiveAction()
   @WsRoute('friends.interactRecords')
   interactRecords(@WsAccount() accountId: string): Promise<unknown> {
     return this.registry.getRunnerOrThrow(accountId).getInteractRecords()

@@ -1,13 +1,9 @@
-import type { IGameTransport, RequestEnvelope, RequestExecutionResult, RequestSource } from '../interfaces/game-transport.interface'
-import type { GameOperationKey, GameOperationSpec } from './operation-catalog'
-import { resolveRequestSource } from '../interfaces/request-context.interface'
+import type { IGameTransport, RequestExecutionResult } from '../interfaces/game-transport.interface'
+import type { GameOperationKey } from './operation-catalog'
 import { GAME_OPERATION_CATALOG } from './operation-catalog'
 
 export interface GameRpcCallOptions {
   invokeTimeoutMs?: number
-  batchKey?: string
-  allowInQuietHours?: boolean
-  source?: RequestSource
 }
 
 export class GameRpcExecutor {
@@ -18,20 +14,8 @@ export class GameRpcExecutor {
     params: Record<string, unknown>,
     options: GameRpcCallOptions = {}
   ): Promise<RequestExecutionResult<T>> {
-    const spec: GameOperationSpec = GAME_OPERATION_CATALOG[operation]
-    const envelope: RequestEnvelope = {
-      service: spec.service,
-      method: spec.method,
-      params,
-      invokeTimeoutMs: options.invokeTimeoutMs,
-      policy: {
-        category: spec.category,
-        source: options.source ?? resolveRequestSource(),
-        batchKey: options.batchKey ?? spec.batchKey,
-        allowInQuietHours: options.allowInQuietHours ?? spec.allowInQuietHours ?? false
-      }
-    }
-    return this.client.invokeWithPolicy<T>(envelope)
+    const spec = GAME_OPERATION_CATALOG[operation]
+    return this.client.invoke<T>(spec.service, spec.method, params, options.invokeTimeoutMs)
   }
 
   async callFirstAvailable<T = unknown>(

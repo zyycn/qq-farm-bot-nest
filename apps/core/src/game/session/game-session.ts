@@ -1,4 +1,3 @@
-import type { RequestIntentContext } from '../../common/request-intent/request-intent-context.service'
 import type { AccountConfigService } from '../../store/account-config.service'
 import type { GameConfigService } from '../game-config.service'
 import type { IGameTransport } from '../interfaces/game-transport.interface'
@@ -6,8 +5,6 @@ import type { AnalyticsWorker } from '../workers/analytics.worker'
 import type { StatsTracker } from '../workers/stats.worker'
 import { Logger } from '@nestjs/common'
 import { Scheduler } from '@qq-farm/shared'
-import { RequestIntentContextService } from '../../common/request-intent/request-intent-context.service'
-import { isInteractiveRequest } from '../interfaces/request-context.interface'
 import { getServerTimeSec, toNum } from '../utils'
 import { FarmActions } from './farm-actions'
 import { BagState } from './state/bag-state'
@@ -23,9 +20,6 @@ export interface GameSessionCallbacks {
 
 interface SessionTask<T = unknown> {
   label: string
-  order: number
-  priority: number
-  requestContext?: RequestIntentContext
   task: () => Promise<T>
   resolve: (value: T | PromiseLike<T>) => void
   reject: (reason?: unknown) => void
@@ -49,7 +43,6 @@ export class GameSession {
   private lastBagSyncAt = 0
   private bootstrapped = false
   private processing = false
-  private taskOrder = 0
   private readonly pendingTasks: SessionTask[] = []
 
   constructor(
@@ -393,16 +386,7 @@ export class GameSession {
 
   private enqueue<T>(label: string, task: () => Promise<T>): Promise<T> {
     return new Promise<T>((resolve, reject) => {
-      this.pendingTasks.push({
-        label,
-        order: this.taskOrder++,
-        priority: isInteractiveRequest() ? 1 : 0,
-        requestContext: RequestIntentContextService.getCurrent(),
-        task,
-        resolve,
-        reject
-      })
-      this.pendingTasks.sort((left, right) => (right.priority - left.priority) || (left.order - right.order))
+      this.pendingTasks.push({ label, task, resolve, reject })
       void this.processPendingTasks()
     })
   }
@@ -419,10 +403,7 @@ export class GameSession {
           continue
 
         try {
-          const result = nextTask.requestContext
-            ? await RequestIntentContextService.runWith(nextTask.requestContext, () => nextTask.task())
-            : await nextTask.task()
-          nextTask.resolve(result)
+          nextTask.resolve(await nextTask.task())
         } catch (error) {
           this.warn(this.formatSessionErrorMessage(error), 'session_error', { action: nextTask.label })
           nextTask.reject(error)

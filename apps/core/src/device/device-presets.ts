@@ -1,4 +1,4 @@
-import type { DevicePreset } from './device.types'
+import type { DevicePreset } from '@qq-farm/shared'
 
 export const DEVICE_PRESETS: DevicePreset[] = [
   {

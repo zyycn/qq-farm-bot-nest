@@ -1,6 +1,6 @@
 import type { UserState } from '@qq-farm/shared'
 import type { TcpEvent, TcpResponse } from '@qq-farm/shared/node'
-import type { IGameTransport, RequestEnvelope, RequestExecutionResult } from './interfaces/game-transport.interface'
+import type { IGameTransport } from './interfaces/game-transport.interface'
 import { Buffer } from 'node:buffer'
 import { EventEmitter } from 'node:events'
 import net from 'node:net'
@@ -217,22 +217,7 @@ class AccountTransport extends EventEmitter implements IGameTransport {
   }
 
   async invoke<T = unknown>(serviceName: string, methodName: string, params: Record<string, unknown>, timeout = 10000): Promise<{ data: T, meta?: any }> {
-    return this.invokeWithPolicy<T>({
-      service: serviceName,
-      method: methodName,
-      params,
-      invokeTimeoutMs: timeout
-    })
-  }
-
-  async invokeWithPolicy<T = unknown>(envelope: RequestEnvelope): Promise<RequestExecutionResult<T>> {
-    const res = await this.linkClient.invokeForAccount(
-      this.accountId,
-      envelope.service,
-      envelope.method,
-      envelope.params,
-      envelope.invokeTimeoutMs ?? 10000
-    )
+    const res = await this.linkClient.invokeForAccount(this.accountId, serviceName, methodName, params, timeout)
     return { data: (res.data ?? null) as T, meta: res.meta }
   }
 
