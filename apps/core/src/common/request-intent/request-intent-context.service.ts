@@ -1,4 +1,4 @@
-import type { RequestSource } from '../../transport/interfaces/game-transport.interface'
+import type { RequestSource } from '../../game/interfaces/game-transport.interface'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { Injectable } from '@nestjs/common'
 

@@ -3,9 +3,9 @@ import { Injectable } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { DeviceFingerprintService } from '../../device/device-fingerprint'
 import { GameConfigService } from '../../game/game-config.service'
+import { LinkClientService } from '../../game/link-client.service'
 import { AccountConfigService } from '../../store/account-config.service'
 import { GlobalConfigService } from '../../store/global-config.service'
-import { LinkClientService } from '../../transport/link-client.service'
 import { AccountRunner } from './account-runner'
 
 @Injectable()

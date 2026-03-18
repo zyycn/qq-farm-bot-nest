@@ -1,4 +1,4 @@
-import type { RequestSource } from '../../transport/interfaces/game-transport.interface'
+import type { RequestSource } from './game-transport.interface'
 import { mapIntentToRequestSource, RequestIntentContextService } from '../../common/request-intent/request-intent-context.service'
 
 export interface GameRequestContext {

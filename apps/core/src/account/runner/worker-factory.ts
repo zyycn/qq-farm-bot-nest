@@ -1,7 +1,7 @@
 import type { GameConfigService } from '../../game/game-config.service'
+import type { IGameTransport } from '../../game/interfaces/game-transport.interface'
 import type { GameLogEntry } from '../../game/types'
 import type { AccountConfigService } from '../../store/account-config.service'
-import type { IGameTransport } from '../../transport/interfaces/game-transport.interface'
 import { GameSession } from '../../game/session/game-session'
 import { AnalyticsWorker } from '../../game/workers/analytics.worker'
 import { DailyRewardsWorker } from '../../game/workers/daily-rewards.worker'

@@ -13,7 +13,6 @@ import { DeviceModule } from './device/device.module'
 import { GameModule } from './game/game.module'
 import { RealtimeModule } from './realtime/realtime.module'
 import { StoreModule } from './store/store.module'
-import { TransportModule } from './transport/transport.module'
 
 const webDist = resolveWebDist()
 const gameConfigDir = path.join(ASSETS_DIR, 'gameConfig')
@@ -54,7 +53,6 @@ const serveStaticModules = [
     ...serveStaticModules,
     DatabaseModule,
     StoreModule,
-    TransportModule,
     GameModule,
     DeviceModule,
     AccountModule,

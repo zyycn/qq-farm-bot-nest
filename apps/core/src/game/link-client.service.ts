@@ -1,7 +1,6 @@
 import type { UserState } from '@qq-farm/shared'
 import type { TcpEvent, TcpResponse } from '@qq-farm/shared/node'
-import type { IGameTransport } from './interfaces/game-transport.interface'
-import type { RequestEnvelope, RequestExecutionResult } from './interfaces/request-pacing.interface'
+import type { IGameTransport, RequestEnvelope, RequestExecutionResult } from './interfaces/game-transport.interface'
 import { Buffer } from 'node:buffer'
 import { EventEmitter } from 'node:events'
 import net from 'node:net'

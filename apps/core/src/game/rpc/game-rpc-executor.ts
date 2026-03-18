@@ -1,4 +1,4 @@
-import type { IGameTransport, RequestEnvelope, RequestExecutionResult, RequestSource } from '../../transport/interfaces/game-transport.interface'
+import type { IGameTransport, RequestEnvelope, RequestExecutionResult, RequestSource } from '../interfaces/game-transport.interface'
 import type { GameOperationKey, GameOperationSpec } from './operation-catalog'
 import { resolveRequestSource } from '../interfaces/request-context.interface'
 import { GAME_OPERATION_CATALOG } from './operation-catalog'

@@ -1,8 +1,8 @@
 import type { Logger } from '@nestjs/common'
 import type { GameLogService } from '../game/game-log.service'
+import type { LinkClientService } from '../game/link-client.service'
 import type { LinkEventName, LinkUserState } from '../game/types'
 import type { AccountRepository } from '../store/account-repository'
-import type { LinkClientService } from '../transport/link-client.service'
 import type { AccountRegistryService } from './account-registry.service'
 import type { AccountRunnerFactory } from './runner/account-runner.factory'
 
