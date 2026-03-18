@@ -1,134 +1,26 @@
 import type { ClientConfig } from '@qq-farm/shared/node'
+import type { AccountConfigSnapshot, AccountRunnerConfig, AccountRunnerDeps, AccountRunnerRuntimeStats, AccountRunnerStatusSnapshot, DailyRoutineRunOptions, FertilizerBuyConfig, StatusEventName } from './runner-types'
 import type { WorkerSet } from './worker-factory'
-import type { AccountStatusEventPayload } from '@/modules/account/domain/account.events'
-import type { AccountConfigService } from '@/modules/account/persistence/account-config.service'
-import type { DeviceFingerprintService, ResolvedDeviceConfig } from '@/modules/device/application/device-fingerprint.service'
-import type { GameConfigService } from '@/modules/game/application/game-config.service'
-import type { LinkClientService } from '@/modules/game/application/link-client.service'
-import type { AccountConfigSnapshot, FertilizerBuyConfig } from '@/modules/game/domain/constants'
-import type { ConnectionEventData, GameLogEntry, LinkEventMap, LinkEventName, LinkUserState, OperationsEventData, ProfileEventData, StatusEventData } from '@/modules/game/domain/types'
+import type { ResolvedDeviceConfig } from '@/modules/device/application/device-fingerprint.service'
+import type { LinkEventMap, LinkEventName, LinkUserState, StatusEventData } from '@/modules/game/domain/types'
 import type { IGameTransport } from '@/modules/game/interfaces/game-transport.interface'
-import type { GlobalConfigService } from '@/modules/settings/application/global-config.service'
 import { Logger } from '@nestjs/common'
-import { EventEmitter2 } from '@nestjs/event-emitter'
 import { Scheduler, syncServerTime } from '@qq-farm/shared'
 import {
   ACCOUNT_DATA_ALMANAC_EVENT,
   ACCOUNT_DATA_BAG_EVENT,
   ACCOUNT_DATA_DAILY_GIFTS_EVENT,
   ACCOUNT_DATA_FRIENDS_EVENT,
-  ACCOUNT_DATA_LANDS_EVENT,
-  ACCOUNT_KICKED_EVENT,
-  ACCOUNT_LOG_EVENT,
-  ACCOUNT_STATUS_EVENT,
-  ACCOUNT_WS_ERROR_EVENT
+  ACCOUNT_DATA_LANDS_EVENT
 } from '@/modules/account/domain/account.events'
 import { getDateKey } from '@/modules/game/domain/utils'
 import { RunnerDaily } from './runner-daily'
+import { RunnerEventBridge } from './runner-event-bridge'
 import { RunnerScheduler } from './runner-scheduler'
 import { createWorkers } from './worker-factory'
 
-// #region Types
-
-export interface AccountRunnerConfig {
-  code: string
-  platform: string
-  clientConfig?: ClientConfig
-  deviceResolution?: ResolvedDeviceConfig
-  scheduleOffsetMs?: number
-  startJitterMs?: number
-}
-
-export type StatusEventName = 'connection' | 'profile' | 'session' | 'operations' | 'schedule'
-
-export interface DailyRoutineRunOptions {
-  force?: boolean
-  suppressNoopLogs?: boolean
-}
-
-export interface AccountRunnerDeps {
-  linkClient: LinkClientService
-  gameConfig: GameConfigService
-  accountConfig: AccountConfigService
-  globalConfig: GlobalConfigService
-  eventEmitter: EventEmitter2
-  deviceFingerprint: DeviceFingerprintService
-}
-
-export interface AccountRunnerRuntimeStats {
-  connection: ConnectionEventData
-  status: ProfileEventData
-  operations: OperationsEventData
-  limits?: unknown
-  sessionExpGained: number
-  sessionGoldGained: number
-  sessionCouponGained: number
-  lastExpGain: number
-  lastGoldGain: number
-  uptime?: number
-}
-
-export interface AccountRunnerStatusSnapshot extends AccountRunnerRuntimeStats {
-  bootAt: number
-  levelProgress: unknown
-  configRevision: number
-  device: {
-    source: ResolvedDeviceConfig['source']
-    selectedKind: ResolvedDeviceConfig['selectedKind']
-    selectedProfileId: string | null
-    basePresetId: string | null
-    usedFallback: boolean
-    fallbackFields: string[]
-    client: {
-      platform?: string
-      os?: string
-      userAgent?: string
-      deviceId?: string
-      sysHardware?: string
-    }
-  } | null
-  nextChecks: {
-    nextFarmRunAt: number
-    nextFriendRunAt: number
-  }
-}
-
-export interface TaskDailyOverview {
-  key: string
-  doneToday: boolean
-  lastClaimAt: number
-  claimableCount: number
-  pendingCount: number
-  completedCount: number
-  totalCount: number
-}
-
-export interface GrowthTaskItemOverview {
-  id: number
-  desc: string
-  progress: number
-  totalProgress: number
-  isClaimed: boolean
-  isUnlocked: boolean
-  isCompleted: boolean
-}
-
-export interface GrowthTaskOverview {
-  key: string
-  doneToday: boolean
-  completedCount: number
-  totalCount: number
-  tasks: GrowthTaskItemOverview[]
-}
-
-export interface DailyRewardCheckState {
-  key: string
-  doneToday: boolean
-  lastCheckAt?: number
-  lastClaimAt?: number
-}
-
-// #endregion
+export type { AccountRunnerConfig, AccountRunnerDeps, AccountRunnerRuntimeStats, AccountRunnerStatusSnapshot, DailyRoutineRunOptions, StatusEventName }
+export type { DailyRewardCheckState, GrowthTaskItemOverview, GrowthTaskOverview, TaskDailyOverview } from './runner-types'
 
 function formatDeviceSourceLabel(source: ResolvedDeviceConfig['source']): string {
   switch (source) {
@@ -144,6 +36,7 @@ export class AccountRunner {
   readonly scheduler: Scheduler
   readonly scheduleController: RunnerScheduler
   readonly dailyController: RunnerDaily
+  private readonly events: RunnerEventBridge
 
   private transport: IGameTransport
   private linkEventHandlers: { [E in LinkEventName]?: (data: LinkEventMap[E]) => void } = {}
@@ -189,6 +82,7 @@ export class AccountRunner {
   ) {
     this.logger = new Logger(`Runner:${accountId}`)
     this.scheduler = new Scheduler(`runner-${accountId}`, this.logger)
+    this.events = new RunnerEventBridge(accountId, deps.eventEmitter)
     this.transport = this.deps.linkClient.createTransport(this.accountId, () => this.userState)
     this.scheduleController = new RunnerScheduler(this.scheduler, {
       runFarmTick: () => this.runFarmTick(),
@@ -537,7 +431,7 @@ export class AccountRunner {
 
       const overview = await this.buildDailyGiftOverview().catch(() => null)
       if (overview != null)
-        this.emitDataEvent(ACCOUNT_DATA_DAILY_GIFTS_EVENT, overview)
+        this.events.emitData(ACCOUNT_DATA_DAILY_GIFTS_EVENT, overview)
     } catch (error: any) {
       this.warn(`每日任务调度失败: ${error?.message || error}`, 'schedule_error')
     }
@@ -552,32 +446,17 @@ export class AccountRunner {
 
   // #endregion
 
-  // #region Event Emission
-
-  private emitKicked(reason: string) {
-    this.deps.eventEmitter.emit(ACCOUNT_KICKED_EVENT, {
-      accountId: this.accountId,
-      reason
-    })
-  }
-
-  private emitWsError(code: number, message: string) {
-    this.deps.eventEmitter.emit(ACCOUNT_WS_ERROR_EVENT, {
-      accountId: this.accountId,
-      code,
-      message
-    })
-  }
+  // #region Status Emission
 
   private emitConnection() {
-    this.emitStatusEvent('connection', {
+    this.events.emitStatus('connection', {
       connected: this.isConnected(),
       accountName: this.name
-    })
+    }, this.name)
   }
 
   private emitProfile() {
-    this.emitStatusEvent('profile', {
+    this.events.emitStatus('profile', {
       name: this.userState.name,
       level: this.userState.level || 0,
       gold: this.userState.gold || 0,
@@ -586,13 +465,13 @@ export class AccountRunner {
       platform: this.userState.platform || 'qq',
       avatarUrl: this.userState.avatarUrl || '',
       openId: this.userState.openId || ''
-    })
+    }, this.name)
   }
 
   private emitSession() {
     const stats = this.getSessionStats()
     const levelProgress = this.deps.gameConfig.getLevelExpProgress(stats.level || 0, stats.exp || 0)
-    this.emitStatusEvent('session', {
+    this.events.emitStatus('session', {
       bootAt: stats.bootAt,
       sessionExpGained: stats.sessionExpGained,
       sessionGoldGained: stats.sessionGoldGained,
@@ -600,20 +479,20 @@ export class AccountRunner {
       lastExpGain: stats.lastExpGain,
       lastGoldGain: stats.lastGoldGain,
       levelProgress
-    })
+    }, this.name)
   }
 
   private emitOperations() {
-    this.emitStatusEvent('operations', this.getSessionStats().operations as StatusEventData)
+    this.events.emitStatus('operations', this.getSessionStats().operations as StatusEventData, this.name)
   }
 
   private emitSchedule() {
     const remains = this.scheduleController.getScheduleRemains()
-    this.emitStatusEvent('schedule', {
+    this.events.emitStatus('schedule', {
       farmRemainSec: remains.farmRemainSec,
       friendRemainSec: remains.friendRemainSec,
       configRevision: this.appliedConfigRevision
-    })
+    }, this.name)
   }
 
   private emitStatusSnapshot() {
@@ -624,39 +503,14 @@ export class AccountRunner {
     this.emitSchedule()
   }
 
-  private emitDataEvent(event: string, data: unknown) {
-    this.deps.eventEmitter.emit(event, {
-      accountId: this.accountId,
-      data
-    })
-  }
-
-  private forwardLog(entry: GameLogEntry) {
-    this.deps.eventEmitter.emit(ACCOUNT_LOG_EVENT, {
-      accountId: this.accountId,
-      accountName: this.name,
-      entry
-    })
-  }
-
   log(msg: string, event?: string) {
     this.logger.log(msg)
-    this.forwardLog({ msg, tag: '系统', meta: { module: 'system', ...(event && { event }) }, isWarn: false })
+    this.events.emitLog(this.name, { msg, tag: '系统', meta: { module: 'system', ...(event && { event }) }, isWarn: false })
   }
 
   warn(msg: string, event?: string) {
     this.logger.warn(msg)
-    this.forwardLog({ msg, tag: '系统', meta: { module: 'system', ...(event && { event }) }, isWarn: true })
-  }
-
-  private emitStatusEvent(event: StatusEventName, data: StatusEventData) {
-    const payload: AccountStatusEventPayload = {
-      accountId: this.accountId,
-      event,
-      data,
-      accountName: this.name
-    }
-    this.deps.eventEmitter.emit(ACCOUNT_STATUS_EVENT, payload)
+    this.events.emitLog(this.name, { msg, tag: '系统', meta: { module: 'system', ...(event && { event }) }, isWarn: true })
   }
 
   // #endregion
@@ -668,10 +522,10 @@ export class AccountRunner {
       kicked: (data) => {
         const reason = data.reason || '未知'
         this.warn(`被踢下线: ${reason}`, 'kickout')
-        this.emitKicked(reason)
+        this.events.emitKicked(reason)
       },
       ws_error: (data) => {
-        this.emitWsError(data.code, data.message || '')
+        this.events.emitWsError(data.code, data.message || '')
       },
       reconnecting: data => this.log(`WS 断开，正在重连 (${data.attempt}/${data.maxAttempts})...`, 'reconnecting'),
       disconnected: () => {
@@ -812,7 +666,7 @@ export class AccountRunner {
 
   // #endregion
 
-  // #region Operations (internal)
+  // #region Internal
 
   private async buildDailyGiftOverview() {
     const auto = this.deps.accountConfig.getAutomation(this.accountId)
@@ -844,7 +698,7 @@ export class AccountRunner {
     try {
       const friends = await this.friend.getFriendsList()
       if (friends != null)
-        this.emitDataEvent(ACCOUNT_DATA_FRIENDS_EVENT, friends)
+        this.events.emitData(ACCOUNT_DATA_FRIENDS_EVENT, friends)
     } catch {}
   }
 
@@ -852,17 +706,13 @@ export class AccountRunner {
     try {
       const overview = await this.illustrated.getOverview(refresh)
       if (overview != null)
-        this.emitDataEvent(ACCOUNT_DATA_ALMANAC_EVENT, overview)
+        this.events.emitData(ACCOUNT_DATA_ALMANAC_EVENT, overview)
     } catch {}
   }
 
   private async afterOperation() {
     this.refreshIdleDisconnectTimer()
   }
-
-  // #endregion
-
-  // #region Workers (internal)
 
   private initializeWorkers(platform: string) {
     const workers = createWorkers({
@@ -871,9 +721,9 @@ export class AccountRunner {
       gameConfig: this.deps.gameConfig,
       accountConfig: this.deps.accountConfig,
       platform,
-      onLog: entry => this.forwardLog(entry),
-      onLandsUpdate: data => this.emitDataEvent(ACCOUNT_DATA_LANDS_EVENT, data),
-      onBagUpdate: data => this.emitDataEvent(ACCOUNT_DATA_BAG_EVENT, data),
+      onLog: entry => this.events.emitLog(this.name, entry),
+      onLandsUpdate: data => this.events.emitData(ACCOUNT_DATA_LANDS_EVENT, data),
+      onBagUpdate: data => this.events.emitData(ACCOUNT_DATA_BAG_EVENT, data),
       getSellAllFruits: () => this.session.sellAllFruits(),
       getRawBagItems: () => this.session.getRawBagItems()
     })
@@ -886,10 +736,6 @@ export class AccountRunner {
     this.dailyRewards = workers.dailyRewards
     this.invite = workers.invite
   }
-
-  // #endregion
-
-  // #region Helpers (internal)
 
   private refreshIdleDisconnectTimer() {
     this.scheduler.clear('idle_disconnect')
