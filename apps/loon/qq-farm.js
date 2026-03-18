@@ -59,8 +59,7 @@ const DONE_RESP = {
     status: 200,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "no-cache",
-      "Server": "nginx"
+      "Cache-Control": "no-cache"
     },
     body: ""
   }
