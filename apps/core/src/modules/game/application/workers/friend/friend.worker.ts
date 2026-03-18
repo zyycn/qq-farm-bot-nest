@@ -133,47 +133,83 @@ export class FriendWorker {
 
   // ========== Operation Limits (public for handlers) ==========
 
-  get canGetHelpExpFlag(): boolean { return this.operationLimitsHandler.canGetHelpExpFlag }
+  get canGetHelpExpFlag(): boolean {
+    return this.operationLimitsHandler.canGetHelpExpFlag
+  }
 
-  updateOperationLimits(limits: any[]) { this.operationLimitsHandler.update(limits) }
+  updateOperationLimits(limits: any[]) {
+    this.operationLimitsHandler.update(limits)
+  }
 
-  private checkDailyReset() { this.operationLimitsHandler.checkDailyReset() }
+  private checkDailyReset() {
+    this.operationLimitsHandler.checkDailyReset()
+  }
 
-  canGetExpByCandidates(opIds: number[]): boolean { return this.operationLimitsHandler.canGetExpByCandidates(opIds) }
+  canGetExpByCandidates(opIds: number[]): boolean {
+    return this.operationLimitsHandler.canGetExpByCandidates(opIds)
+  }
 
-  canOperate(opId: number): boolean { return this.operationLimitsHandler.canOperate(opId) }
+  canOperate(opId: number): boolean {
+    return this.operationLimitsHandler.canOperate(opId)
+  }
 
-  getRemainingTimes(opId: number): number { return this.operationLimitsHandler.getRemainingTimes(opId) }
+  getRemainingTimes(opId: number): number {
+    return this.operationLimitsHandler.getRemainingTimes(opId)
+  }
 
-  getOperationLimits(): Record<number, any> { return this.operationLimitsHandler.getOperationLimits(OP_TYPE_NAMES) }
+  getOperationLimits(): Record<number, any> {
+    return this.operationLimitsHandler.getOperationLimits(OP_TYPE_NAMES)
+  }
 
-  autoDisableHelpByExpLimit() { this.operationLimitsHandler.autoDisableHelpByExpLimit() }
+  autoDisableHelpByExpLimit() {
+    this.operationLimitsHandler.autoDisableHelpByExpLimit()
+  }
 
   // ========== API ==========
 
-  async getAllFriends(): Promise<any> { return this.serviceClient.getAllFriends() }
+  async getAllFriends(): Promise<any> {
+    return this.serviceClient.getAllFriends()
+  }
 
-  async getApplications(): Promise<any> { return this.serviceClient.getApplications() }
+  async getApplications(): Promise<any> {
+    return this.serviceClient.getApplications()
+  }
 
-  async acceptFriends(gids: number[]): Promise<any> { return this.serviceClient.acceptFriends(gids) }
+  async acceptFriends(gids: number[]): Promise<any> {
+    return this.serviceClient.acceptFriends(gids)
+  }
 
-  async enterFriendFarm(friendGid: number): Promise<any> { return this.serviceClient.enterFriendFarm(friendGid) }
+  async enterFriendFarm(friendGid: number): Promise<any> {
+    return this.serviceClient.enterFriendFarm(friendGid)
+  }
 
-  async leaveFriendFarm(friendGid: number) { await this.serviceClient.leaveFriendFarm(friendGid) }
+  async leaveFriendFarm(friendGid: number) {
+    await this.serviceClient.leaveFriendFarm(friendGid)
+  }
 
-  async checkCanOperateRemote(friendGid: number, operationId: number) { return this.serviceClient.checkCanOperateRemote(friendGid, operationId) }
+  async checkCanOperateRemote(friendGid: number, operationId: number) {
+    return this.serviceClient.checkCanOperateRemote(friendGid, operationId)
+  }
 
   // ========== Land Analysis ==========
 
-  analyzeFriendLands(lands: any[], myGid: number): FriendLandAnalysis { return this.landAnalyzer.analyzeFriendLands(lands, myGid) }
+  analyzeFriendLands(lands: any[], myGid: number): FriendLandAnalysis {
+    return this.landAnalyzer.analyzeFriendLands(lands, myGid)
+  }
 
   // ========== Public API ==========
 
-  async getFriendsList() { return this.publicApi.getFriendsList() }
+  async getFriendsList() {
+    return this.publicApi.getFriendsList()
+  }
 
-  async getInteractRecords() { return await this.interactHandler.getInteractRecords() }
+  async getInteractRecords() {
+    return await this.interactHandler.getInteractRecords()
+  }
 
-  async getFriendLandsDetail(friendGid: number) { return this.publicApi.getFriendLandsDetail(friendGid) }
+  async getFriendLandsDetail(friendGid: number) {
+    return this.publicApi.getFriendLandsDetail(friendGid)
+  }
 
   // ========== Manual Operation ==========
 
@@ -188,7 +224,9 @@ export class FriendWorker {
 
   private friendOpHandlers: Record<string, (status: FriendLandAnalysis, gid: number) => Promise<{ ok: boolean, opType: string, count?: number, message: string, bugCount?: number, weedCount?: number }>>
 
-  async doFriendOperation(friendGid: number, opType: string) { return this.publicApi.doFriendOperation(friendGid, opType) }
+  async doFriendOperation(friendGid: number, opType: string) {
+    return this.publicApi.doFriendOperation(friendGid, opType)
+  }
 
   // ========== Friend Loop ==========
 
@@ -210,13 +248,21 @@ export class FriendWorker {
     }
   }
 
-  startFriendLoop(options: { externalScheduler?: boolean } = {}) { this.loopHandler.start(options) }
+  startFriendLoop(options: { externalScheduler?: boolean } = {}) {
+    this.loopHandler.start(options)
+  }
 
-  stopFriendLoop() { this.loopHandler.stop() }
+  stopFriendLoop() {
+    this.loopHandler.stop()
+  }
 
-  refreshFriendLoop(delayMs = 200) { this.loopHandler.refresh(delayMs) }
+  refreshFriendLoop(delayMs = 200) {
+    this.loopHandler.refresh(delayMs)
+  }
 
-  private async friendCheckLoop() { await this.loopHandler.friendCheckLoop() }
+  private async friendCheckLoop() {
+    await this.loopHandler.friendCheckLoop()
+  }
 
   // ========== Friend Applications ==========
 
@@ -224,7 +270,11 @@ export class FriendWorker {
     this.applicationsHandler.handleApplicationReceived(applications)
   }
 
-  async checkAndAcceptApplications() { await this.applicationsHandler.checkAndAcceptApplications() }
+  async checkAndAcceptApplications() {
+    await this.applicationsHandler.checkAndAcceptApplications()
+  }
 
-  destroy() { this.stopFriendLoop() }
+  destroy() {
+    this.stopFriendLoop()
+  }
 }
