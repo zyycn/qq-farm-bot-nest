@@ -20,6 +20,8 @@ import { AlmanacHandler } from './ws/state/almanac.ws-handler'
 import { AnalyticsHandler } from './ws/state/analytics.ws-handler'
 import { LogsHandler } from './ws/state/logs.ws-handler'
 import { StrategyHandler } from './ws/state/strategy.ws-handler'
+import { AccountTopicsService } from './ws/subscriptions/account-topics.service'
+import { TopicsHandler } from './ws/subscriptions/topics.ws-handler'
 
 @Module({
   imports: [AccountDataModule, SettingsModule, DeviceModule, GameModule, WsModule],
@@ -39,7 +41,9 @@ import { StrategyHandler } from './ws/state/strategy.ws-handler'
     LogsHandler,
     ShopHandler,
     StrategyHandler,
-    WarehouseHandler
+    WarehouseHandler,
+    AccountTopicsService,
+    TopicsHandler
   ],
   exports: [AccountRegistryService, AccountRunnerFactory, AccountLifecycleService, AccountStatusService, AccountService]
 })

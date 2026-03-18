@@ -1,10 +1,10 @@
-import type { SocketWithMeta } from './ws-router.service'
+import type { SocketWithMeta } from '@/infrastructure/ws/ws-router.service'
 import { Injectable, Logger } from '@nestjs/common'
 import { createEvent } from '@qq-farm/shared'
+import { WsPushService } from '@/infrastructure/ws/ws-push.service'
 import { AccountLifecycleService } from '@/modules/account/application/account-lifecycle.service'
 import { AccountRegistryService } from '@/modules/account/application/account-registry.service'
 import { AccountStatusService } from '@/modules/account/application/account-status.service'
-import { WsPushService } from './ws-push.service'
 
 interface EventConfig {
   provider: (accountId: string) => unknown | Promise<unknown>
@@ -12,8 +12,8 @@ interface EventConfig {
 }
 
 @Injectable()
-export class WsTopicsService {
-  private readonly logger = new Logger(WsTopicsService.name)
+export class AccountTopicsService {
+  private readonly logger = new Logger(AccountTopicsService.name)
   private readonly eventConfigs: Record<string, EventConfig>
   private readonly broadcastOnlyEvents: Set<string>
 

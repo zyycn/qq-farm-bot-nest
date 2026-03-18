@@ -34,11 +34,9 @@ interface RouteHandlerDef {
 @Injectable()
 export class WsRouterService {
   private handlers = new Map<string, RouteHandlerDef>()
+  private readonly scanner = new MetadataScanner()
 
-  constructor(
-    private readonly scanner: MetadataScanner,
-    private readonly reflector: Reflector
-  ) {}
+  constructor(private readonly reflector: Reflector) {}
 
   registerHandlers(instances: object[]): void {
     for (const instance of instances)

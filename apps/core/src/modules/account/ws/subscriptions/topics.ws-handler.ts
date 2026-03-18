@@ -1,13 +1,13 @@
-import type { SocketWithMeta } from '../ws-router.service'
+import type { SocketWithMeta } from '@/infrastructure/ws/ws-router.service'
 import { Injectable } from '@nestjs/common'
-import { WsBody } from '../decorators/ws-body.decorator'
-import { WsFireAndForget, WsRoute } from '../decorators/ws-route.decorator'
-import { WsTopicsService } from '../ws-topics.service'
+import { WsBody } from '@/infrastructure/ws/decorators/ws-body.decorator'
+import { WsFireAndForget, WsRoute } from '@/infrastructure/ws/decorators/ws-route.decorator'
+import { AccountTopicsService } from './account-topics.service'
 
 @Injectable()
 export class TopicsHandler {
   constructor(
-    private readonly topicsService: WsTopicsService
+    private readonly topicsService: AccountTopicsService
   ) {}
 
   @WsRoute('topics.sub')

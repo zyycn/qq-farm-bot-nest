@@ -10,6 +10,7 @@ import { AlmanacHandler } from './state/almanac.ws-handler'
 import { AnalyticsHandler } from './state/analytics.ws-handler'
 import { LogsHandler } from './state/logs.ws-handler'
 import { StrategyHandler } from './state/strategy.ws-handler'
+import { TopicsHandler } from './subscriptions/topics.ws-handler'
 
 @Injectable()
 export class AccountWsRegistrar implements OnModuleInit {
@@ -23,7 +24,8 @@ export class AccountWsRegistrar implements OnModuleInit {
     private readonly logsHandler: LogsHandler,
     private readonly shopHandler: ShopHandler,
     private readonly strategyHandler: StrategyHandler,
-    private readonly warehouseHandler: WarehouseHandler
+    private readonly warehouseHandler: WarehouseHandler,
+    private readonly topicsHandler: TopicsHandler
   ) {}
 
   onModuleInit(): void {
@@ -36,7 +38,8 @@ export class AccountWsRegistrar implements OnModuleInit {
       this.logsHandler,
       this.shopHandler,
       this.strategyHandler,
-      this.warehouseHandler
+      this.warehouseHandler,
+      this.topicsHandler
     ])
   }
 }
